@@ -21,7 +21,6 @@ class NtkOperation: NSObject {
         }
     }
 
-
     private var client: iNtkClient
     
     var validation: iNtkResponseValidation?
@@ -50,17 +49,23 @@ class NtkOperation: NSObject {
 //    }
     
     func run<ResponseData: Codable>() async throws -> NtkResponse<ResponseData> {
+        assert(validation != nil, "")
+        let context = NtkRequestContext(validation: validation!)
         var currentRequest = client.request!
         do {
             for interceptor in interceptors {
-                currentRequest = try await interceptor.intercept(request: currentRequest, context: nil)
+                currentRequest = try await interceptor.intercept(request: currentRequest, context: context)
             }
             client.addRequest(currentRequest)
-            var response: NtkResponse<ResponseData?> = try await client.execute()
-            for interceptor in interceptors.reversed() {
-                response = try await interceptor.intercept(response: response, context: nil)
-            }
+            let response: NtkResponse<ResponseData?> = try await client.execute()
             let responseData = try responseHandle(response)
+            var interceptorResponse: any iNtkResponse = responseData
+            for interceptor in interceptors.reversed() {
+                interceptorResponse = try await interceptor.intercept(response: interceptorResponse, context: context)
+            }
+            if let handledResponseData = interceptorResponse as? NtkResponse<ResponseData> {
+                return handledResponseData
+            }
             return responseData
         }catch let error as NtkError {
             throw error

@@ -29,7 +29,7 @@ protocol iNtkInterceptor {
     ///   - context: 包含额外信息的上下文对象 (例如：原始的请求模型、请求ID)。可选。
     /// - Returns: 经过拦截器处理后的 `URLRequest`。
     /// - Throws: 如果拦截器决定中断请求链，可以抛出错误。
-    func intercept(request: iNtkRequest, context: NtkRequestContext?) async throws -> iNtkRequest
+    func intercept(request: iNtkRequest, context: NtkRequestContext) async throws -> iNtkRequest
 
         /// **响应拦截方法**
         /// 在网络响应接收到并初步处理（例如 HTTP 状态码检查）之后，数据解码之前调用。
@@ -38,7 +38,7 @@ protocol iNtkInterceptor {
         ///   - context: 包含额外信息的上下文对象 (例如：原始的请求模型、请求ID)。可选。
         /// - Returns: 经过拦截器处理后的 `(URLResponse?, Data?)` 元组。
         /// - Throws: 如果拦截器决定中断响应链或需要重试，可以抛出错误。
-    func intercept<ResponseData: Codable>(response: NtkResponse<ResponseData>, context: NtkRequestContext?) async throws -> NtkResponse<ResponseData>
+    func intercept(response: any iNtkResponse, context: NtkRequestContext) async throws -> any iNtkResponse
 
         // 如果你需要更复杂的重试机制，可能需要一个单独的重试方法
         /// **（可选）错误重试判断方法**
@@ -56,11 +56,11 @@ extension iNtkInterceptor {
     var priority: Int {
         .medium
     }
-    func intercept(request: iNtkRequest, context: NtkRequestContext?) async throws -> iNtkRequest {
+    func intercept(request: iNtkRequest, context: NtkRequestContext) async throws -> iNtkRequest {
         request
     }
 
-    func intercept<ResponseData: Codable>(response: NtkResponse<ResponseData>?, data: Any?, context: NtkRequestContext?) async throws -> (NtkResponse<ResponseData>?, Any?) {
+    func intercept<ResponseData: Codable>(response: NtkResponse<ResponseData>?, data: Any?, context: NtkRequestContext) async throws -> (NtkResponse<ResponseData>?, Any?) {
         (response, data)
     }
 

@@ -8,6 +8,11 @@
 import Foundation
 
 class NtkRequestContext {
+    let validation: iNtkResponseValidation
     
+    var extraData: [String: Any] = [:]
     
+    init(validation: iNtkResponseValidation) {
+        self.validation = validation
+    }
 }
