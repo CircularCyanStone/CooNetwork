@@ -8,6 +8,11 @@
 import Foundation
 
 class NtkValidationInterceptor: iNtkInterceptor {
+    
+    var priority: NtkInterceptorPriority {
+        .priority(.high)
+    }
+    
     func intercept(response: any iNtkResponse, context: NtkRequestContext) async throws -> any iNtkResponse {
         let serviceOK = context.validation.isServiceSuccess(response)
         if serviceOK {

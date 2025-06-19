@@ -18,12 +18,41 @@ extension Int {
     static let high: Int = .high
 }
 
+class NtkInterceptorPriority: Comparable {
+    private(set) var value: Int = .medium
+    
+    required
+    init() {
+        
+    }
+    
+    class func priority(_ value: Int) -> Self {
+        var pValue: Int = value
+        if pValue > .high {
+            pValue = .high
+        }
+        let p = self.init()
+        p.value = pValue
+        return p
+    }
+    
+    // 实现 Comparable 协议
+    static func < (lhs: NtkInterceptorPriority, rhs: NtkInterceptorPriority) -> Bool {
+        return lhs.value < rhs.value
+    }
+
+    static func == (lhs: NtkInterceptorPriority, rhs: NtkInterceptorPriority) -> Bool {
+        return lhs.value == rhs.value
+    }
+}
+
+
 protocol iNtkInterceptor {
     
     /// 拦截器优先级，默认iNtkInterceptorPriority.medium
     /// - note:对于请求流：值越大执行越早。
     ///        对于响应流：值越小执行越早
-    var priority: Int { get }
+    var priority: NtkInterceptorPriority { get }
     
     /// 在请求实际发送到网络之前调用。
     /// - Parameters:
@@ -55,8 +84,8 @@ protocol iNtkInterceptor {
 
 // 为协议方法提供默认实现，以便具体拦截器可以只实现它们关心的部分
 extension iNtkInterceptor {
-    var priority: Int {
-        .medium
+    var priority: NtkInterceptorPriority {
+        .priority(.medium)
     }
     func intercept(request: iNtkRequest, context: NtkRequestContext) async throws -> iNtkRequest {
         request
