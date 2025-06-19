@@ -40,11 +40,13 @@ struct NtkCodingKeys: CodingKey {
     }
 }
 
-class NtkResponseModel<ResponseData: Codable, Keys: NtkResponseMapKeys>: NSObject, Decodable {
+class NtkResponseDecoder<ResponseData: Codable, Keys: NtkResponseMapKeys>: NSObject, Decodable {
     
     let code: NtkReturnCode
     
-    let data: ResponseData
+    /// 这里设置为可选是避免后端数据 不存在/类型不匹配/Null 时，导致崩溃
+    /// 后续交由开发者手动处理data = nil的情况
+    let data: ResponseData?
     
     let msg: String
     
@@ -56,7 +58,7 @@ class NtkResponseModel<ResponseData: Codable, Keys: NtkResponseMapKeys>: NSObjec
         self.code = try container.decode(NtkReturnCode.self, forKey: codeKey)
         
         let dataKey = NtkCodingKeys(stringValue: Keys.data)!
-        self.data = try container.decode(ResponseData.self, forKey: dataKey)
+        self.data = try container.decodeIfPresent(ResponseData.self, forKey: dataKey)
         
         let msgKey = NtkCodingKeys(stringValue: Keys.msg)!
         self.msg = try container.decode(String.self, forKey: msgKey)
@@ -65,7 +67,8 @@ class NtkResponseModel<ResponseData: Codable, Keys: NtkResponseMapKeys>: NSObjec
 }
 
 
-/// 该类型用于在协议中移除Keys范型
+/// 该类型用于在抽象协议中使用
+/// 同时也是为了避免NtkResponseModel中范型Keys在抽象协议中被要求
 final class NtkResponse<ResponseData: Codable>: iNtkResponse {
     
     let code: NtkReturnCode

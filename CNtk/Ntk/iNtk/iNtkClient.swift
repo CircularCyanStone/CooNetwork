@@ -16,9 +16,9 @@ protocol iNtkClient {
     
     func addRequest(_ req: iNtkRequest)
     
-    func execute<ResponseData: Codable>(_ completion: @escaping (_ response: NtkResponse<ResponseData>) -> Void, failure: (_ error: NtkError) -> Void)
+//    func execute<ResponseData: Codable>(_ completion: @escaping (_ response: NtkResponse<ResponseData>) -> Void, failure: (_ error: NtkError) -> Void)
     
-    func execute<ResponseData: Codable>() async throws -> NtkResponse<ResponseData?>
+    func execute<ResponseData: Codable>() async throws -> NtkResponse<ResponseData>
     
     func cancel()
 }

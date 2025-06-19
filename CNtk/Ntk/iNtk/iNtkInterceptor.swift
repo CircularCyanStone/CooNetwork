@@ -21,6 +21,8 @@ extension Int {
 protocol iNtkInterceptor {
     
     /// 拦截器优先级，默认iNtkInterceptorPriority.medium
+    /// - note:对于请求流：值越大执行越早。
+    ///        对于响应流：值越小执行越早
     var priority: Int { get }
     
     /// 在请求实际发送到网络之前调用。
@@ -34,9 +36,9 @@ protocol iNtkInterceptor {
         /// **响应拦截方法**
         /// 在网络响应接收到并初步处理（例如 HTTP 状态码检查）之后，数据解码之前调用。
         /// - Parameters:
-        ///   - response: 原始的 `URLResponse` (或你自己的 `NetworkResponse` 结构体)。
+        ///   - response: iNtkResponse，响应类型。针对具体接口处理业务逻辑，可以强制类型转换
         ///   - context: 包含额外信息的上下文对象 (例如：原始的请求模型、请求ID)。可选。
-        /// - Returns: 经过拦截器处理后的 `(URLResponse?, Data?)` 元组。
+        /// - Returns: 经过拦截器处理后的 `iNtkResponse` 。
         /// - Throws: 如果拦截器决定中断响应链或需要重试，可以抛出错误。
     func intercept(response: any iNtkResponse, context: NtkRequestContext) async throws -> any iNtkResponse
 

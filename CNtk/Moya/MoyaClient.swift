@@ -45,30 +45,30 @@ class MoyaClient<R: TargetType, Keys: NtkResponseMapKeys>: NSObject, iNtkClient 
         cancelToken = nil
     }
     
-    func execute<ResponseData>(_ completion: @escaping (NtkResponse<ResponseData>) -> Void, failure: (NtkError) -> Void) where ResponseData : Decodable, ResponseData : Encodable {
-        guard let moyaRequest else {
-            return
-        }
-        cancelToken = provider.request(moyaRequest) { result in
-            switch result {
-            case .success(let response):
-                do {
-                    let okResponse = try response.filter(statusCode: 200)
-                    let responseModel = try okResponse.map(NtkResponseModel<ResponseData, Keys>.self)
-                    let ntkResponse = NtkResponse(code: responseModel.code, data: responseModel.data, msg: responseModel.msg, response: okResponse, request: self.request!)
-                    completion(ntkResponse)
-                } catch {
-//                    failure(error)
-                }
-            case .failure(let moyaError):
-//                failure(error)
-                print("===")
-            }
-        }
-    }
+//    func execute<ResponseData>(_ completion: @escaping (NtkResponse<ResponseData>) -> Void, failure: (NtkError) -> Void) where ResponseData : Decodable, ResponseData : Encodable {
+//        guard let moyaRequest else {
+//            return
+//        }
+//        cancelToken = provider.request(moyaRequest) { result in
+//            switch result {
+//            case .success(let response):
+//                do {
+//                    let okResponse = try response.filter(statusCode: 200)
+//                    let responseModel = try okResponse.map(NtkResponseModel<ResponseData, Keys>.self)
+//                    let ntkResponse = NtkResponse(code: responseModel.code, data: responseModel.data, msg: responseModel.msg, response: okResponse, request: self.request!)
+//                    completion(ntkResponse)
+//                } catch {
+////                    failure(error)
+//                }
+//            case .failure(let moyaError):
+////                failure(error)
+//                print("===")
+//            }
+//        }
+//    }
     
     
-    func execute<ResponseData>() async throws -> NtkResponse<ResponseData?> where ResponseData : Decodable, ResponseData : Encodable {
+    func execute<ResponseData>() async throws -> NtkResponse<ResponseData> where ResponseData : Decodable, ResponseData : Encodable {
         assert(moyaRequest != nil, "request is nil or not implement TargetType protocol")
         do {
             let response = try await withCheckedThrowingContinuation { continuatuon in
@@ -77,9 +77,19 @@ class MoyaClient<R: TargetType, Keys: NtkResponseMapKeys>: NSObject, iNtkClient 
                     case .success(let response):
                         do {
                             let okResponse = try response.filter(statusCode: 200)
-                            let responseModel = try okResponse.map(NtkResponseModel<ResponseData?, Keys>.self)
-                            let ntkResponse = NtkResponse(code: responseModel.code, data: responseModel.data, msg: responseModel.msg, response: okResponse, request: self.request!)
-                            continuatuon.resume(returning: ntkResponse)
+                            let responseData = try okResponse.map(NtkResponseDecoder<ResponseData, Keys>.self)
+                            if let returnData = responseData.data {
+                                let fixResponse = NtkResponse(code: responseData.code, data: returnData, msg: responseData.msg, response: okResponse, request: self.request!)
+                                continuatuon.resume(returning: fixResponse)
+                            }else if ResponseData.self is NtkNever.Type {
+                                // 用户期待的数据类型就是Never，啥都没有
+                                let fixResponse = NtkResponse(code: responseData.code, data: NtkNever() as! ResponseData, msg: responseData.msg, response: response, request: self.request!)
+                                continuatuon.resume(returning: fixResponse)
+                            }else {
+                                // 后端code验证成功，但是没有得到匹配的数据类型
+                                throw NtkError.retDataError
+                            }
+                            
                         } catch {
                             continuatuon.resume(throwing: error)
                         }
