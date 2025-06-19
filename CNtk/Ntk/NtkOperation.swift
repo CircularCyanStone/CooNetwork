@@ -9,37 +9,83 @@ import UIKit
 
 @objcMembers
 class NtkOperation: NSObject {
+    
+    // 存储所有注册的拦截器
+    private var _interceptors: [iNtkInterceptor] = [] // 内部存储，未排序
+    private(set) var interceptors: [iNtkInterceptor] { // 公开属性，返回已排序的拦截器
+        get {
+            return _interceptors.sorted { $0.priority > $1.priority }
+        }
+        set {
+            _interceptors = newValue
+        }
+    }
+
 
     private var client: iNtkClient
     
-    private var validation: iNtkResponseValidation
+    var validation: iNtkResponseValidation?
     
     required
-    init(_ client: iNtkClient, validation: iNtkResponseValidation) {
+    init(_ client: iNtkClient) {
         self.client = client
-        self.validation = validation
         super.init()
     }
     
     
-    func run<ResponseData: Codable>(_ completion: @escaping (_ response: ResponseData) -> Void, failure: @escaping (_ error: iNtkError) -> Void) {
-        client.execute { response in
-            self.responseHandle(response, completion: completion)
-        } failure: { error in
-            self.responseError(failure: failure)
+//    func run<ResponseData: Codable>(_ completion: @escaping (_ response: ResponseData) -> Void, failure: @escaping (_ error: NtkError) -> Void) {
+//        assert(client.request != nil, "request nil should call the func with(_ request: iNtkRequest) -> Self method first")
+//        
+//        client.execute { response in
+//            do {
+//                let responseData: ResponseData = try self.responseHandle(response)
+//                completion(responseData)
+//            }catch {
+//                failure(error as! NtkError)
+//            }
+//            
+//        } failure: { error in
+//            failure(error)
+//        }
+//    }
+    
+    func run<ResponseData: Codable>() async throws -> NtkResponse<ResponseData> {
+        var currentRequest = client.request!
+        do {
+            for interceptor in interceptors {
+                currentRequest = try await interceptor.intercept(request: currentRequest, context: nil)
+            }
+            client.addRequest(currentRequest)
+            var response: NtkResponse<ResponseData?> = try await client.execute()
+            for interceptor in interceptors.reversed() {
+                response = try await interceptor.intercept(response: response, context: nil)
+            }
+            let responseData = try responseHandle(response)
+            return responseData
+        }catch let error as NtkError {
+            throw error
+        }catch {
+            throw error
         }
     }
     
-    
-    
-    private func responseHandle<ResponseData: Codable>(_ response: NtkResponse<ResponseData>, completion: (_ response: ResponseData) -> Void) {
-        
-        
-        
-        
-    }
-    
-    private func responseError(failure: (_ error: iNtkError) -> Void) {
-        
+    private func responseHandle<ResponseData: Codable>(_ response: NtkResponse<ResponseData?>) throws -> NtkResponse<ResponseData> {
+        let serviceOK = validation!.isServiceSuccess(response)
+        if serviceOK {
+            /// 服务端校验通过
+            if let responseData = response.data {
+                let fixResponse = NtkResponse(code: response.code, data: responseData, msg: response.msg, response: response.response, request: response.request)
+                return fixResponse
+            }else if ResponseData.self is NtkNever.Type {
+                // 用户期待的数据类型就是Never，啥都没有
+                let fixResponse = NtkResponse(code: response.code, data: NtkNever() as! ResponseData, msg: response.msg, response: response.response, request: response.request)
+                return fixResponse
+            }else {
+                // 后端code验证成功，但是没有得到匹配的数据类型
+                throw NtkError.retDataError
+            }
+        }else {
+            throw NtkError.validation(response.request, response)
+        }
     }
 }

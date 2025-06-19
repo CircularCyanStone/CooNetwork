@@ -7,7 +7,7 @@
 
 import UIKit
 
-class NtkReturnCode: NSObject, Codable {
+final class NtkReturnCode: NSObject, Codable {
     
     private enum `Type`: Int {
         case string

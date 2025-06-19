@@ -45,7 +45,7 @@ class MoyaClient<R: TargetType, Keys: NtkResponseMapKeys>: NSObject, iNtkClient 
         cancelToken = nil
     }
     
-    func execute<ResponseData>(_ completion: @escaping (NtkResponse<ResponseData>) -> Void, failure: (any iNtkError) -> Void) where ResponseData : Decodable, ResponseData : Encodable {
+    func execute<ResponseData>(_ completion: @escaping (NtkResponse<ResponseData>) -> Void, failure: (NtkError) -> Void) where ResponseData : Decodable, ResponseData : Encodable {
         guard let moyaRequest else {
             return
         }
@@ -67,8 +67,37 @@ class MoyaClient<R: TargetType, Keys: NtkResponseMapKeys>: NSObject, iNtkClient 
         }
     }
     
-    func execute() async throws {
-        
+    
+    func execute<ResponseData>() async throws -> NtkResponse<ResponseData?> where ResponseData : Decodable, ResponseData : Encodable {
+        assert(moyaRequest != nil, "request is nil or not implement TargetType protocol")
+        do {
+            let response = try await withCheckedThrowingContinuation { continuatuon in
+                self.cancelToken = provider.request(moyaRequest!) { result in
+                    switch result {
+                    case .success(let response):
+                        do {
+                            let okResponse = try response.filter(statusCode: 200)
+                            let responseModel = try okResponse.map(NtkResponseModel<ResponseData?, Keys>.self)
+                            let ntkResponse = NtkResponse(code: responseModel.code, data: responseModel.data, msg: responseModel.msg, response: okResponse, request: self.request!)
+                            continuatuon.resume(returning: ntkResponse)
+                        } catch {
+                            continuatuon.resume(throwing: error)
+                        }
+                    case .failure(let moyaError):
+                        continuatuon.resume(throwing: moyaError)
+                    }
+                }
+            }
+            return response
+        } catch let error as MoyaError {
+            if case .jsonMapping(let response) = error {
+                throw NtkError.jsonInvalid(request!, response)
+            }
+            if case let .objectMapping(error, response) = error {
+                throw NtkError.decodeInvalid(error, request!, response)
+            }
+            throw NtkError.other(error)
+        }
     }
 }
 

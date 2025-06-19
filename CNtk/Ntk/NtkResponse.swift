@@ -66,7 +66,7 @@ class NtkResponseModel<ResponseData: Codable, Keys: NtkResponseMapKeys>: NSObjec
 
 
 /// 该类型用于在协议中移除Keys范型
-class NtkResponse<ResponseData: Codable>: NSObject {
+final class NtkResponse<ResponseData: Codable>: NSObject {
     
     let code: NtkReturnCode
     
