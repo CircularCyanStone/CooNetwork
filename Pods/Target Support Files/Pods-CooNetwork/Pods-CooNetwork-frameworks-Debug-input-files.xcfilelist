@@ -1,0 +1,5 @@
+${PODS_ROOT}/Target Support Files/Pods-CooNetwork/Pods-CooNetwork-frameworks.sh
+${BUILT_PRODUCTS_DIR}/AFNetworking/AFNetworking.framework
+${BUILT_PRODUCTS_DIR}/Alamofire/Alamofire.framework
+${BUILT_PRODUCTS_DIR}/CodableWrappers/CodableWrappers.framework
+${BUILT_PRODUCTS_DIR}/Moya/Moya.framework

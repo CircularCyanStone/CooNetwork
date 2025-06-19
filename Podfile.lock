@@ -1,0 +1,45 @@
+PODS:
+  - AFNetworking (4.0.1):
+    - AFNetworking/NSURLSession (= 4.0.1)
+    - AFNetworking/Reachability (= 4.0.1)
+    - AFNetworking/Security (= 4.0.1)
+    - AFNetworking/Serialization (= 4.0.1)
+    - AFNetworking/UIKit (= 4.0.1)
+  - AFNetworking/NSURLSession (4.0.1):
+    - AFNetworking/Reachability
+    - AFNetworking/Security
+    - AFNetworking/Serialization
+  - AFNetworking/Reachability (4.0.1)
+  - AFNetworking/Security (4.0.1)
+  - AFNetworking/Serialization (4.0.1)
+  - AFNetworking/UIKit (4.0.1):
+    - AFNetworking/NSURLSession
+  - Alamofire (5.10.2)
+  - CodableWrappers (2.0.7)
+  - Moya (15.0.0):
+    - Moya/Core (= 15.0.0)
+  - Moya/Core (15.0.0):
+    - Alamofire (~> 5.0)
+
+DEPENDENCIES:
+  - AFNetworking
+  - Alamofire
+  - CodableWrappers
+  - Moya
+
+SPEC REPOS:
+  trunk:
+    - AFNetworking
+    - Alamofire
+    - CodableWrappers
+    - Moya
+
+SPEC CHECKSUMS:
+  AFNetworking: 3bd23d814e976cd148d7d44c3ab78017b744cd58
+  Alamofire: 7193b3b92c74a07f85569e1a6c4f4237291e7496
+  CodableWrappers: c14b64d713e28e5355368f1726afd898f7772c6d
+  Moya: 138f0573e53411fb3dc17016add0b748dfbd78ee
+
+PODFILE CHECKSUM: e7ef0ec240c403592785b7ee9d9ae5bea4680aeb
+
+COCOAPODS: 1.16.2
