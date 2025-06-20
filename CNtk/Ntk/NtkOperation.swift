@@ -11,13 +11,23 @@ import UIKit
 class NtkOperation: NSObject {
     
     // 存储所有注册的拦截器
-    private var _interceptors: [iNtkInterceptor] = [] // 内部存储，未排序
-    private(set) var interceptors: [iNtkInterceptor] { // 公开属性，返回已排序的拦截器
+    private var _interceptors: [iNtkInterceptor] = []
+    private(set) var interceptors: [iNtkInterceptor] {
         get {
             return _interceptors.sorted { $0.priority > $1.priority }
         }
         set {
             _interceptors = newValue
+        }
+    }
+    
+    private var _coreInterceptors: [iNtkInterceptor] = []
+    private(set) var coreInterceptors: [iNtkInterceptor] {
+        get {
+            return _coreInterceptors.sorted { $0.priority > $1.priority }
+        }
+        set {
+            _coreInterceptors = newValue
         }
     }
 
@@ -29,12 +39,28 @@ class NtkOperation: NSObject {
     init(_ client: iNtkClient) {
         self.client = client
         super.init()
+        embededCoreInterceptor()
+    }
+    
+    private func addCoreInterceptor(_ i: iNtkInterceptor) {
+        _coreInterceptors.append(i)
+    }
+    
+    private func embededCoreInterceptor() {
+        addCoreInterceptor(NtkValidationInterceptor())
+    }
+}
+
+extension NtkOperation {
+    
+    func addInterceptor(_ i: iNtkInterceptor) {
+        _interceptors.append(i)
     }
     
     
 //    func run<ResponseData: Codable>(_ completion: @escaping (_ response: ResponseData) -> Void, failure: @escaping (_ error: NtkError) -> Void) {
 //        assert(client.request != nil, "request nil should call the func with(_ request: iNtkRequest) -> Self method first")
-//        
+//
 //        client.execute { response in
 //            do {
 //                let responseData: ResponseData = try self.responseHandle(response)
@@ -42,7 +68,7 @@ class NtkOperation: NSObject {
 //            }catch {
 //                failure(error as! NtkError)
 //            }
-//            
+//
 //        } failure: { error in
 //            failure(error)
 //        }
@@ -50,28 +76,18 @@ class NtkOperation: NSObject {
     
     func run<ResponseData: Codable>() async throws -> NtkResponse<ResponseData> {
         assert(validation != nil, "")
-        let context = NtkRequestContext(validation: validation!)
-        var currentRequest = client.request!
+        let context = NtkRequestContext(validation: validation!, client: client)
+        let tmpInterceptors = coreInterceptors + interceptors
+        let realApiHandle: NtkDefaultApiRequestHandler<ResponseData> = NtkDefaultApiRequestHandler()
+        let realChainManager = NtkInterceptorChainManager(interceptors: tmpInterceptors, finalHandler: realApiHandle)
+        
         do {
-            let tmpInterceptors = interceptors
-            
-            for interceptor in tmpInterceptors {
-                currentRequest = try await interceptor.intercept(request: currentRequest, context: context)
+            let response = try await realChainManager.execute(context: context)
+            if let response = response as? NtkResponse<ResponseData> {
+                return response
+            }else {
+                throw NtkError.retDataTypeError
             }
-            
-            client.addRequest(currentRequest)
-            
-            let response: NtkResponse<ResponseData> = try await client.execute()
-            
-            var interceptorResponse: any iNtkResponse = response
-            
-            for interceptor in tmpInterceptors.reversed() {
-                interceptorResponse = try await interceptor.intercept(response: interceptorResponse, context: context)
-            }
-            if let handledResponseData = interceptorResponse as? NtkResponse<ResponseData> {
-                return handledResponseData
-            }
-            return response
         }catch let error as NtkError {
             throw error
         }catch {

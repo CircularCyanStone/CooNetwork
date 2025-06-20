@@ -12,6 +12,7 @@ enum NtkError: Error {
     case jsonInvalid(_ request: iNtkRequest, _ response: Any)
     case decodeInvalid(_ error: Error, _ request: iNtkRequest, _ response: Any)
     case retDataError
+    case retDataTypeError
     case other(_ error: Error)
 }
 

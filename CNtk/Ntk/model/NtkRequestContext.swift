@@ -10,9 +10,12 @@ import Foundation
 class NtkRequestContext {
     let validation: iNtkResponseValidation
     
+    let client: iNtkClient
+    
     var extraData: [String: Any] = [:]
     
-    init(validation: iNtkResponseValidation) {
+    init(validation: iNtkResponseValidation, client: iNtkClient) {
         self.validation = validation
+        self.client = client
     }
 }
