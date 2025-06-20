@@ -57,23 +57,6 @@ extension NtkOperation {
         _interceptors.append(i)
     }
     
-    
-//    func run<ResponseData: Codable>(_ completion: @escaping (_ response: ResponseData) -> Void, failure: @escaping (_ error: NtkError) -> Void) {
-//        assert(client.request != nil, "request nil should call the func with(_ request: iNtkRequest) -> Self method first")
-//
-//        client.execute { response in
-//            do {
-//                let responseData: ResponseData = try self.responseHandle(response)
-//                completion(responseData)
-//            }catch {
-//                failure(error as! NtkError)
-//            }
-//
-//        } failure: { error in
-//            failure(error)
-//        }
-//    }
-    
     func run<ResponseData: Codable>() async throws -> NtkResponse<ResponseData> {
         assert(validation != nil, "")
         let context = NtkRequestContext(validation: validation!, client: client)
