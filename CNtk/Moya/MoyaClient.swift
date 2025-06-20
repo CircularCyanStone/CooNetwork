@@ -16,7 +16,12 @@ class MoyaClient<R: TargetType, Keys: NtkResponseMapKeys>: NSObject, iNtkClient 
     
     private(set) var isFinished: Bool = false
     
-    private(set) var isCancelled: Bool = false
+    var isCancelled: Bool {
+        if let cancelToken {
+            return cancelToken.isCancelled
+        }
+        return false
+    }
     
     private let provider: MoyaProvider<R>
     

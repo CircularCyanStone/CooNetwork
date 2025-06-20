@@ -9,20 +9,33 @@ import UIKit
 
 
 @objcMembers
-class NtkNetwork<Keys: NtkResponseMapKeys>: NSObject {
-    
-    private let client: iNtkClient
+class NtkNetwork: NSObject {
     
     private let operation: NtkOperation
     
+    var isFinished: Bool {
+        operation.client.isFinished
+    }
+    
+    var isCancelled: Bool {
+        operation.client.isCancelled
+    }
+    
+    
     required init(_ client: iNtkClient) {
-        self.client = client
         operation = NtkOperation(client)
         super.init()
     }
     
+    func cancel() {
+        operation.client.cancel()
+    }
+}
+
+extension NtkNetwork {
+    
     func with(_ request: iNtkRequest) -> Self {
-        client.addRequest(request)
+        operation.client.addRequest(request)
         return self
     }
 
@@ -31,18 +44,17 @@ class NtkNetwork<Keys: NtkResponseMapKeys>: NSObject {
         return self
     }
     
-//    func sendRequest<ResponseData: Codable>(_ completion: @escaping (_ result: ResponseData) -> Void, faliure: ((_ error: NtkError) -> Void)?) {
-//        assert(self.operation.validation != nil, "You should call the func validation() method first")
-//        
-//        operation.run { response in
-//            completion(response)
-//        } failure: { error in
-//            faliure?(error)
-//        }
-//    }
-    
     func sendRequest<ResponseData: Codable>() async throws -> NtkResponse<ResponseData> {
         return try await operation.run()
     }
     
+    //    func sendRequest<ResponseData: Codable>(_ completion: @escaping (_ result: ResponseData) -> Void, faliure: ((_ error: NtkError) -> Void)?) {
+    //        assert(self.operation.validation != nil, "You should call the func validation() method first")
+    //
+    //        operation.run { response in
+    //            completion(response)
+    //        } failure: { error in
+    //            faliure?(error)
+    //        }
+    //    }
 }

@@ -31,7 +31,7 @@ class NtkOperation: NSObject {
         }
     }
 
-    private var client: iNtkClient
+    private(set) var client: iNtkClient
     
     var validation: iNtkResponseValidation?
     
