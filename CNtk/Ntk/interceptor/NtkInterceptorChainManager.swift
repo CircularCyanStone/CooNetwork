@@ -14,7 +14,7 @@ class NtkInterceptorChainManager {
     // 链的最终处理者（通常是发起实际网络请求的）
     private let finalHandler: NtkRequestHandler
 
-    public init(interceptors: [iNtkInterceptor], finalHandler: NtkRequestHandler) {
+    init(interceptors: [iNtkInterceptor], finalHandler: NtkRequestHandler) {
         self.interceptors = interceptors
         self.finalHandler = finalHandler
     }
