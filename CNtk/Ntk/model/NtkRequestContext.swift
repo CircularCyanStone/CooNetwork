@@ -12,10 +12,13 @@ class NtkRequestContext {
     
     let client: iNtkClient
     
+    let storage: iNtkCacheStorage?
+    
     var extraData: [String: Any] = [:]
     
-    init(validation: iNtkResponseValidation, client: iNtkClient) {
+    init(validation: iNtkResponseValidation, client: iNtkClient, storage: iNtkCacheStorage? = nil) {
         self.validation = validation
         self.client = client
+        self.storage = storage
     }
 }

@@ -22,20 +22,10 @@ import CryptoKit
  */
 class NtkCacheKeyManager {
     // 单例实例
-    private static var _instance: NtkCacheKeyManager?
+    static var shared: NtkCacheKeyManager = NtkCacheKeyManager()
     // 内存缓存（LRU容量建议100）
     private var cacheMap: [String: String] = [:]
     private let queue = DispatchQueue(label: "NtkCacheKeyManager", attributes: .concurrent)
-    
-    private init() {
-    }
-    
-    static var shared: NtkCacheKeyManager {
-        if _instance == nil {
-            _instance = NtkCacheKeyManager()
-        }
-        return _instance!
-    }
     
     /**
      * 获取缓存键（线程安全）
@@ -66,7 +56,11 @@ class NtkCacheKeyManager {
     private func serializeRequest(request: iNtkRequest, cacheConfig: NtkCacheConfig?) -> String {
         var parameter: Any = ""
         if let params = request.parameters {
-            parameter = params
+            if let config = cacheConfig, let filter = config.filterParameter {
+                parameter = filter(params)
+            } else {
+                parameter = params
+            }
         }
         let configKey = cacheConfig != nil ? "\(cacheConfig!.cacheTime)" : ""
         return "method:\(request.method.rawValue)|url:\(request.baseURL.appendingPathComponent(request.path).absoluteString)|args:\(parameter)|config:\(configKey)"

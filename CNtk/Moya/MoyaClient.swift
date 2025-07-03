@@ -93,8 +93,7 @@ class MoyaClient<R: TargetType, Keys: NtkResponseMapKeys>: NSObject, iNtkClient 
                             }else {
                                 // 后端code验证成功，但是没有得到匹配的数据类型
                                 throw NtkError.retDataError
-                            }
-                            
+                            }  
                         } catch {
                             continuatuon.resume(throwing: error)
                         }
@@ -113,6 +112,19 @@ class MoyaClient<R: TargetType, Keys: NtkResponseMapKeys>: NSObject, iNtkClient 
             }
             throw NtkError.other(error)
         }
+    }
+    
+    func loadCache<ResponseData: Codable>(_ storage: any iNtkCacheStorage) async throws -> NtkResponse<ResponseData>? {
+        assert(request != nil, "iNtkClient request must not nil")
+        let cacheUtil = NtkNetworkCache<Keys>(request: request!, storage: storage, cacheConfig: nil)
+        let response: NtkResponse<ResponseData>? = try await cacheUtil.loadData()
+        return response
+    }
+    
+    func hasCacheData(_ storage: any iNtkCacheStorage) -> Bool {
+        assert(request != nil, "iNtkClient request must not nil")
+        let cacheUtil = NtkNetworkCache<Keys>(request: request!, storage: storage, cacheConfig: nil)
+        return cacheUtil.hasData()
     }
 }
 

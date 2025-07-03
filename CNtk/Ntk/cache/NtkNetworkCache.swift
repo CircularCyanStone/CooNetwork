@@ -21,15 +21,15 @@ import CryptoKit
  *
  * Copyright © Coo.2024−{2024}. All rights reserved.
  */
-class NtkNetworkCache {
+class NtkNetworkCache<Keys: NtkResponseMapKeys> {
     // 请求
     let request: iNtkRequest
     // 缓存能力工具
-    let storage: NtkCacheStorage
+    let storage: iNtkCacheStorage
     // 缓存配置
     let cacheConfig: NtkCacheConfig?
     
-    init(request: iNtkRequest, storage: NtkCacheStorage, cacheConfig: NtkCacheConfig? = nil) {
+    init(request: iNtkRequest, storage: iNtkCacheStorage, cacheConfig: NtkCacheConfig? = nil) {
         self.request = request
         self.storage = storage
         self.cacheConfig = cacheConfig
@@ -43,45 +43,52 @@ class NtkNetworkCache {
         return NtkCacheKeyManager.shared.getCacheKey(request: request, cacheConfig: cacheConfig)
     }
     
-    private func createCacheKeySync() -> String {
-        var parameter: Any = ""
-        if let params = request.parameters {
-            if let config = cacheConfig, let filter = config.filterParameter {
-                parameter = filter(params)
-            } else {
-                parameter = params
-            }
-        }
-        
-        let keyInfo = "method:\(request.method.rawValue)|url:\(request.baseURL.appendingPathComponent(request.path).absoluteString)|args:\(parameter)"
-        let data = Data(keyInfo.utf8)
-        let digest = Insecure.MD5.hash(data: data)
-        return digest.map { String(format: "%02hhx", $0) }.joined()
-    }
-    
     /**
      * 返回该请求是否有缓存数据
      * @returns
      */
     func hasData() -> Bool {
-        let cacheKey = createCacheKeySync()
+        let cacheKey = createCacheKey()
         return storage.hasData(key: cacheKey)
     }
     
     /**
      * 读取request关联的缓存数据
      */
-    func loadData() async -> Any? {
+    func loadData<ResponseData: Codable>() async throws -> NtkResponse<ResponseData>? {
         let cacheKey = createCacheKey()
-        guard let cacheData = await storage.getData(key: cacheKey) else {
+        guard let cacheMetaData = await storage.getData(key: cacheKey) else {
             return nil
         }
         
-        if cacheData.expirationDate < Date().timeIntervalSince1970 * 1000 {
+        if cacheMetaData.expirationDate < Date().timeIntervalSince1970 * 1000 {
             // 过期了
             return nil
         }
-        return cacheData.data
+        
+        var returnData: Data?
+        if let cacheData = cacheMetaData.data as? Data {
+            returnData = cacheData
+        }else {
+            returnData = try JSONSerialization.data(withJSONObject: cacheMetaData.data)
+        }
+        
+        guard let returnData else {
+            throw NtkError.retDataError
+        }
+        let responseData = try JSONDecoder().decode(NtkResponseDecoder<ResponseData, Keys>.self, from: returnData)
+        
+        if let returnData = responseData.data {
+            let fixResponse = NtkResponse(code: responseData.code, data: returnData, msg: responseData.msg, response: cacheMetaData, request: request)
+            return fixResponse
+        }else if ResponseData.self is NtkNever.Type {
+            // 用户期待的数据类型就是Never，啥都没有
+            let fixResponse = NtkResponse(code: responseData.code, data: NtkNever() as! ResponseData, msg: responseData.msg, response: cacheMetaData, request: request)
+            return fixResponse
+        }else {
+            // 后端code验证成功，但是没有得到匹配的数据类型
+            throw NtkError.retDataError
+        }
     }
     
     /**

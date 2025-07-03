@@ -57,4 +57,13 @@ extension NtkNetwork {
     //            faliure?(error)
     //        }
     //    }
+    
+    
+    func loadCache<ResponseData: Codable>(_ storage: iNtkCacheStorage) async throws -> NtkResponse<ResponseData>? {
+        return try await operation.loadCache(storage)
+    }
+    
+    func hasCacheData(_ storage: iNtkCacheStorage) -> Bool {
+        return operation.client.hasCacheData(storage)
+    }
 }

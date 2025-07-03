@@ -14,7 +14,14 @@ enum NtkError: Error {
     case retDataError
     case retDataTypeError
     case other(_ error: Error)
+    
+    // 缓存一类的错误
+    enum Cache: Error {
+    case noCache
+    }
 }
+
+
 
 
 @objc

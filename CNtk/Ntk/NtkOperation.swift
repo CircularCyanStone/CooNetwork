@@ -77,4 +77,29 @@ extension NtkOperation {
             throw error
         }
     }
+    
+    /// 加载缓存
+    /// - Parameter storage: 缓存加载工具
+    /// - Returns: 结果
+    func loadCache<ResponseData: Codable>(_ storage: any iNtkCacheStorage) async throws -> NtkResponse<ResponseData>? {
+        let context = NtkRequestContext(validation: validation!, client: client)
+        let realApiHandle: NtkDefaultCacheRequestHandler<ResponseData> = NtkDefaultCacheRequestHandler()
+        
+        // 缓存直接进行最终读取缓存解析处理
+        let realChainManager = NtkInterceptorChainManager(interceptors: [], finalHandler: realApiHandle)
+        do {
+            let response = try await realChainManager.execute(context: context)
+            if let response = response as? NtkResponse<ResponseData> {
+                return response
+            }else {
+                throw NtkError.retDataTypeError
+            }
+        }catch NtkError.Cache.noCache {
+            return nil
+        }catch let error as NtkError {
+            throw error
+        }catch {
+            throw error
+        }
+    }
 }

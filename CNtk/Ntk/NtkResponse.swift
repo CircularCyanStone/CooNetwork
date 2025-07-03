@@ -48,7 +48,7 @@ class NtkResponseDecoder<ResponseData: Codable, Keys: NtkResponseMapKeys>: NSObj
     /// 后续交由开发者手动处理data = nil的情况
     let data: ResponseData?
     
-    let msg: String
+    let msg: String?
     
     required
     init(from decoder: any Decoder) throws {
@@ -61,33 +61,34 @@ class NtkResponseDecoder<ResponseData: Codable, Keys: NtkResponseMapKeys>: NSObj
         self.data = try container.decodeIfPresent(ResponseData.self, forKey: dataKey)
         
         let msgKey = NtkCodingKeys(stringValue: Keys.msg)!
-        self.msg = try container.decode(String.self, forKey: msgKey)
+        self.msg = try container.decodeIfPresent(String.self, forKey: msgKey)
         super.init()
     }
 }
 
 
 /// 该类型用于在抽象协议中使用
-/// 同时也是为了避免NtkResponseModel中范型Keys在抽象协议中被要求
+/// 同时也是为了避免NtkResponseDecoder中范型Keys在抽象协议中被要求
 final class NtkResponse<ResponseData: Codable>: iNtkResponse {
     
     let code: NtkReturnCode
     
     let data: ResponseData
     
-    let msg: String
+    let msg: String?
     
     let response: Any
     
     let request: iNtkRequest
     
-    init(code: NtkReturnCode, data: ResponseData, msg: String, response: Any, request: iNtkRequest) {
+    init(code: NtkReturnCode, data: ResponseData, msg: String?, response: Any, request: iNtkRequest) {
         self.code = code
         self.data = data
         self.msg = msg
         self.response = response
         self.request = request
     }
+    
 }
 
 

@@ -20,4 +20,16 @@ protocol iNtkClient {
     func execute<ResponseData: Codable>() async throws -> NtkResponse<ResponseData>
     
     func cancel()
+    
+    func loadCache<ResponseData: Codable>(_ storage: iNtkCacheStorage) async throws -> NtkResponse<ResponseData>?
+    
+    func hasCacheData(_ storage: iNtkCacheStorage) -> Bool
+    
+}
+
+extension iNtkClient {
+    
+    func loadCache<ResponseData: Codable>(_ storage: iNtkCacheStorage) async -> NtkResponse<ResponseData>? {
+        fatalError("\(self) no implement iNtkClient loadCache")
+    }
 }

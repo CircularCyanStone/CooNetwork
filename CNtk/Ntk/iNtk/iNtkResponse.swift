@@ -15,7 +15,7 @@ protocol iNtkResponse {
     
     var data: ResponseData { get }
     
-    var msg: String { get }
+    var msg: String? { get }
     
     var response: Any { get }
     
