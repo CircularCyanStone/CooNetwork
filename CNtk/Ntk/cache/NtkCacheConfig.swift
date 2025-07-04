@@ -15,14 +15,17 @@ import Foundation
  *
  * Copyright © Coo.2024−{2024}. All rights reserved.
  */
-class NtkCacheConfig {
-    // 缓存时间（毫秒）
-    let cacheTime: TimeInterval
-    // 参数过滤器
-    let filterParameter: ((Any) -> Any)?
+protocol NtkCacheConfig {
     
-    init(cacheTime: TimeInterval, filterParameter: ((Any) -> Any)? = nil) {
-        self.cacheTime = cacheTime
-        self.filterParameter = filterParameter
+    // 缓存时间（毫秒）
+    var cacheTime: TimeInterval { get }
+    
+    // 参数过滤器
+    func filterParameter(_ parameter: [String: Any]) -> [String: Any]
+    
+}
+extension NtkCacheConfig {
+    func filterParameter(_ parameter: [String: Any]) -> [String: Any] {
+        parameter
     }
 }

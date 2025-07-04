@@ -56,8 +56,8 @@ class NtkCacheKeyManager {
     private func serializeRequest(request: iNtkRequest, cacheConfig: NtkCacheConfig?) -> String {
         var parameter: Any = ""
         if let params = request.parameters {
-            if let config = cacheConfig, let filter = config.filterParameter {
-                parameter = filter(params)
+            if let config = cacheConfig {
+                parameter = config.filterParameter(params)
             } else {
                 parameter = params
             }

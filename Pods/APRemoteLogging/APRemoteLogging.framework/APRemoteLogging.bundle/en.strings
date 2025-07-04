@@ -1,0 +1,5 @@
+"Assert:type:empty" = "The Type of performance tracking cannot be empty.";
+"Assert:pageId:empty" = "The pageId cannot be empty.";
+"Assert:number:incorrect" = "The number of log parameters is incorrect.";
+"Assert:actionid:empty" = "The ActionID of the log cannot be empty";
+"Assert:kActionID:unmatch" = "The kActionID does not match auto_openPage.";

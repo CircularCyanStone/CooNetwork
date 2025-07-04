@@ -1,0 +1,44 @@
+/* 
+  Localizable.strings
+  
+
+  Created by jiangzhipeng on 2025/6/9.
+  
+*/
+/* 反序列化对象出错 */
+"APNetwork:error.deserializeError"          = "Erreur de désérialisation de l'objet";
+
+/* 网络已取消 */
+"APNetwork:error.networkCancel"             = "Le réseau a été annulé.";
+
+/* 网络无法连接 */
+"APNetwork:error.networkUnreachable"        = "La connexion réseau est impossible.";
+
+/* 服务端返回的数据格式不正确。 */
+"APNetwork:message.error.serverFormatError" = "Le format des données renvoyées par le serveur est incorrect.";
+
+/* 服务端返回的数据为空。 */
+"APNetwork:message.error.serverReturnEmpty" = "Les données renvoyées par le serveur sont vides.";
+
+/* 系统错误，请稍候再试。 */
+"APNetwork:message.error.systemError"       = "Erreur système, veuillez réessayer plus tard.";
+
+/* The response string: %@ */
+"APNetwork:reason.HTTPResponseString"       = "Contenu retourné par le serveur : %@";
+
+/* 服务器返回的 HTTP 状态码: %ld */
+"APNetwork:reason.HTTPStatusCode"           = "Le code d'état HTTP renvoyé par le serveur : %ld";
+
+/* 发生未知错误 */
+"APNetwork:reason.unknowError"              = "Une erreur inconnue s'est produite.";
+
+/* No comment provided by engineer. */
+"APNetwork:connect.Cellular"                = "réseau mobile cellulaire";
+
+/* No comment provided by engineer. */
+"APNetwork:connect.NoConnection"            = "Accès sans réseau";
+
+/* No comment provided by engineer. */
+"APNetwork:connect.WiFi"                    = "WiFi";
+
+

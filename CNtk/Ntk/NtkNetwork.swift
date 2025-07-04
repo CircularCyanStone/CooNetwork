@@ -63,6 +63,8 @@ extension NtkNetwork {
         return try await operation.loadCache(storage)
     }
     
+    /// 判断是否有缓存
+    /// - Parameter storage: 存储工具
     func hasCacheData(_ storage: iNtkCacheStorage) -> Bool {
         return operation.client.hasCacheData(storage)
     }

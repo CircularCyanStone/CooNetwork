@@ -1,0 +1,5 @@
+"Assert:type:empty" = "Тип отслеживания производительности не может быть пустым.";
+"Assert:pageId:empty" = "Идентификатор страницы не может быть пустым.";
+"Assert:number:incorrect" = "Количество параметров журнала неверно.";
+"Assert:actionid:empty" = "ActionID журнала не может быть пустым.";
+"Assert:kActionID:unmatch" = "kActionID не соответствует auto_openPage.";
