@@ -40,7 +40,7 @@ struct NtkCodingKeys: CodingKey {
     }
 }
 
-class NtkResponseDecoder<ResponseData: Codable, Keys: NtkResponseMapKeys>: NSObject, Decodable {
+class NtkResponseDecoder<ResponseData: Decodable, Keys: NtkResponseMapKeys>: NSObject, Decodable {
     
     let code: NtkReturnCode
     
@@ -69,7 +69,7 @@ class NtkResponseDecoder<ResponseData: Codable, Keys: NtkResponseMapKeys>: NSObj
 
 /// 该类型用于在抽象协议中使用
 /// 同时也是为了避免NtkResponseDecoder中范型Keys在抽象协议中被要求
-final class NtkResponse<ResponseData: Codable>: iNtkResponse {
+class NtkResponse<ResponseData>: iNtkResponse {
     
     let code: NtkReturnCode
     
@@ -90,5 +90,4 @@ final class NtkResponse<ResponseData: Codable>: iNtkResponse {
     }
     
 }
-
 

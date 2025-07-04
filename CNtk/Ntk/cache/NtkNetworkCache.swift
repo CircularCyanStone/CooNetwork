@@ -55,7 +55,7 @@ class NtkNetworkCache<Keys: NtkResponseMapKeys> {
     /**
      * 读取request关联的缓存数据
      */
-    func loadData<ResponseData: Codable>() async throws -> NtkResponse<ResponseData>? {
+    func loadData<ResponseData: Decodable>() async throws -> NtkResponse<ResponseData>? {
         let cacheKey = createCacheKey()
         guard let cacheMetaData = await storage.getData(key: cacheKey) else {
             return nil

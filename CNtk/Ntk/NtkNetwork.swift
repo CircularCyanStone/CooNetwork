@@ -44,7 +44,7 @@ extension NtkNetwork {
         return self
     }
     
-    func sendRequest<ResponseData: Codable>() async throws -> NtkResponse<ResponseData> {
+    func sendRequest<ResponseData>() async throws -> NtkResponse<ResponseData> {
         return try await operation.run()
     }
     
@@ -59,7 +59,7 @@ extension NtkNetwork {
     //    }
     
     
-    func loadCache<ResponseData: Codable>(_ storage: iNtkCacheStorage) async throws -> NtkResponse<ResponseData>? {
+    func loadCache<ResponseData>(_ storage: iNtkCacheStorage) async throws -> NtkResponse<ResponseData>? {
         return try await operation.loadCache(storage)
     }
     

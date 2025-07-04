@@ -57,7 +57,7 @@ extension NtkOperation {
         _interceptors.append(i)
     }
     
-    func run<ResponseData: Codable>() async throws -> NtkResponse<ResponseData> {
+    func run<ResponseData>() async throws -> NtkResponse<ResponseData> {
         assert(validation != nil, "")
         let context = NtkRequestContext(validation: validation!, client: client)
         let tmpInterceptors = coreInterceptors + interceptors
@@ -81,7 +81,7 @@ extension NtkOperation {
     /// 加载缓存
     /// - Parameter storage: 缓存加载工具
     /// - Returns: 结果
-    func loadCache<ResponseData: Codable>(_ storage: any iNtkCacheStorage) async throws -> NtkResponse<ResponseData>? {
+    func loadCache<ResponseData>(_ storage: any iNtkCacheStorage) async throws -> NtkResponse<ResponseData>? {
         let context = NtkRequestContext(validation: validation!, client: client)
         let realApiHandle: NtkDefaultCacheRequestHandler<ResponseData> = NtkDefaultCacheRequestHandler()
         

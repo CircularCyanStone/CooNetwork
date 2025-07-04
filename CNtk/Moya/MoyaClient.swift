@@ -73,7 +73,7 @@ class MoyaClient<R: TargetType, Keys: NtkResponseMapKeys>: NSObject, iNtkClient 
 //    }
     
     
-    func execute<ResponseData>() async throws -> NtkResponse<ResponseData> where ResponseData : Decodable, ResponseData : Encodable {
+    func execute<ResponseData>() async throws -> NtkResponse<ResponseData> where ResponseData : Decodable {
         assert(moyaRequest != nil, "request is nil or not implement TargetType protocol")
         do {
             let response = try await withCheckedThrowingContinuation { continuatuon in
@@ -114,11 +114,19 @@ class MoyaClient<R: TargetType, Keys: NtkResponseMapKeys>: NSObject, iNtkClient 
         }
     }
     
-    func loadCache<ResponseData: Codable>(_ storage: any iNtkCacheStorage) async throws -> NtkResponse<ResponseData>? {
+    func execute<ResponseData>() async throws -> NtkResponse<ResponseData> {
+        fatalError("Swift都应该使用Codable进行模型解析")
+    }
+    
+    func loadCache<ResponseData: Decodable>(_ storage: any iNtkCacheStorage) async throws -> NtkResponse<ResponseData>? {
         assert(request != nil, "iNtkClient request must not nil")
         let cacheUtil = NtkNetworkCache<Keys>(request: request!, storage: storage, cacheConfig: nil)
         let response: NtkResponse<ResponseData>? = try await cacheUtil.loadData()
         return response
+    }
+    
+    func loadCache<ResponseData>(_ storage: any iNtkCacheStorage) async throws -> NtkResponse<ResponseData>? {
+        fatalError("Swift都应该使用Codable进行模型解析")
     }
     
     func hasCacheData(_ storage: any iNtkCacheStorage) -> Bool {

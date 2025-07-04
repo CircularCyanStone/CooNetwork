@@ -86,22 +86,16 @@
 		};
 		FB78FC542E015421008A96E6 /* CooNetworkTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = CooNetworkTests;
 			sourceTree = "<group>";
 		};
 		FB78FC5E2E015421008A96E6 /* CooNetworkUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = CooNetworkUITests;
 			sourceTree = "<group>";
 		};
 		FB78FC792E0154A0008A96E6 /* CNtk */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = CNtk;
 			sourceTree = "<group>";
 		};
@@ -214,7 +208,6 @@
 				FBCBF50E7AC2A36A479C5E2A /* DemoViewController.h */,
 				732CED32D221AA2A49DC4A88 /* DemoViewController.m */,
 			);
-			name = APMobileFramework;
 			path = APMobileFramework;
 			sourceTree = "<group>";
 		};
@@ -415,9 +408,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-CooNetwork/Pods-CooNetwork-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-CooNetwork/Pods-CooNetwork-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -432,9 +429,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-CooNetwork/Pods-CooNetwork-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-CooNetwork/Pods-CooNetwork-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
