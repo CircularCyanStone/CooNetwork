@@ -7,11 +7,17 @@
 
 import Foundation
 
-class HomeInfoRequest: RpcRequest {
+final class HomeInfoRequest: RpcRequest {
+    var parameters: [String : any Sendable]? {
+        [:]
+    }
     
-    var path: String = ""
+    
+    let path: String = ""
     
     func OCResponseDataParse(_ retData: Any) throws -> Any {
         retData
     }
+    
+    
 }

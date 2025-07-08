@@ -7,8 +7,7 @@
 
 import UIKit
 
-@objcMembers
-class NtkOperation: NSObject {
+class NtkOperation {
     
     // 存储所有注册的拦截器
     private var _interceptors: [iNtkInterceptor] = []
@@ -38,7 +37,6 @@ class NtkOperation: NSObject {
     required
     init(_ client: any iNtkClient) {
         self.client = client
-        super.init()
         embededCoreInterceptor()
     }
     

@@ -8,8 +8,7 @@
 import UIKit
 
 
-@objcMembers
-class NtkNetwork<ResponseData>: NSObject {
+class NtkNetwork<ResponseData: Sendable> {
     
     private let operation: NtkOperation
     
@@ -26,7 +25,6 @@ class NtkNetwork<ResponseData>: NSObject {
     
     required init(_ client: any iNtkClient) {
         operation = NtkOperation(client)
-        super.init()
     }
     
     func cancel() {

@@ -7,7 +7,7 @@
 
 import Foundation
 
-class NtkDefaultCacheRequestHandler<ResponseData>: NtkRequestHandler {
+class NtkDefaultCacheRequestHandler<ResponseData: Sendable>: NtkRequestHandler {
     func handle(context: NtkRequestContext) async throws -> any iNtkResponse {
         guard let storage = context.storage else {
             fatalError("获取缓存时context.storage为nil，请核对代码逻辑")

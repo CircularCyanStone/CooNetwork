@@ -15,14 +15,16 @@ protocol NtkResponseMapKeys {
 
 
 struct NtkCodingKeys: CodingKey {
-    var stringValue: String
+    let stringValue: String
     
-    var intValue: Int?
+    let intValue: Int?
     
     init?(stringValue: String) {
         self.stringValue = stringValue
         if let intValue = Int(stringValue) {
             self.intValue = intValue
+        }else {
+            self.intValue = nil
         }
     }
     
@@ -40,7 +42,7 @@ struct NtkCodingKeys: CodingKey {
     }
 }
 
-class NtkResponseDecoder<ResponseData: Decodable, Keys: NtkResponseMapKeys>: NSObject, Decodable {
+class NtkResponseDecoder<ResponseData: Decodable, Keys: NtkResponseMapKeys>: Decodable {
     
     let code: NtkReturnCode
     
@@ -62,14 +64,13 @@ class NtkResponseDecoder<ResponseData: Decodable, Keys: NtkResponseMapKeys>: NSO
         
         let msgKey = NtkCodingKeys(stringValue: Keys.msg)!
         self.msg = try container.decodeIfPresent(String.self, forKey: msgKey)
-        super.init()
     }
 }
 
 
 /// 该类型用于在抽象协议中使用
 /// 同时也是为了避免NtkResponseDecoder中范型Keys在抽象协议中被要求
-class NtkResponse<ResponseData>: iNtkResponse {
+final class NtkResponse<ResponseData: Sendable>: iNtkResponse, Sendable {
     
     let code: NtkReturnCode
     

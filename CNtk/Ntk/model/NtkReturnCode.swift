@@ -7,18 +7,18 @@
 
 import UIKit
 
-final class NtkReturnCode: NSObject, Codable {
+final class NtkReturnCode: Codable, Sendable {
     
-    private enum `Type`: Int {
+    private enum `Type`: Int, Sendable {
         case string
         case int
         case bool
         case double
         case unknown
     }
-    private var _type: Type?
+    private let _type: Type?
     
-    private var rawValue: Any?
+    private let rawValue: Sendable?
     
     enum CodingKeys: CodingKey {
         case rawValue
@@ -47,7 +47,6 @@ final class NtkReturnCode: NSObject, Codable {
     }
     
     init(from decoder: any Decoder) throws {
-        super.init()
         let container = try decoder.singleValueContainer()
         if let value = try? container.decode(String.self) {
             rawValue = value
@@ -78,6 +77,7 @@ final class NtkReturnCode: NSObject, Codable {
             return
         }
         _type = .unknown
+        rawValue = nil
     }
     
     func encode(to encoder: Encoder) throws {
@@ -103,36 +103,26 @@ final class NtkReturnCode: NSObject, Codable {
 extension NtkReturnCode {
     
     @objc var string: String? {
-        get {
-            switch _type {
-            case .string:
-                return rawValue as? String
-            default:
-                return nil
-            }
-        }
-        set {
-            rawValue = newValue ?? ""
+        switch _type {
+        case .string:
+            return rawValue as? String
+        default:
+            return nil
         }
     }
     
     @objc var stringValue: String {
-        get {
-            switch _type {
-            case .string:
-                return rawValue as! String
-            case .bool:
-                return "\(rawValue!)"
-            case .double:
-                return "\(rawValue!)"
-            case .int:
-                return "\(rawValue!)"
-            default:
-                return ""
-            }
-        }
-        set {
-            rawValue = newValue
+        switch _type {
+        case .string:
+            return rawValue as! String
+        case .bool:
+            return "\(rawValue!)"
+        case .double:
+            return "\(rawValue!)"
+        case .int:
+            return "\(rawValue!)"
+        default:
+            return ""
         }
     }
     
@@ -141,36 +131,26 @@ extension NtkReturnCode {
 extension NtkReturnCode {
     
     var bool: Bool? {
-        get {
-            switch _type {
-            case .bool:
-                return rawValue as? Bool
-            default:
-                return nil
-            }
-        }
-        set {
-            rawValue = newValue
+        switch _type {
+        case .bool:
+            return rawValue as? Bool
+        default:
+            return nil
         }
     }
     
     @objc var boolValue: Bool {
-        get {
-            switch _type {
-            case .string:
-                return (rawValue as! NSString).boolValue
-            case .bool:
-                return rawValue as! Bool
-            case .double:
-                return (rawValue as! Double) != 0
-            case .int:
-                return (rawValue as! Int) != 0
-            default:
-                return false
-            }
-        }
-        set {
-            rawValue = newValue
+        switch _type {
+        case .string:
+            return (rawValue as! NSString).boolValue
+        case .bool:
+            return rawValue as! Bool
+        case .double:
+            return (rawValue as! Double) != 0
+        case .int:
+            return (rawValue as! Int) != 0
+        default:
+            return false
         }
     }
 }
@@ -178,36 +158,26 @@ extension NtkReturnCode {
 extension NtkReturnCode {
     
     var int: Int? {
-        get {
-           switch _type {
-           case .int:
-               return rawValue as? Int
-           default:
-               return nil
-           }
-        }
-        set {
-            rawValue = newValue
+        switch _type {
+        case .int:
+            return rawValue as? Int
+        default:
+            return nil
         }
     }
     
     @objc var intValue: Int {
-        get {
-            switch _type {
-            case .string:
-                return (rawValue as! NSString).integerValue
-            case .bool:
-                return (rawValue as! Bool) ? 1 : 0
-            case .double:
-                return Int(rawValue as! Double)
-            case .int:
-                return rawValue as! Int
-            default:
-                return 0
-            }
-        }
-        set {
-            rawValue = newValue
+        switch _type {
+        case .string:
+            return (rawValue as! NSString).integerValue
+        case .bool:
+            return (rawValue as! Bool) ? 1 : 0
+        case .double:
+            return Int(rawValue as! Double)
+        case .int:
+            return rawValue as! Int
+        default:
+            return 0
         }
     }
 }
@@ -215,36 +185,26 @@ extension NtkReturnCode {
 extension NtkReturnCode {
     
     var double: Double? {
-        get {
-          switch _type {
-          case .double:
-              return rawValue as? Double
-          default:
-              return nil
-          }
-       }
-       set {
-           rawValue = newValue
-       }
+        switch _type {
+        case .double:
+            return rawValue as? Double
+        default:
+            return nil
+        }
     }
     
     @objc var doubleValue: Double {
-        get {
-            switch _type {
-            case .string:
-                return (rawValue as! NSString).doubleValue
-            case .bool:
-                return (rawValue as! Bool) ? 1.0 : 0.0
-            case .double:
-                return rawValue as! Double
-            case .int:
-                return Double(rawValue as! Int)
-            default:
-                return 0.0
-            }
-        }
-        set {
-            rawValue = newValue
+        switch _type {
+        case .string:
+            return (rawValue as! NSString).doubleValue
+        case .bool:
+            return (rawValue as! Bool) ? 1.0 : 0.0
+        case .double:
+            return rawValue as! Double
+        case .int:
+            return Double(rawValue as! Int)
+        default:
+            return 0.0
         }
     }
     
