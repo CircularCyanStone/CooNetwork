@@ -10,10 +10,10 @@ import Foundation
 @MainActor
 class HomeViewModel {
     
-    var homeNet: NtkNetwork?
+    var homeNet: NtkNetwork<HomeInfoData>?
     
     func loadData() async throws {
-        let net: NtkNetwork = withRpc(HomeInfoRequest())
+        let net: NtkNetwork<HomeInfoData> = withRpc(HomeInfoRequest())
         homeNet = net
         let response: HomeInfoData = try await net.sendRequest().data
     }

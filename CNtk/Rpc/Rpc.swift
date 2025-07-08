@@ -8,17 +8,17 @@
 import Foundation
 
 class Rpc {
-    static func with(_ request: RpcRequest) -> NtkNetwork {
+    static func with<ResponseData>(_ request: RpcRequest) -> NtkNetwork<ResponseData> {
         let client = RpcClient<RpcResponseMapKeys>()
-        let net = NtkNetwork(client)
+        let net = NtkNetwork<ResponseData>(client)
             .with(request)
         return net
     }
 }
 
-func withRpc(_ request: RpcRequest) -> NtkNetwork {
+func withRpc<ResponseData>(_ request: RpcRequest) -> NtkNetwork<ResponseData> {
     let client = RpcClient<RpcResponseMapKeys>()
-    let net = NtkNetwork(client)
+    let net = NtkNetwork<ResponseData>(client)
         .with(request)
     return net
 }

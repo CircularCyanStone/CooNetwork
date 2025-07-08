@@ -9,16 +9,18 @@ import UIKit
 
 
 @objcMembers
-class NtkNetwork: NSObject {
+class NtkNetwork<ResponseData>: NSObject {
     
     private let operation: NtkOperation
+    
+    private var currentRequestTask: Task<NtkResponse<ResponseData>, any Error>?
     
     var isFinished: Bool {
         operation.client.isFinished
     }
     
     var isCancelled: Bool {
-        operation.client.isCancelled
+        currentRequestTask?.isCancelled ?? Task.isCancelled
     }
     
     
@@ -28,7 +30,7 @@ class NtkNetwork: NSObject {
     }
     
     func cancel() {
-        operation.client.cancel()
+        currentRequestTask?.cancel()
     }
 }
 
@@ -44,12 +46,16 @@ extension NtkNetwork {
         return self
     }
     
-    func sendRequest<ResponseData>() async throws -> NtkResponse<ResponseData> {
-        return try await operation.run()
+    func sendRequest() async throws -> NtkResponse<ResponseData> {
+        let task: Task<NtkResponse<ResponseData>, any Error> = Task {
+            try await operation.run()
+        }
+        self.currentRequestTask = task
+        return try await task.value
     }
     
     
-    func loadCache<ResponseData>(_ storage: iNtkCacheStorage) async throws -> NtkResponse<ResponseData>? {
+    func loadCache(_ storage: iNtkCacheStorage) async throws -> NtkResponse<ResponseData>? {
         return try await operation.loadCache(storage)
     }
     
