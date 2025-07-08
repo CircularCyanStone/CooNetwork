@@ -8,6 +8,7 @@
 import Foundation
 
 protocol iNtkClient {
+    associatedtype Keys: NtkResponseMapKeys
     
     var request: iNtkRequest? { get }
     
@@ -29,7 +30,20 @@ protocol iNtkClient {
 
 extension iNtkClient {
     
-    func loadCache<ResponseData>(_ storage: iNtkCacheStorage) async -> NtkResponse<ResponseData>? {
-        fatalError("\(self) no implement iNtkClient loadCache")
+    func loadCache<ResponseData: Decodable>(_ storage: any iNtkCacheStorage) async throws -> NtkResponse<ResponseData>? {
+        assert(request != nil, "iNtkClient request must not nil")
+        let cacheUtil = NtkNetworkCache<Keys>(request: request!, storage: storage, cacheConfig: nil)
+        let response: NtkResponse<ResponseData>? = try await cacheUtil.loadData()
+        return response
+    }
+    
+    func loadCache<ResponseData>(_ storage: any iNtkCacheStorage) async throws -> NtkResponse<ResponseData>? {
+        fatalError("Swift都应该使用Codable进行模型解析")
+    }
+    
+    func hasCacheData(_ storage: any iNtkCacheStorage) -> Bool {
+        assert(request != nil, "iNtkClient request must not nil")
+        let cacheUtil = NtkNetworkCache<Keys>(request: request!, storage: storage, cacheConfig: nil)
+        return cacheUtil.hasData()
     }
 }

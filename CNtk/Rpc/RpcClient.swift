@@ -10,6 +10,7 @@ import Foundation
 
 
 class RpcClient<Keys: NtkResponseMapKeys>: iNtkClient {
+    
     var request: (any iNtkRequest)?
     
     var isFinished: Bool = false
@@ -20,16 +21,8 @@ class RpcClient<Keys: NtkResponseMapKeys>: iNtkClient {
         self.request = req
     }
     
-    
-
     func cancel() {
         
-    }
-    
-    func hasCacheData(_ storage: any iNtkCacheStorage) -> Bool {
-        assert(request != nil, "iNtkClient request must not nil")
-        let cacheUtil = NtkNetworkCache<Keys>(request: request!, storage: storage, cacheConfig: nil)
-        return cacheUtil.hasData()
     }
     
     private func sendRpcRequest() async throws -> Any {
