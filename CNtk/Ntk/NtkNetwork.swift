@@ -22,7 +22,7 @@ class NtkNetwork: NSObject {
     }
     
     
-    required init(_ client: iNtkClient) {
+    required init(_ client: any iNtkClient) {
         operation = NtkOperation(client)
         super.init()
     }

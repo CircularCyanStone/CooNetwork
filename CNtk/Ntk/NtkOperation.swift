@@ -31,12 +31,12 @@ class NtkOperation: NSObject {
         }
     }
 
-    private(set) var client: iNtkClient
+    private(set) var client: any iNtkClient
     
     var validation: iNtkResponseValidation?
     
     required
-    init(_ client: iNtkClient) {
+    init(_ client: any iNtkClient) {
         self.client = client
         super.init()
         embededCoreInterceptor()
