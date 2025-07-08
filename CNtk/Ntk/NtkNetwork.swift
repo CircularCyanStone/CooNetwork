@@ -48,16 +48,6 @@ extension NtkNetwork {
         return try await operation.run()
     }
     
-    //    func sendRequest<ResponseData: Codable>(_ completion: @escaping (_ result: ResponseData) -> Void, faliure: ((_ error: NtkError) -> Void)?) {
-    //        assert(self.operation.validation != nil, "You should call the func validation() method first")
-    //
-    //        operation.run { response in
-    //            completion(response)
-    //        } failure: { error in
-    //            faliure?(error)
-    //        }
-    //    }
-    
     
     func loadCache<ResponseData>(_ storage: iNtkCacheStorage) async throws -> NtkResponse<ResponseData>? {
         return try await operation.loadCache(storage)

@@ -33,6 +33,7 @@ class RpcClient<Keys: NtkResponseMapKeys>: iNtkClient {
         let parameters = request.parameters ?? [:]
         let headers = request.headers ?? [:]
         
+        try Task.checkCancellation()
         let response = try await withUnsafeThrowingContinuation { continuation in
             DTRpcAsyncCaller.callSwiftAsyncBlock {
                 let responseObject = DTRpcClient.default().execute(method, params: [parameters], requestHeaderField: headers) { headerFile in
@@ -51,6 +52,7 @@ class RpcClient<Keys: NtkResponseMapKeys>: iNtkClient {
                 }
             }
         }
+        try Task.checkCancellation()
         return response
     }
 }
