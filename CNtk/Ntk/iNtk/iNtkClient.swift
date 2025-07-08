@@ -12,10 +12,6 @@ protocol iNtkClient {
     
     var request: iNtkRequest? { get }
     
-    var isFinished: Bool { get }
-    
-    var isCancelled: Bool { get }
-    
     func addRequest(_ req: iNtkRequest)
     
     func execute<ResponseData>() async throws -> NtkResponse<ResponseData>
@@ -25,7 +21,6 @@ protocol iNtkClient {
     func loadCache<ResponseData>(_ storage: iNtkCacheStorage) async throws -> NtkResponse<ResponseData>?
     
     func hasCacheData(_ storage: iNtkCacheStorage) -> Bool
-    
 }
 
 extension iNtkClient {

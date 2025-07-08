@@ -14,14 +14,9 @@ class NtkNetwork<ResponseData: Sendable> {
     
     private var currentRequestTask: Task<NtkResponse<ResponseData>, any Error>?
     
-    var isFinished: Bool {
-        operation.client.isFinished
-    }
-    
     var isCancelled: Bool {
         currentRequestTask?.isCancelled ?? Task.isCancelled
     }
-    
     
     required init(_ client: any iNtkClient) {
         operation = NtkOperation(client)
