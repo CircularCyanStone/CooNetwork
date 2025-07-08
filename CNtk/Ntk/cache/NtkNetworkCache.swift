@@ -74,7 +74,7 @@ class NtkNetworkCache<Keys: NtkResponseMapKeys> {
         }
         
         guard let returnData else {
-            throw NtkError.retDataError
+            throw NtkError.responseDataEmpty
         }
         let responseData = try JSONDecoder().decode(NtkResponseDecoder<ResponseData, Keys>.self, from: returnData)
         
@@ -87,7 +87,7 @@ class NtkNetworkCache<Keys: NtkResponseMapKeys> {
             return fixResponse
         }else {
             // 后端code验证成功，但是没有得到匹配的数据类型
-            throw NtkError.retDataError
+            throw NtkError.responseDataEmpty
         }
     }
     

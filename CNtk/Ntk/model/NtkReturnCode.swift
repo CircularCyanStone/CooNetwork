@@ -24,7 +24,29 @@ final class NtkReturnCode: NSObject, Codable {
         case rawValue
     }
     
-    required init(from decoder: any Decoder) throws {
+    init(_ value: Any?) {
+        rawValue = value
+        if value is String {
+            _type = .string
+            return
+        }
+        if value is Int {
+            _type = .int
+            return
+        }
+        
+        if value is Bool {
+            _type = .bool
+            return
+        }
+        if value is Double {
+            _type = .double
+            return
+        }
+        _type = .unknown
+    }
+    
+    init(from decoder: any Decoder) throws {
         super.init()
         let container = try decoder.singleValueContainer()
         if let value = try? container.decode(String.self) {

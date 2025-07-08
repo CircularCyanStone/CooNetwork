@@ -29,7 +29,7 @@ protocol iNtkClient {
 
 extension iNtkClient {
     
-    func loadCache<ResponseData: Decodable>(_ storage: iNtkCacheStorage) async -> NtkResponse<ResponseData>? {
+    func loadCache<ResponseData>(_ storage: iNtkCacheStorage) async -> NtkResponse<ResponseData>? {
         fatalError("\(self) no implement iNtkClient loadCache")
     }
 }

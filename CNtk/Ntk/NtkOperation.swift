@@ -60,7 +60,7 @@ extension NtkOperation {
     func run<ResponseData>() async throws -> NtkResponse<ResponseData> {
         assert(validation != nil, "")
         let context = NtkRequestContext(validation: validation!, client: client)
-        let tmpInterceptors = coreInterceptors + interceptors
+        let tmpInterceptors =  interceptors + coreInterceptors
         let realApiHandle: NtkDefaultApiRequestHandler<ResponseData> = NtkDefaultApiRequestHandler()
         let realChainManager = NtkInterceptorChainManager(interceptors: tmpInterceptors, finalHandler: realApiHandle)
         
@@ -69,7 +69,7 @@ extension NtkOperation {
             if let response = response as? NtkResponse<ResponseData> {
                 return response
             }else {
-                throw NtkError.retDataTypeError
+                throw NtkError.responseDataTypeError
             }
         }catch let error as NtkError {
             throw error
@@ -92,7 +92,7 @@ extension NtkOperation {
             if let response = response as? NtkResponse<ResponseData> {
                 return response
             }else {
-                throw NtkError.retDataTypeError
+                throw NtkError.responseDataTypeError
             }
         }catch NtkError.Cache.noCache {
             return nil

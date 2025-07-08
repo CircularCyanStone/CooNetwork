@@ -73,6 +73,8 @@ class MoyaClient<R: TargetType, Keys: NtkResponseMapKeys>: NSObject, iNtkClient 
 //    }
     
     
+    /// ResponseData是Decodable模式时，执行请求的方案
+    /// - Returns: 响应结果
     func execute<ResponseData>() async throws -> NtkResponse<ResponseData> where ResponseData : Decodable {
         assert(moyaRequest != nil, "request is nil or not implement TargetType protocol")
         do {
@@ -92,7 +94,7 @@ class MoyaClient<R: TargetType, Keys: NtkResponseMapKeys>: NSObject, iNtkClient 
                                 continuatuon.resume(returning: fixResponse)
                             }else {
                                 // 后端code验证成功，但是没有得到匹配的数据类型
-                                throw NtkError.retDataError
+                                throw NtkError.responseDataEmpty
                             }  
                         } catch {
                             continuatuon.resume(throwing: error)

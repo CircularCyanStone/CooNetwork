@@ -11,8 +11,8 @@ enum NtkError: Error {
     case validation(_ request: iNtkRequest, _ response: Any)
     case jsonInvalid(_ request: iNtkRequest, _ response: Any)
     case decodeInvalid(_ error: Error, _ request: iNtkRequest, _ response: Any)
-    case retDataError
-    case retDataTypeError
+    case responseDataEmpty
+    case responseDataTypeError
     case other(_ error: Error)
     
     // 缓存一类的错误

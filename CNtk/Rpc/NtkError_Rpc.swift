@@ -10,6 +10,7 @@ import Foundation
 extension NtkError {
     enum Rpc: Error {
         case responseEmpty
+        case responseTypeError
         case unknown(msg: String)
     }
 }
