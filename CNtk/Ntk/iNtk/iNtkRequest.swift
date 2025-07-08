@@ -37,10 +37,9 @@ final class NtkHTTPMethod: NSObject, RawRepresentable, Sendable {
     }
 }
 
-@objc
 protocol iNtkRequest {
     
-    var baseURL: URL { get }
+    var baseURL: URL? { get }
     
     var path: String { get }
     
@@ -52,4 +51,29 @@ protocol iNtkRequest {
     var parameters: [String: Any]? { get }
     
     var timeout: TimeInterval { get }
+}
+
+extension iNtkRequest {
+    
+    var baseURL: URL? {
+        nil
+    }
+    
+    var method: NtkHTTPMethod {
+        .post
+    }
+    
+    var headers: [String: String]? {
+        nil
+    }
+    
+    /// 接口参数
+    var parameters: [String: Any]? {
+        nil
+    }
+    
+    var timeout: TimeInterval {
+        20
+    }
+    
 }

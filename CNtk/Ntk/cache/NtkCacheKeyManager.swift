@@ -63,7 +63,7 @@ class NtkCacheKeyManager {
             }
         }
         let configKey = cacheConfig != nil ? "\(cacheConfig!.cacheTime)" : ""
-        return "method:\(request.method.rawValue)|url:\(request.baseURL.appendingPathComponent(request.path).absoluteString)|args:\(parameter)|config:\(configKey)"
+        return "method:\(request.method.rawValue)|url:\(String(describing: request.baseURL?.appendingPathComponent(request.path).absoluteString))|args:\(parameter)|config:\(configKey)"
     }
     
     /**
