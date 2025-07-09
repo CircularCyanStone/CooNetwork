@@ -20,16 +20,7 @@ extension Coo {
         }
         let interceptor = NtkConvenientInterceptor {request in 
             SVProgressHUD.show()
-        } interceptAfter: {request in 
-            SVProgressHUD.dismiss()
-        }
-        return interceptor
-    }
-    
-    static func getToastInterceptor(_ request: RpcRequest) -> NtkConvenientInterceptor {
-        let interceptor = NtkConvenientInterceptor {request in 
-            SVProgressHUD.show()
-        } interceptAfter: {request in 
+        } interceptAfter: {_, _  in
             SVProgressHUD.dismiss()
         }
         return interceptor

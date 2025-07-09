@@ -15,7 +15,7 @@ struct NtkConvenientInterceptor: iNtkInterceptor {
     let interceptBefore: (_ request: iNtkRequest) -> Void
     
     @MainActor
-    let interceptAfter: (_ request: iNtkRequest) -> Void
+    let interceptAfter: (_ request: iNtkRequest, _ response: any iNtkResponse) -> Void
     
     func intercept(context: NtkRequestContext, next: any NtkRequestHandler) async throws -> any iNtkResponse {
         let request = context.client.request!
@@ -24,7 +24,7 @@ struct NtkConvenientInterceptor: iNtkInterceptor {
         }
         let response = try await next.handle(context: context)
         await MainActor.run {
-            interceptAfter(request)
+            interceptAfter(request, response)
         }
         return response
     }

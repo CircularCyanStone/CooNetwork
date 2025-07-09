@@ -15,8 +15,7 @@ class Coo {
         // 添加loading拦截器
         if let ntkLoadingInterceptor = getLoadingInterceptor(request) {
             net.addInterceptor(ntkLoadingInterceptor)
-        }
-        
+        }        
         return net
     }
 }

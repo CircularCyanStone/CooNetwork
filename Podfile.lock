@@ -53,6 +53,7 @@ PODS:
   - SVProgressHUD (2.3.1):
     - SVProgressHUD/Core (= 2.3.1)
   - SVProgressHUD/Core (2.3.1)
+  - Toast-Swift (5.1.1)
   - UTDID (1.0.2.190226130141)
 
 DEPENDENCIES:
@@ -76,11 +77,13 @@ DEPENDENCIES:
   - MPSignatureAdapter (= 1.0.0.231129192920)
   - SecurityGuardSDK (= 2.2.3.230223114620)
   - SVProgressHUD
+  - Toast-Swift
   - UTDID (= 1.0.2.190226130141)
 
 SPEC REPOS:
   https://gitee.com/mirrors/CocoaPods-Specs:
     - SVProgressHUD
+    - Toast-Swift
   https://gitee.com/mpaas/podspecs.git:
     - APCrashReporter
     - APLog
@@ -125,8 +128,9 @@ SPEC CHECKSUMS:
   MPSignatureAdapter: 9b43d5c936dd93eea3dcb04090f76c27de3d9069
   SecurityGuardSDK: 1985bc7b81d55ddb491de954d7da66a54627e1b6
   SVProgressHUD: 4837c74bdfe2e51e8821c397825996a8d7de6e22
+  Toast-Swift: 7a03a532afe3a560d4044bc7c237e2864d295173
   UTDID: cebf7ff624513ec6799675eef7dc07f4b41a8d5a
 
-PODFILE CHECKSUM: 807863a7eb84d2403031e0fa8a3efa41dcf21b7b
+PODFILE CHECKSUM: 296f0b65f86f86eeec068fe2bd1dcc089ee7f48f
 
 COCOAPODS: 1.16.2
