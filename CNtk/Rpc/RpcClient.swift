@@ -84,7 +84,7 @@ extension RpcClient {
                 }
             }
         }
-        if let resposneObject = response as? [String: Any] {
+        if let resposneObject = response as? [String: Sendable] {
             let code = resposneObject[Keys.code]
             guard let data = resposneObject[Keys.data] else {
                 throw NtkError.responseDataEmpty
@@ -107,7 +107,7 @@ extension RpcClient {
             }else {
                 fatalError("RpcClient only support RpcRequest \(request)")
             }
-            let response = NtkResponse(code: retCode, data: retData, msg: msg, response: data, request: request)
+            let response = NtkResponse(code: retCode, data: retData, msg: msg, response: resposneObject, request: request)
             return response
         }else {
             throw NtkError.Rpc.responseTypeError
@@ -124,26 +124,31 @@ extension RpcClient {
     
     private func handleDecodable<ResponseData>() async throws -> NtkResponse<ResponseData> where ResponseData: Decodable {
         let response = try await sendRpcRequest()
+        
+        guard let sendableResponse = response as? [String: Sendable] else {
+            fatalError("接口数据不支持sendable，请核对")
+        }
+        
         let responseData = try JSONSerialization.data(withJSONObject: response)
         let decodeResponse = try JSONDecoder().decode(NtkResponseDecoder<ResponseData, Keys>.self, from: responseData)
         
         if let returnData = decodeResponse.data {
-            let fixResponse = NtkResponse(code: decodeResponse.code, data: returnData, msg: decodeResponse.msg, response: response, request: self.request!)
+            let fixResponse = NtkResponse(code: decodeResponse.code, data: returnData, msg: decodeResponse.msg, response: sendableResponse, request: self.request!)
             return fixResponse
         }else if ResponseData.self is NtkNever.Type {
             // 用户期待的数据类型就是Never，啥都没有
-            let fixResponse = NtkResponse(code: decodeResponse.code, data: NtkNever() as! ResponseData, msg: decodeResponse.msg, response: response, request: self.request!)
+            let fixResponse = NtkResponse(code: decodeResponse.code, data: NtkNever() as! ResponseData, msg: decodeResponse.msg, response: sendableResponse, request: self.request!)
             return fixResponse
         }else {
             // 后端code验证成功，但是没有得到匹配的数据类型
-            throw NtkError.responseDataEmpty
+            throw NtkError.responseDataTypeError
         }
     }
     
     
     func execute<ResponseData>() async throws -> NtkResponse<ResponseData> where ResponseData: NSObject {
         let response = try await sendRpcRequest()
-        if let resposneObject = response as? [String: Any] {
+        if let resposneObject = response as? [String: Sendable] {
             let code = resposneObject[Keys.code]
             guard let data = resposneObject[Keys.data] else {
                 throw NtkError.responseDataEmpty
@@ -161,7 +166,7 @@ extension RpcClient {
                 guard let retData = try rpcRequest.OCResponseDataParse(data) as? ResponseData else {
                     throw NtkError.responseDataTypeError
                 }
-                let response = NtkResponse(code: retCode, data: retData, msg: msg, response: data, request: request!)
+                let response = NtkResponse(code: retCode, data: retData, msg: msg, response: resposneObject, request: request!)
                 return response
             }else {
                 fatalError("RpcClient only support RpcRequest \(String(describing: request))")

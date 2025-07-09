@@ -42,7 +42,7 @@ struct NtkCodingKeys: CodingKey {
     }
 }
 
-class NtkResponseDecoder<ResponseData: Decodable, Keys: NtkResponseMapKeys>: Decodable {
+struct NtkResponseDecoder<ResponseData: Decodable, Keys: NtkResponseMapKeys>: Decodable {
     
     let code: NtkReturnCode
     
@@ -52,7 +52,6 @@ class NtkResponseDecoder<ResponseData: Decodable, Keys: NtkResponseMapKeys>: Dec
     
     let msg: String?
     
-    required
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: NtkCodingKeys.self)
         
@@ -70,7 +69,7 @@ class NtkResponseDecoder<ResponseData: Decodable, Keys: NtkResponseMapKeys>: Dec
 
 /// 该类型用于在抽象协议中使用
 /// 同时也是为了避免NtkResponseDecoder中范型Keys在抽象协议中被要求
-final class NtkResponse<ResponseData: Sendable>: iNtkResponse, Sendable {
+struct NtkResponse<ResponseData: Sendable>: iNtkResponse, Sendable {
     
     let code: NtkReturnCode
     
@@ -78,11 +77,11 @@ final class NtkResponse<ResponseData: Sendable>: iNtkResponse, Sendable {
     
     let msg: String?
     
-    let response: Any
+    let response: Sendable
     
     let request: iNtkRequest
     
-    init(code: NtkReturnCode, data: ResponseData, msg: String?, response: Any, request: iNtkRequest) {
+    init(code: NtkReturnCode, data: ResponseData, msg: String?, response: Sendable, request: iNtkRequest) {
         self.code = code
         self.data = data
         self.msg = msg

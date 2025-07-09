@@ -22,7 +22,7 @@ protocol iNtkResponse {
     
     var msg: String? { get }
     
-    var response: Any { get }
+    var response: Sendable { get }
     
     var request: iNtkRequest { get }
 }
