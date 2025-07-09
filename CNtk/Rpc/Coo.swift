@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import SVProgressHUD
 
 class Coo {
     static func with<ResponseData>(_ request: RpcRequest) -> NtkNetwork<ResponseData> {
@@ -19,23 +18,6 @@ class Coo {
         }
         
         return net
-    }
-    
-    
-    /// 构建loading的拦截器
-    /// - Parameter request: 请求
-    /// - Returns: 拦截器实例
-    static func getLoadingInterceptor(_ request: RpcRequest) -> NtkLoadingInterceptor? {
-        let showLoading = request.showLoading
-        guard showLoading else {
-            return nil
-        }
-        let interceptor = NtkLoadingInterceptor {
-            SVProgressHUD.show()
-        } interceptAfter: {
-            SVProgressHUD.dismiss()
-        }
-        return interceptor
     }
 }
 

@@ -8,21 +8,23 @@
 import Foundation
 import SVProgressHUD
 
-struct NtkLoadingInterceptor: iNtkInterceptor {
+/// 拦截器便捷的构造实现
+struct NtkConvenientInterceptor: iNtkInterceptor {
     
     @MainActor
-    let interceptBefore: () -> Void
+    let interceptBefore: (_ request: iNtkRequest) -> Void
     
     @MainActor
-    let interceptAfter: () -> Void
+    let interceptAfter: (_ request: iNtkRequest) -> Void
     
     func intercept(context: NtkRequestContext, next: any NtkRequestHandler) async throws -> any iNtkResponse {
+        let request = context.client.request!
         await MainActor.run {
-            interceptBefore()
+            interceptBefore(request)
         }
         let response = try await next.handle(context: context)
         await MainActor.run {
-            interceptAfter()
+            interceptAfter(request)
         }
         return response
     }
