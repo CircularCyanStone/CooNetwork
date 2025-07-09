@@ -18,6 +18,7 @@ target 'CooNetwork' do
     pod 'Alamofire'
     pod 'Moya'
     pod 'AFNetworking'
+    pod 'SVProgressHUD'
 #    pod 'YYModel'
 #    pod 'MJExtension'
 end

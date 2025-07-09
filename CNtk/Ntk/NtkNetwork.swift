@@ -22,6 +22,11 @@ class NtkNetwork<ResponseData: Sendable> {
         operation = NtkOperation(client)
     }
     
+    class func with(_ request: iNtkRequest, client: any iNtkClient) -> Self {
+        let net = self.init(client)
+        return net.with(request)
+    }
+    
     func cancel() {
         currentRequestTask?.cancel()
     }
@@ -32,6 +37,10 @@ extension NtkNetwork {
     func with(_ request: iNtkRequest) -> Self {
         operation.client.addRequest(request)
         return self
+    }
+    
+    func addInterceptor(_ i: iNtkInterceptor) {
+        operation.addInterceptor(i)
     }
 
     func validation(_ validation: iNtkResponseValidation) -> Self {

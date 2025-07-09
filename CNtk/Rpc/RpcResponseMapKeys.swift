@@ -18,6 +18,4 @@ struct RpcResponseMapKeys : NtkResponseMapKeys {
     static var msg: String {
         "retMsg"
     }
-    
-    
 }

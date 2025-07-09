@@ -8,6 +8,7 @@
 import Foundation
 
 class NtkRequestContext {
+    
     let validation: iNtkResponseValidation
     
     let client: any iNtkClient

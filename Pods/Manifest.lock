@@ -50,6 +50,9 @@ PODS:
   - MPSignatureAdapter (1.0.0.231129192920):
     - APLog
   - SecurityGuardSDK (2.2.3.230223114620)
+  - SVProgressHUD (2.3.1):
+    - SVProgressHUD/Core (= 2.3.1)
+  - SVProgressHUD/Core (2.3.1)
   - UTDID (1.0.2.190226130141)
 
 DEPENDENCIES:
@@ -72,9 +75,12 @@ DEPENDENCIES:
   - MPMgsAdapter (= 1.0.0.240724143439)
   - MPSignatureAdapter (= 1.0.0.231129192920)
   - SecurityGuardSDK (= 2.2.3.230223114620)
+  - SVProgressHUD
   - UTDID (= 1.0.2.190226130141)
 
 SPEC REPOS:
+  https://gitee.com/mirrors/CocoaPods-Specs:
+    - SVProgressHUD
   https://gitee.com/mpaas/podspecs.git:
     - APCrashReporter
     - APLog
@@ -118,8 +124,9 @@ SPEC CHECKSUMS:
   MPMgsAdapter: 2b55f22ef684d056fdc747e323a37ddbe92b1ad5
   MPSignatureAdapter: 9b43d5c936dd93eea3dcb04090f76c27de3d9069
   SecurityGuardSDK: 1985bc7b81d55ddb491de954d7da66a54627e1b6
+  SVProgressHUD: 4837c74bdfe2e51e8821c397825996a8d7de6e22
   UTDID: cebf7ff624513ec6799675eef7dc07f4b41a8d5a
 
-PODFILE CHECKSUM: 63e7d1554a250df14909ecc040da563c0eca3157
+PODFILE CHECKSUM: 807863a7eb84d2403031e0fa8a3efa41dcf21b7b
 
 COCOAPODS: 1.16.2
