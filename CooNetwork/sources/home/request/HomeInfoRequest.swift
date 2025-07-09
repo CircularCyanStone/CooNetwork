@@ -7,7 +7,8 @@
 
 import Foundation
 
-final class HomeInfoRequest: RpcRequest {
+@objcMembers
+final class HomeInfoRequest: NSObject, RpcRequest {
     var parameters: [String : any Sendable]? {
         [:]
     }
@@ -18,6 +19,4 @@ final class HomeInfoRequest: RpcRequest {
     func OCResponseDataParse(_ retData: Any) throws -> Any {
         retData
     }
-    
-    
 }

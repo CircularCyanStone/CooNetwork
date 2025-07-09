@@ -13,9 +13,9 @@ class HomeViewModel {
     var homeNet: NtkNetwork<HomeInfoData>?
     
     func loadData() async throws {
-        let net: NtkNetwork<HomeInfoData> = withRpc(HomeInfoRequest())
-        homeNet = net
-        let response: HomeInfoData = try await net.sendRequest().data
+//        let net: NtkNetwork<HomeInfoData> = withRpc(HomeInfoRequest())
+//        homeNet = net
+//        let response: HomeInfoData = try await net.sendRequest().data
     }
     
     func cancel() {

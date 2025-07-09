@@ -47,6 +47,18 @@ extension NtkNetwork {
         return try await task.value
     }
     
+    // 适配OC的闭包回调方式
+    // 后续还要实现一个OC的中间层，可能不需要这里
+    func sendnRequest(_ completion: @escaping (NtkResponse<ResponseData>) -> Void, failure: ((any Error) -> Void)?) {
+        Task {
+            do {
+                let response: NtkResponse<ResponseData> = try await operation.run()
+                completion(response)
+            }catch {
+                failure?(error)
+            }
+        }
+    }
     
     func loadCache(_ storage: iNtkCacheStorage) async throws -> NtkResponse<ResponseData>? {
         return try await operation.loadCache(storage)
