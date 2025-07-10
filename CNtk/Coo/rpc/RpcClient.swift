@@ -56,7 +56,7 @@ class RpcClient<Keys: NtkResponseMapKeys>: iNtkClient {
 
 extension RpcClient {
     func execute<ResponseData>() async throws -> NtkResponse<ResponseData> {
-        fatalError("ResponseData not support")
+        fatalError("ResponseData type not support, should NSObject or Decodable")
     }
     
     func execute<ResponseData>() async throws -> NtkResponse<ResponseData> where ResponseData: Decodable {

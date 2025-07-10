@@ -8,9 +8,6 @@
 import Foundation
 import CryptoKit
 
-// 导入相关模块
-// 注意：这些import路径可能需要根据实际项目结构调整
-
 /**
  * Ntk缓存键管理工具：基于内存的缓存键复用管理
  *
@@ -27,7 +24,7 @@ class NtkCacheKeyManager {
     static var shared: NtkCacheKeyManager = NtkCacheKeyManager()
     // 内存缓存（LRU容量建议100）
     private var cacheMap: [String: String] = [:]
-    private let queue = DispatchQueue(label: "NtkCacheKeyManager", attributes: .concurrent)
+    // 移除GCD队列，使用Swift Actor进行并发控制
     
     /**
      * 获取缓存键（线程安全）
@@ -36,19 +33,13 @@ class NtkCacheKeyManager {
         let serialized = serializeRequest(request: request, cacheConfig: cacheConfig)
         
         // 内存缓存命中
-        let cachedKey = queue.sync {
-            return cacheMap[serialized]
-        }
-        
-        if let key = cachedKey {
-            return key
+        if let cachedKey = cacheMap[serialized] {
+            return cachedKey
         }
         
         // 计算新缓存键
         let newKey = generateKey(serialized: serialized)
-        queue.async(flags: .barrier) {
-            self.updateCache(key: serialized, value: newKey)
-        }
+        updateCache(key: serialized, value: newKey)
         return newKey
     }
     
