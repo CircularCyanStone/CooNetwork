@@ -7,7 +7,7 @@
 
 import Foundation
 
-class NtkValidationInterceptor: iNtkInterceptor {
+struct NtkValidationInterceptor: iNtkInterceptor {
     var priority: NtkInterceptorPriority {
         .priority(.high)
     }

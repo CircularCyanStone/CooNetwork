@@ -21,6 +21,8 @@ import CryptoKit
  *
  * Copyright © Coo.2024−{2024}. All rights reserved.
  */
+
+@NtkActor
 class NtkNetworkCache<Keys: NtkResponseMapKeys> {
     // 请求
     let request: iNtkRequest
@@ -95,12 +97,12 @@ class NtkNetworkCache<Keys: NtkResponseMapKeys> {
      * 缓存接口数据
      * @param data 接口返回的数据
      */
-    func save(data: Any) async -> Bool {
+    func save(data: Sendable) async -> Bool {
         let cacheKey = createCacheKey()
         return await _save(data: data, key: cacheKey)
     }
     
-    private func _save(data: Any, key: String) async -> Bool {
+    private func _save(data: Sendable, key: String) async -> Bool {
         guard let config = cacheConfig else {
             return false
         }

@@ -7,7 +7,7 @@
 
 import Foundation
 
-
+@NtkActor
 class RpcClient<Keys: NtkResponseMapKeys>: iNtkClient {
     
     var requestWrapper: NtkRequestWrapper = NtkRequestWrapper()
@@ -16,7 +16,7 @@ class RpcClient<Keys: NtkResponseMapKeys>: iNtkClient {
         requestWrapper.request
     }
     
-    private func sendRpcRequest() async throws -> Any {
+    private func sendRpcRequest() async throws -> Sendable {
         guard let request = requestWrapper.request else {
             fatalError("request can not be nil")
         }
@@ -25,13 +25,19 @@ class RpcClient<Keys: NtkResponseMapKeys>: iNtkClient {
         let headers = request.headers ?? [:]
         
         try Task.checkCancellation()
-        let response = try await withUnsafeThrowingContinuation { continuation in
+        let response: Sendable = try await withUnsafeThrowingContinuation { continuation in
             DTRpcAsyncCaller.callSwiftAsyncBlock {
                 let responseObject = DTRpcClient.default().execute(method, params: [parameters], requestHeaderField: headers) { headerFile in
                     
                 }
-                if responseObject != nil {
-                    continuation.resume(returning: responseObject!)
+                if let responseObject {
+                    if let responseDict = responseObject as? [String: any Sendable] {
+                        continuation.resume(returning: responseDict)
+                    }else if let responseArray = responseObject as? [any Sendable] {
+                        continuation.resume(returning: responseArray)
+                    }else {
+                        continuation.resume(throwing: NtkError.Rpc.responseTypeError)
+                    }
                 }else {
                     continuation.resume(throwing: NtkError.Rpc.responseEmpty)
                 }

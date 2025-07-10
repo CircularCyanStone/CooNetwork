@@ -7,7 +7,7 @@
 
 import Foundation
 
-class NtkCacheMeta {
+struct NtkCacheMeta: Sendable {
     
     // 缓存数据版本号
     let appVersion: String
@@ -19,9 +19,9 @@ class NtkCacheMeta {
     let expirationDate: TimeInterval
     
     // 缓存数据
-    let data: Any
+    let data: Sendable
     
-    init(appVersion: String, creationDate: TimeInterval, expirationDate: TimeInterval, data: Any) {
+    init(appVersion: String, creationDate: TimeInterval, expirationDate: TimeInterval, data: Sendable) {
         self.appVersion = appVersion
         self.creationDate = creationDate
         self.expirationDate = expirationDate

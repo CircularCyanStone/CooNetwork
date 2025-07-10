@@ -20,6 +20,8 @@ import CryptoKit
  * 实现更智能的 LRU 淘汰策略（参考 LinkedHashMap）
  * 增加缓存失效机制（如定时刷新）
  */
+
+@NtkActor
 class NtkCacheKeyManager {
     // 单例实例
     static var shared: NtkCacheKeyManager = NtkCacheKeyManager()

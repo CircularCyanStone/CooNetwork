@@ -8,21 +8,14 @@
 import Foundation
 
 class Coo {
-    @MainActor
-    static func with<ResponseData>(_ request: iRpcRequest) -> NtkNetwork<ResponseData> {
+    
+    static func with<ResponseData>(_ request: iRpcRequest) async -> NtkNetwork<ResponseData> {
         let client = RpcClient<RpcResponseMapKeys>()
-        let net = NtkNetwork<ResponseData>.with(request, client: client)
+        let net = await NtkNetwork<ResponseData>.with(request, client: client)
         // 添加loading拦截器
         if let ntkLoadingInterceptor = getLoadingInterceptor(request) {
-            net.addInterceptor(ntkLoadingInterceptor)
+            await net.addInterceptor(ntkLoadingInterceptor)
         }        
         return net
     }
-}
-
-func withRpc<ResponseData>(_ request: iRpcRequest) -> NtkNetwork<ResponseData> {
-    let client = RpcClient<RpcResponseMapKeys>()
-    let net = NtkNetwork<ResponseData>(client)
-        .with(request)
-    return net
 }

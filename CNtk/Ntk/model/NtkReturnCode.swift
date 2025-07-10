@@ -24,7 +24,7 @@ final class NtkReturnCode: Codable, Sendable {
         case rawValue
     }
     
-    init(_ value: Any?) {
+    init(_ value: Sendable?) {
         rawValue = value
         if value is String {
             _type = .string

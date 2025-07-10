@@ -47,7 +47,8 @@ class NtkInterceptorPriority: Comparable {
 }
 
 
-protocol iNtkInterceptor {
+@NtkActor
+protocol iNtkInterceptor: Sendable {
     
     /// 拦截器优先级，默认iNtkInterceptorPriority.medium
     /// - note:对于请求流：值越大执行越早。

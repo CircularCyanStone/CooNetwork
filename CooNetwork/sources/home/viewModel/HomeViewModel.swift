@@ -18,7 +18,7 @@ class HomeViewModel {
 //        let response: HomeInfoData = try await net.sendRequest().data
     }
     
-    func cancel() {
-        homeNet?.cancel()
+    func cancel() async {
+        await homeNet?.cancel()
     }
 }

@@ -7,7 +7,7 @@
 
 import UIKit
 
-
+@NtkActor
 class NtkNetwork<ResponseData: Sendable> {
     
     private(set) var operation: NtkOperation
@@ -60,6 +60,7 @@ extension NtkNetwork {
     // 适配OC的闭包回调方式
     // 后续还要实现一个OC的中间层，可能不需要这里
     func sendnRequest(_ completion: @escaping (NtkResponse<ResponseData>) -> Void, failure: ((any Error) -> Void)?) {
+        let operation = operation
         Task {
             do {
                 let response: NtkResponse<ResponseData> = try await operation.run()
@@ -74,7 +75,7 @@ extension NtkNetwork {
         return try await operation.loadCache(storage)
     }
     
-    /// 判断是否有缓存
+    /// 判断是否有缓存Sending global actor 'NktActor'-isolated 'self.operation' to nonisolated callee risks causing data races between nonisolated and global actor 'NktActor'-isolated uses
     /// - Parameter storage: 存储工具
     func hasCacheData(_ storage: iNtkCacheStorage) -> Bool {
         return operation.client.hasCacheData(storage)

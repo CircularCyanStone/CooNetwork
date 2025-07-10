@@ -16,8 +16,9 @@ struct NtkConvenientInterceptor: iNtkInterceptor, Sendable {
     var interceptAfter: (@Sendable (_ request: iNtkRequest, _ response: any iNtkResponse) -> Void)?
     
     func intercept(context: NtkRequestContext, next: any NtkRequestHandler) async throws -> any iNtkResponse {
-        let showLoading = context.client.requestWrapper.showLoading
-        let request = context.client.requestWrapper.request!
+        let requestWrapper = context.client.requestWrapper
+        let showLoading = requestWrapper.showLoading
+        let request = requestWrapper.request!
         
         let interceptBefore = interceptBefore
         let interceptAfter = interceptAfter

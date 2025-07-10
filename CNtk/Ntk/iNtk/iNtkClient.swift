@@ -7,7 +7,8 @@
 
 import Foundation
 
-protocol iNtkClient {
+@NtkActor
+protocol iNtkClient: Sendable {
     associatedtype Keys: NtkResponseMapKeys
     
     var requestWrapper: NtkRequestWrapper { get set }

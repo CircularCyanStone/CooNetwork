@@ -7,6 +7,7 @@
 
 import UIKit
 
+@NtkActor
 class NtkOperation {
     
     // 存储所有注册的拦截器

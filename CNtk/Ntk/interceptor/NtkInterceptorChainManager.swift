@@ -8,7 +8,7 @@
 import Foundation
 
 // 负责将所有拦截器组织成一个链，并启动请求处理
-class NtkInterceptorChainManager {
+struct NtkInterceptorChainManager {
     // 所有注册的拦截器
     private let interceptors: [iNtkInterceptor]
     // 链的最终处理者（通常是发起实际网络请求的）
@@ -35,7 +35,7 @@ class NtkInterceptorChainManager {
     }
 }
 
-fileprivate class InterceptorHandlerAdapter: NtkRequestHandler {
+fileprivate struct InterceptorHandlerAdapter: NtkRequestHandler {
     private let interceptor: iNtkInterceptor
     private let next: NtkRequestHandler
 

@@ -7,7 +7,7 @@
 
 import Foundation
 
-class NtkDefaultApiRequestHandler<ResponseData: Sendable>: NtkRequestHandler {
+struct NtkDefaultApiRequestHandler<ResponseData: Sendable>: NtkRequestHandler {
     func handle(context: NtkRequestContext) async throws -> any iNtkResponse {
         let response: NtkResponse<ResponseData> = try await context.client.execute()
         return response
