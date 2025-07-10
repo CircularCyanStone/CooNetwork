@@ -32,6 +32,15 @@ class NtkOperation {
 
     private(set) var client: any iNtkClient
     
+    var requestWrapper: NtkRequestWrapper {
+        get {
+            client.requestWrapper
+        }
+        set {
+            client.requestWrapper = newValue
+        }
+    }
+    
     var validation: iNtkResponseValidation?
     
     required

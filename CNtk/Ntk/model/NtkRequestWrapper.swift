@@ -18,6 +18,16 @@ struct NtkRequestWrapper: Sendable {
         
     }
     
+    subscript(_ key: String) -> Sendable? {
+        get {
+            extraData[key]
+        }
+        
+        set {
+            extraData[key] = newValue
+        }
+    }
+    
     mutating func addRequest(_ req: iNtkRequest) {
         request = req
     }

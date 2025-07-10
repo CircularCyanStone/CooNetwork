@@ -7,10 +7,6 @@
 
 import Foundation
 
-protocol RpcRequestLoading {
-    var showLoading: Bool { get } 
-}
-
 protocol RpcRequestToast {
     
     var toastRetErrorMsg: Bool { get }
@@ -19,7 +15,7 @@ protocol RpcRequestToast {
     
 }
 
-protocol RpcRequest: iNtkRequest, RpcRequestLoading, RpcRequestToast {
+protocol RpcRequest: iNtkRequest, RpcRequestToast {
     
     /// RPC接口模型解析，因需要兼容OC版本，无法使用Decodable协议统一解析，所以每个接口需要手动解析
     /// - Parameter retData: 接口返回的retData数据
@@ -29,9 +25,6 @@ protocol RpcRequest: iNtkRequest, RpcRequestLoading, RpcRequestToast {
 }
 
 extension RpcRequest  {
-    var showLoading: Bool {
-        true
-    }
     var toastRetErrorMsg: Bool {
         true
     }

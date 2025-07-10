@@ -11,7 +11,6 @@ class Coo {
     static func with<ResponseData>(_ request: RpcRequest) -> NtkNetwork<ResponseData> {
         let client = RpcClient<RpcResponseMapKeys>()
         let net = NtkNetwork<ResponseData>.with(request, client: client)
-        
         // 添加loading拦截器
         if let ntkLoadingInterceptor = getLoadingInterceptor(request) {
             net.addInterceptor(ntkLoadingInterceptor)

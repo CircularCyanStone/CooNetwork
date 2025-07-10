@@ -14,10 +14,6 @@ extension Coo {
     /// - Parameter request: 请求
     /// - Returns: 拦截器实例
     static func getLoadingInterceptor(_ request: RpcRequest) -> NtkConvenientInterceptor? {
-        let showLoading = request.showLoading
-        guard showLoading else {
-            return nil
-        }
         let interceptor = NtkConvenientInterceptor {request in 
             SVProgressHUD.show()
         } interceptAfter: {_, _  in

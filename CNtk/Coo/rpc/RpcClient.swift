@@ -6,7 +6,6 @@
 //
 
 import Foundation
-//import YYModel
 
 
 class RpcClient<Keys: NtkResponseMapKeys>: iNtkClient {

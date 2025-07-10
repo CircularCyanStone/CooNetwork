@@ -18,13 +18,19 @@ struct NtkConvenientInterceptor: iNtkInterceptor {
     let interceptAfter: (_ request: iNtkRequest, _ response: any iNtkResponse) -> Void
     
     func intercept(context: NtkRequestContext, next: any NtkRequestHandler) async throws -> any iNtkResponse {
+        let showLoading = context.client.requestWrapper.showLoading
         let request = context.client.requestWrapper.request!
-        await MainActor.run {
-            interceptBefore(request)
+        if showLoading {
+            Task { @MainActor in
+                interceptBefore(request)
+            }
         }
+        
         let response = try await next.handle(context: context)
-        await MainActor.run {
-            interceptAfter(request, response)
+        if showLoading {
+            Task { @MainActor in
+                interceptAfter(request, response)
+            }
         }
         return response
     }
