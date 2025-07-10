@@ -8,7 +8,7 @@
 import Foundation
 
 @objcMembers
-final class HomeInfoRequest: NSObject, RpcRequest {
+final class HomeInfoRequest: NSObject, iRpcRequest {
     var parameters: [String : any Sendable]? {
         [:]
     }

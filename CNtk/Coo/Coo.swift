@@ -8,7 +8,7 @@
 import Foundation
 
 class Coo {
-    static func with<ResponseData>(_ request: RpcRequest) -> NtkNetwork<ResponseData> {
+    static func with<ResponseData>(_ request: iRpcRequest) -> NtkNetwork<ResponseData> {
         let client = RpcClient<RpcResponseMapKeys>()
         let net = NtkNetwork<ResponseData>.with(request, client: client)
         // 添加loading拦截器
@@ -19,7 +19,7 @@ class Coo {
     }
 }
 
-func withRpc<ResponseData>(_ request: RpcRequest) -> NtkNetwork<ResponseData> {
+func withRpc<ResponseData>(_ request: iRpcRequest) -> NtkNetwork<ResponseData> {
     let client = RpcClient<RpcResponseMapKeys>()
     let net = NtkNetwork<ResponseData>(client)
         .with(request)

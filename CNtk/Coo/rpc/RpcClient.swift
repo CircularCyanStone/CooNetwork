@@ -85,14 +85,14 @@ extension RpcClient {
             var retData: ResponseData
             if ResponseData.self is NtkNever.Type {
                 retData = NtkNever() as! ResponseData
-            }else if request is RpcRequest {
+            }else if request is iRpcRequest {
                 /**
                  因为要适配OC，使用手动模型解析。
                  当遇到数组类型的数据时，ResponseData代表的是数组。
                  但是在OC里需要使用ResponseData数组里面的元素类型才能进行模型解析。
                  所以不适用统一做自动解析。
                  */
-                let rpcRequest = request as! RpcRequest
+                let rpcRequest = request as! iRpcRequest
                 retData = try rpcRequest.OCResponseDataParse(data) as! ResponseData
                 
             }else {
@@ -146,14 +146,14 @@ extension RpcClient {
             }
             let msg = resposneObject[Keys.msg] as? String
             let retCode = NtkReturnCode(code)
-            if request is RpcRequest {
+            if request is iRpcRequest {
                 /**
                  因为要适配OC，使用手动模型解析。
                  当遇到数组类型的数据时，ResponseData代表的是数组。
                  但是在OC里需要使用ResponseData数组里面的元素类型才能进行模型解析。
                  所以不适用统一做自动解析。
                  */
-                let rpcRequest = request as! RpcRequest                
+                let rpcRequest = request as! iRpcRequest                
                 guard let retData = try rpcRequest.OCResponseDataParse(data) as? ResponseData else {
                     throw NtkError.responseDataTypeError
                 }
