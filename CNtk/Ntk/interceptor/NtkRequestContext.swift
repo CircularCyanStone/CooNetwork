@@ -7,7 +7,7 @@
 
 import Foundation
 
-class NtkRequestContext {
+struct NtkRequestContext: Sendable {
     
     let validation: iNtkResponseValidation
     
@@ -15,7 +15,7 @@ class NtkRequestContext {
     
     let storage: iNtkCacheStorage?
     
-    var extraData: [String: Any] = [:]
+    var extraData: [String: Sendable] = [:]
     
     init(validation: iNtkResponseValidation, client: any iNtkClient, storage: iNtkCacheStorage? = nil) {
         self.validation = validation

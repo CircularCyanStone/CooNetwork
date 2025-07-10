@@ -13,8 +13,9 @@ extension Coo {
     /// 构建loading的拦截器
     /// - Parameter request: 请求
     /// - Returns: 拦截器实例
+    @MainActor
     static func getLoadingInterceptor(_ request: iRpcRequest) -> NtkConvenientInterceptor? {
-        let interceptor = NtkConvenientInterceptor {request in 
+        let interceptor = NtkConvenientInterceptor {request in
             SVProgressHUD.show()
         } interceptAfter: {_, _  in
             SVProgressHUD.dismiss()

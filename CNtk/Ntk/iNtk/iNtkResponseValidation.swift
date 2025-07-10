@@ -7,7 +7,7 @@
 
 import Foundation
 
-protocol iNtkResponseValidation {
+protocol iNtkResponseValidation: Sendable {
     
     /// 接口在服务端是否验证成功
     /// - note:针对个别接口如果使用到response.data，可以强制类型转换

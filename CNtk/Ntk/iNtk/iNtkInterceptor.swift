@@ -74,10 +74,6 @@ extension iNtkInterceptor {
         .priority(.medium)
     }
     
-    func intercept(context: NtkRequestContext, next: NtkRequestHandler) async throws -> any iNtkResponse {
-        try await next.handle(context: context)
-    }
-    
     func shouldRetry(error: Error, for request: iNtkRequest, retryCount: Int) -> (Bool, TimeInterval?) {
         (false, nil)
     }

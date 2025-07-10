@@ -8,6 +8,7 @@
 import Foundation
 
 class Coo {
+    @MainActor
     static func with<ResponseData>(_ request: iRpcRequest) -> NtkNetwork<ResponseData> {
         let client = RpcClient<RpcResponseMapKeys>()
         let net = NtkNetwork<ResponseData>.with(request, client: client)

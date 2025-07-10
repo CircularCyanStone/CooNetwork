@@ -49,6 +49,7 @@ extension NtkNetwork {
     }
     
     func sendRequest() async throws -> NtkResponse<ResponseData> {
+        let operation = operation
         let task: Task<NtkResponse<ResponseData>, any Error> = Task {
             try await operation.run()
         }
