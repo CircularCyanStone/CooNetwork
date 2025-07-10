@@ -11,22 +11,14 @@ import Foundation
 
 class RpcClient<Keys: NtkResponseMapKeys>: iNtkClient {
     
-    var request: (any iNtkRequest)?
+    var requestWrapper: NtkRequestWrapper = NtkRequestWrapper()
     
-    var isFinished: Bool = false
-    
-    var isCancelled: Bool = false
-    
-    func addRequest(_ req: any iNtkRequest) {
-        self.request = req
-    }
-    
-    func cancel() {
-        
+    private var request: iNtkRequest? {
+        requestWrapper.request
     }
     
     private func sendRpcRequest() async throws -> Any {
-        guard let request else {
+        guard let request = requestWrapper.request else {
             fatalError("request can not be nil")
         }
         let method = DTRpcMethod()
@@ -59,7 +51,7 @@ class RpcClient<Keys: NtkResponseMapKeys>: iNtkClient {
 
 extension RpcClient {
     func execute<ResponseData>() async throws -> NtkResponse<ResponseData> {
-        guard let request else {
+        guard let request = requestWrapper.request else {
             fatalError("request can not be nil")
         }
         let method = DTRpcMethod()

@@ -10,7 +10,7 @@ import UIKit
 
 class NtkNetwork<ResponseData: Sendable> {
     
-    private let operation: NtkOperation
+    private(set) var operation: NtkOperation
     
     private var currentRequestTask: Task<NtkResponse<ResponseData>, any Error>?
     
@@ -35,7 +35,7 @@ class NtkNetwork<ResponseData: Sendable> {
 extension NtkNetwork {
     
     func with(_ request: iNtkRequest) -> Self {
-        operation.client.addRequest(request)
+        operation.with(request)
         return self
     }
     

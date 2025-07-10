@@ -6,11 +6,15 @@
 //
 
 import UIKit
-import Moya
+@preconcurrency import Moya
 
 class MoyaClient<R: TargetType, Keys: NtkResponseMapKeys>: NSObject, iNtkClient {
     
-    private(set) var request: iNtkRequest?
+    var requestWrapper: NtkRequestWrapper = NtkRequestWrapper()
+    
+    private var request: iNtkRequest? {
+        requestWrapper.request
+    }
     
     private(set) var moyaRequest: R?
     
@@ -39,7 +43,7 @@ class MoyaClient<R: TargetType, Keys: NtkResponseMapKeys>: NSObject, iNtkClient 
     }
     
     func addRequest(_ req: any iNtkRequest) {
-        request = req
+        requestWrapper.addRequest(req)
         if let moyaRequest = req as? R {
             self.moyaRequest = moyaRequest
         }

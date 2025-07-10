@@ -10,9 +10,7 @@ import Foundation
 protocol iNtkClient {
     associatedtype Keys: NtkResponseMapKeys
     
-    var request: iNtkRequest? { get }
-    
-    func addRequest(_ req: iNtkRequest)
+    var requestWrapper: NtkRequestWrapper { get set }
     
     func execute<ResponseData>() async throws -> NtkResponse<ResponseData>
     
@@ -26,8 +24,8 @@ protocol iNtkClient {
 extension iNtkClient {
     
     func loadCache<ResponseData: Decodable>(_ storage: any iNtkCacheStorage) async throws -> NtkResponse<ResponseData>? {
-        assert(request != nil, "iNtkClient request must not nil")
-        let cacheUtil = NtkNetworkCache<Keys>(request: request!, storage: storage, cacheConfig: nil)
+        assert(requestWrapper.request != nil, "iNtkClient request must not nil")
+        let cacheUtil = NtkNetworkCache<Keys>(request: requestWrapper.request!, storage: storage, cacheConfig: nil)
         let response: NtkResponse<ResponseData>? = try await cacheUtil.loadData()
         return response
     }
@@ -37,8 +35,12 @@ extension iNtkClient {
     }
     
     func hasCacheData(_ storage: any iNtkCacheStorage) -> Bool {
-        assert(request != nil, "iNtkClient request must not nil")
-        let cacheUtil = NtkNetworkCache<Keys>(request: request!, storage: storage, cacheConfig: nil)
+        assert(requestWrapper.request != nil, "iNtkClient request must not nil")
+        let cacheUtil = NtkNetworkCache<Keys>(request: requestWrapper.request!, storage: storage, cacheConfig: nil)
         return cacheUtil.hasData()
+    }
+    
+    func cancel() {
+        fatalError("\(self) not support, please use task.cancel()")
     }
 }

@@ -55,6 +55,10 @@ extension NtkOperation {
         _interceptors.append(i)
     }
     
+    func with(_ request: iNtkRequest) {
+        client.requestWrapper.addRequest(request)
+    }
+    
     func run<ResponseData>() async throws -> NtkResponse<ResponseData> {
         assert(validation != nil, "")
         let context = NtkRequestContext(validation: validation!, client: client)

@@ -8,7 +8,7 @@
 import Foundation
 
 protocol RpcRequestLoading {
-    var showLoading: Bool { get }
+    var showLoading: Bool { get } 
 }
 
 protocol RpcRequestToast {
