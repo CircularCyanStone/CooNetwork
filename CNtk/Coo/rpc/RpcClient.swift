@@ -50,59 +50,7 @@ class RpcClient<Keys: NtkResponseMapKeys>: iNtkClient {
 
 extension RpcClient {
     func execute<ResponseData>() async throws -> NtkResponse<ResponseData> {
-        guard let request = requestWrapper.request else {
-            fatalError("request can not be nil")
-        }
-        let method = DTRpcMethod()
-        let parameters = request.parameters ?? [:]
-        let headers = request.headers ?? [:]
-        
-        let response = try await withUnsafeThrowingContinuation { continuation in
-            DTRpcAsyncCaller.callSwiftAsyncBlock {
-                let responseObject = DTRpcClient.default().execute(method, params: [parameters], requestHeaderField: headers) { headerFile in
-                    
-                }
-                if responseObject != nil {
-                    continuation.resume(returning: responseObject!)
-                }else {
-                    continuation.resume(throwing: NtkError.Rpc.responseEmpty)
-                }
-            } completion: { error in
-                if let error {
-                    continuation.resume(throwing: error)
-                }else {
-                    continuation.resume(throwing: NtkError.Rpc.unknown(msg: "request error, but error info is nil"))
-                }
-            }
-        }
-        if let resposneObject = response as? [String: Sendable] {
-            let code = resposneObject[Keys.code]
-            guard let data = resposneObject[Keys.data] else {
-                throw NtkError.responseDataEmpty
-            }
-            let msg = resposneObject[Keys.msg] as? String
-            let retCode = NtkReturnCode(code)
-            var retData: ResponseData
-            if ResponseData.self is NtkNever.Type {
-                retData = NtkNever() as! ResponseData
-            }else if request is iRpcRequest {
-                /**
-                 因为要适配OC，使用手动模型解析。
-                 当遇到数组类型的数据时，ResponseData代表的是数组。
-                 但是在OC里需要使用ResponseData数组里面的元素类型才能进行模型解析。
-                 所以不适用统一做自动解析。
-                 */
-                let rpcRequest = request as! iRpcRequest
-                retData = try rpcRequest.OCResponseDataParse(data) as! ResponseData
-                
-            }else {
-                fatalError("RpcClient only support RpcRequest \(request)")
-            }
-            let response = NtkResponse(code: retCode, data: retData, msg: msg, response: resposneObject, request: request)
-            return response
-        }else {
-            throw NtkError.Rpc.responseTypeError
-        }
+        fatalError("ResponseData not support")
     }
     
     func execute<ResponseData>() async throws -> NtkResponse<ResponseData> where ResponseData: Decodable {

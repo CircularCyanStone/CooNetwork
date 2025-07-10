@@ -68,7 +68,7 @@ extension iNtkRequest {
     }
     
     /// 接口参数
-    var parameters: [String: Any]? {
+    var parameters: [String: Sendable]? {
         nil
     }
     
