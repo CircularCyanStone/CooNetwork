@@ -4,7 +4,9 @@
 //
 //  Created by 李奇奇 on 2025/7/9.
 //
-
+// OC版本适配时，具体类直接构建一个请求的执行类在里面使用Swift方法，并转换成OC可用的方法。
+// 这样子可以避免将更多的类转换成OC版本，只需要最终被调用请求方法支持OC和返回值模型支持OC就可以了。
+// 成本最小
 import Foundation
 import SVProgressHUD
 
