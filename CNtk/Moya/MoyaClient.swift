@@ -98,7 +98,7 @@ class MoyaClient<R: TargetType, Keys: NtkResponseMapKeys>: NSObject, iNtkClient 
                                 continuatuon.resume(returning: fixResponse)
                             }else {
                                 // 后端code验证成功，但是没有得到匹配的数据类型
-                                throw NtkError.responseDataEmpty
+                                throw NtkError.serviceDataEmpty
                             }  
                         } catch {
                             continuatuon.resume(throwing: error)

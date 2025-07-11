@@ -81,7 +81,7 @@ extension NtkOperation {
             if let response = response as? NtkResponse<ResponseData> {
                 return response
             }else {
-                throw NtkError.responseDataTypeError
+                throw NtkError.serviceDataTypeInvalid
             }
         }catch let error as NtkError {
             throw error
@@ -104,7 +104,7 @@ extension NtkOperation {
             if let response = response as? NtkResponse<ResponseData> {
                 return response
             }else {
-                throw NtkError.responseDataTypeError
+                throw NtkError.serviceDataTypeInvalid
             }
         }catch NtkError.Cache.noCache {
             return nil

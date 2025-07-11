@@ -56,7 +56,7 @@ class RpcClient<Keys: NtkResponseMapKeys>: iNtkClient {
 
 extension RpcClient {
     func execute<ResponseData>() async throws -> NtkResponse<ResponseData> {
-        fatalError("ResponseData type not support, should NSObject or Decodable")
+        fatalError("ResponseData must be NSObject or Decodable.")
     }
     
     func execute<ResponseData>() async throws -> NtkResponse<ResponseData> where ResponseData: Decodable {
@@ -69,24 +69,37 @@ extension RpcClient {
     
     private func handleDecodable<ResponseData>() async throws -> NtkResponse<ResponseData> where ResponseData: Decodable {
         let response = try await sendRpcRequest()
-        
         guard let sendableResponse = response as? [String: Sendable] else {
-            fatalError("接口数据不支持sendable，请核对")
+            fatalError("接口数据仅支持sendable类型的数据，请核对")
+        }
+        let code = sendableResponse[Keys.code]
+        let msg = sendableResponse[Keys.msg] as? String
+        let retCode = NtkReturnCode(code)
+        if ResponseData.self is NtkNever.Type {
+            // 用户期待的数据类型就是Never，啥都没有
+            let fixResponse = NtkResponse(code: retCode, data: NtkNever() as! ResponseData, msg: msg, response: sendableResponse, request: self.request!)
+            return fixResponse
         }
         
-        let responseData = try JSONSerialization.data(withJSONObject: response)
-        let decodeResponse = try JSONDecoder().decode(NtkResponseDecoder<ResponseData, Keys>.self, from: responseData)
+        guard let data = sendableResponse[Keys.data] else {
+            throw NtkError.serviceDataEmpty
+        }
         
-        if let returnData = decodeResponse.data {
-            let fixResponse = NtkResponse(code: decodeResponse.code, data: returnData, msg: decodeResponse.msg, response: sendableResponse, request: self.request!)
+        do {
+            guard JSONSerialization.isValidJSONObject(data) else {
+                // 后端code验证成功，但是没有得到匹配的数据类型
+                throw NtkError.jsonInvalid(request!, sendableResponse)
+            }
+            let responseData = try JSONSerialization.data(withJSONObject: data)
+            let decodeRetData = try JSONDecoder().decode(ResponseData.self, from: responseData)
+            let fixResponse = NtkResponse(code: retCode, data: decodeRetData, msg: msg, response: sendableResponse, request: self.request!)
             return fixResponse
-        }else if ResponseData.self is NtkNever.Type {
-            // 用户期待的数据类型就是Never，啥都没有
-            let fixResponse = NtkResponse(code: decodeResponse.code, data: NtkNever() as! ResponseData, msg: decodeResponse.msg, response: sendableResponse, request: self.request!)
-            return fixResponse
-        }else {
+        } catch let error as DecodingError {
+            // decoder字段解析报错，避免崩溃
+            throw NtkError.decodeInvalid(error, request!, sendableResponse)
+        } catch {
             // 后端code验证成功，但是没有得到匹配的数据类型
-            throw NtkError.responseDataTypeError
+            throw NtkError.serviceDataTypeInvalid
         }
     }
     
@@ -96,7 +109,7 @@ extension RpcClient {
         if let resposneObject = response as? [String: Sendable] {
             let code = resposneObject[Keys.code]
             guard let data = resposneObject[Keys.data] else {
-                throw NtkError.responseDataEmpty
+                throw NtkError.serviceDataEmpty
             }
             let msg = resposneObject[Keys.msg] as? String
             let retCode = NtkReturnCode(code)
@@ -109,7 +122,7 @@ extension RpcClient {
                  */
                 let rpcRequest = request as! iRpcRequest                
                 guard let retData = try rpcRequest.OCResponseDataParse(data) as? ResponseData else {
-                    throw NtkError.responseDataTypeError
+                    throw NtkError.serviceDataTypeInvalid
                 }
                 let response = NtkResponse(code: retCode, data: retData, msg: msg, response: resposneObject, request: request!)
                 return response
