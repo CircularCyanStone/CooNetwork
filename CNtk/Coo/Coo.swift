@@ -7,7 +7,8 @@
 
 import Foundation
 
-class Coo {
+@objcMembers
+public class Coo: NSObject {
     
     static func with<ResponseData>(_ request: iRpcRequest) async -> NtkNetwork<ResponseData> {
         let client = RpcClient<RpcResponseMapKeys>()
