@@ -56,7 +56,7 @@ class RpcClient<Keys: NtkResponseMapKeys>: iNtkClient {
 
 extension RpcClient {
     func execute<ResponseData>() async throws -> NtkResponse<ResponseData> {
-        fatalError("ResponseData must be NSObject or Decodable.")
+        try await handleNSObject()
     }
     
     func execute<ResponseData>() async throws -> NtkResponse<ResponseData> where ResponseData: Decodable {
@@ -105,6 +105,10 @@ extension RpcClient {
     
     
     func execute<ResponseData>() async throws -> NtkResponse<ResponseData> where ResponseData: NSObject {
+        return try await handleNSObject()
+    }
+    
+    private func handleNSObject<ResponseData>() async throws -> NtkResponse<ResponseData> {
         let response = try await sendRpcRequest()
         if let resposneObject = response as? [String: Sendable] {
             let code = resposneObject[Keys.code]
@@ -120,7 +124,7 @@ extension RpcClient {
                  但是在OC里需要使用ResponseData数组里面的元素类型才能进行模型解析。
                  所以不适用统一做自动解析。
                  */
-                let rpcRequest = request as! iRpcRequest                
+                let rpcRequest = request as! iRpcRequest
                 guard let retData = try rpcRequest.OCResponseDataParse(data) as? ResponseData else {
                     throw NtkError.serviceDataTypeInvalid
                 }
@@ -132,6 +136,7 @@ extension RpcClient {
         }else {
             throw NtkError.Rpc.responseTypeError
         }
+
     }
     
 }

@@ -20,3 +20,12 @@ public class Coo: NSObject {
         return net
     }
 }
+
+extension NtkNetwork {
+    
+    /// RPC便捷发起请求方法
+    /// - Parameter validation: 响应验证工具
+    func startRpc(_ validation: iNtkResponseValidation = RpcDetaultResponseValidation()) async throws -> NtkResponse<ResponseData> {
+        return try await self.validation(validation).sendRequest()
+    }
+}

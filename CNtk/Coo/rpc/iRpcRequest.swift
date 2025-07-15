@@ -27,11 +27,16 @@ protocol iRpcRequest: iNtkRequest, iRpcRequestToast {
 }
 
 extension iRpcRequest  {
+    
     var toastRetErrorMsg: Bool {
         true
     }
     
     var toastSystemErrorMsg: Bool {
         true
+    }
+    
+    func OCResponseDataParse(_ retData: Any) throws -> Any {
+        retData
     }
 }

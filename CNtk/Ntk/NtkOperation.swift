@@ -70,7 +70,7 @@ extension NtkOperation {
     }
     
     func run<ResponseData>() async throws -> NtkResponse<ResponseData> {
-        assert(validation != nil, "")
+        assert(validation != nil, "iNtkResponseValidation must not be nil")
         let context = NtkRequestContext(validation: validation!, client: client)
         let tmpInterceptors =  interceptors + coreInterceptors
         let realApiHandle: NtkDefaultApiRequestHandler<ResponseData> = NtkDefaultApiRequestHandler()
