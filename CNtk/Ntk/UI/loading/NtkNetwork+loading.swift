@@ -7,6 +7,9 @@
 
 import Foundation
 
+// 是否显示loading
+let NtkRequestExtraLoadingKey = "loading"
+
 extension NtkNetwork {
     func hud(_ show: Bool) -> Self {
         operation.requestWrapper[NtkRequestExtraLoadingKey] = show

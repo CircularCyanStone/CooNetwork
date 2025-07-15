@@ -37,7 +37,7 @@ final class NtkHTTPMethod: NSObject, RawRepresentable, Sendable {
     }
 }
 
-protocol iNtkRequest: Sendable {
+protocol iNtkRequest: Sendable, CustomStringConvertible, CustomDebugStringConvertible {
     
     var baseURL: URL? { get }
     
@@ -76,4 +76,63 @@ extension iNtkRequest {
         20
     }
     
+    // MARK: - CustomStringConvertible
+    var description: String {
+        let url = baseURL?.appendingPathComponent(path).absoluteString ?? path
+        let methodStr = method.rawValue
+        let timeoutStr = String(format: "%.1f", timeout)
+        
+        var components = ["\(type(of: self))"]
+        components.append("Method: \(methodStr)")
+        components.append("URL: \(url)")
+        components.append("Timeout: \(timeoutStr)s")
+        
+        if let headers = headers, !headers.isEmpty {
+            components.append("Headers: \(headers.count) items")
+        }
+        
+        if let parameters = parameters, !parameters.isEmpty {
+            components.append("Parameters: \(parameters.count) items")
+        }
+        
+        return "<\(components.joined(separator: ", "))>"
+    }
+    
+    // MARK: - CustomDebugStringConvertible
+    var debugDescription: String {
+        let url = baseURL?.appendingPathComponent(path).absoluteString ?? path
+        let methodStr = method.rawValue
+        let timeoutStr = String(format: "%.1f", timeout)
+        
+        var components = ["\(type(of: self))"]
+        components.append("Method: \(methodStr)")
+        components.append("URL: \(url)")
+        components.append("Timeout: \(timeoutStr)s")
+        
+        if let headers = headers {
+            if headers.isEmpty {
+                components.append("Headers: []")
+            } else {
+                let headersStr = headers.map { "\"\($0.key)\": \"\($0.value)\"" }.joined(separator: ", ")
+                components.append("Headers: [\(headersStr)]")
+            }
+        } else {
+            components.append("Headers: nil")
+        }
+        
+        if let parameters = parameters {
+            if parameters.isEmpty {
+                components.append("Parameters: [:]")
+            } else {
+                let paramsStr = parameters.map { "\"\($0.key)\": \($0.value)" }.joined(separator: ", ")
+                components.append("Parameters: [\(paramsStr)]")
+            }
+        } else {
+            components.append("Parameters: nil")
+        }
+        
+        return "<\(components.joined(separator: "\n  "))>"
+    }
+    
 }
+

@@ -24,16 +24,12 @@ struct NtkConvenientInterceptor: iNtkInterceptor, Sendable {
         let interceptAfter = interceptAfter
         
         if showLoading {
-            Task { @MainActor in
-                interceptBefore?(request)
-            }
+            interceptBefore?(request)
         }
         
         let response = try await next.handle(context: context)
         if showLoading {
-            Task { @MainActor in
-                interceptAfter?(request, response)
-            }
+            interceptAfter?(request, response)
         }
         return response
     }

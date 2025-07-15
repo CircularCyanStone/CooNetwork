@@ -15,8 +15,17 @@ enum Login: iRpcRequest {
         switch self {
         case .getTime:
             "com.emp.bosc.getCurrentSysTime"
-        default:
-            ""
+        }
+    }
+    
+    func OCResponseDataParse(_ retData: Any) throws -> Any {
+        switch self {
+        case .getTime:
+            if let responseObj = retData as? [String: Sendable], let sysTime = responseObj["sysTime"] as? Int {
+                return sysTime
+            }else {
+                return retData
+            }
         }
     }
 }

@@ -39,8 +39,9 @@ extension NtkNetwork {
         return self
     }
     
-    func addInterceptor(_ i: iNtkInterceptor) {
+    func addInterceptor(_ i: iNtkInterceptor) -> Self {
         operation.addInterceptor(i)
+        return self
     }
 
     func validation(_ validation: iNtkResponseValidation) -> Self {

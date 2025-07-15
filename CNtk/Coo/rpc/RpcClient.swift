@@ -17,10 +17,14 @@ class RpcClient<Keys: NtkResponseMapKeys>: iNtkClient {
     }
     
     private func sendRpcRequest() async throws -> Sendable {
-        guard let request = requestWrapper.request else {
-            fatalError("request can not be nil")
+        guard let request = requestWrapper.request as? iRpcRequest else {
+            fatalError("request must be iRpcRequest")
         }
         let method = DTRpcMethod()
+        method.operationType = request.path
+        method.checkLogin = request.checkLogin
+        method.timeoutInterval = request.timeout
+        method.returnType = "@\"NSDictionary\""
         let parameters = request.parameters ?? [:]
         let headers = request.headers ?? [:]
         
@@ -43,9 +47,8 @@ class RpcClient<Keys: NtkResponseMapKeys>: iNtkClient {
                 }
             } completion: { error in
                 if let error {
+                    // 接口报错时会走这里
                     continuation.resume(throwing: error)
-                }else {
-                    continuation.resume(throwing: NtkError.Rpc.unknown(msg: "request error, but error info is nil"))
                 }
             }
         }

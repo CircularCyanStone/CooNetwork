@@ -12,11 +12,12 @@ public class Coo: NSObject {
     
     static func with<ResponseData>(_ request: iRpcRequest) async -> NtkNetwork<ResponseData> {
         let client = RpcClient<RpcResponseMapKeys>()
-        let net = await NtkNetwork<ResponseData>.with(request, client: client)
+        var net = await NtkNetwork<ResponseData>.with(request, client: client)
         // 添加loading拦截器
         if let ntkLoadingInterceptor = getLoadingInterceptor(request) {
-            await net.addInterceptor(ntkLoadingInterceptor)
-        }        
+            // 默认显示loading
+            net = await net.addInterceptor(ntkLoadingInterceptor).hud(true)
+        }
         return net
     }
 }
