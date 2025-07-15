@@ -19,6 +19,7 @@ class Coo<Keys: NtkResponseMapKeys> {
             // 默认显示loading
             net = await net.addInterceptor(ntkLoadingInterceptor).hud(true)
         }
+        net = await net.addInterceptor(CooToastInterceptor())
         return net
     }
 }

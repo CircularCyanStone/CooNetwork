@@ -24,15 +24,11 @@ protocol iNtkClient: Sendable {
 
 extension iNtkClient {
     
-    func loadCache<ResponseData: Decodable>(_ storage: any iNtkCacheStorage) async throws -> NtkResponse<ResponseData>? {
+    func loadCache<ResponseData>(_ storage: any iNtkCacheStorage) async throws -> NtkResponse<ResponseData>? {
         assert(requestWrapper.request != nil, "iNtkClient request must not nil")
         let cacheUtil = NtkNetworkCache<Keys>(request: requestWrapper.request!, storage: storage, cacheConfig: nil)
         let response: NtkResponse<ResponseData>? = try await cacheUtil.loadData()
         return response
-    }
-    
-    func loadCache<ResponseData>(_ storage: any iNtkCacheStorage) async throws -> NtkResponse<ResponseData>? {
-        fatalError("Swift都应该使用Codable进行模型解析")
     }
     
     func hasCacheData(_ storage: any iNtkCacheStorage) -> Bool {

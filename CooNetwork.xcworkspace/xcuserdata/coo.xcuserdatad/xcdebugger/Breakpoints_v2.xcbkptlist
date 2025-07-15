@@ -36,5 +36,51 @@
             landmarkType = "24">
          </BreakpointContent>
       </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "277F6A38-FA17-4A4E-B3A4-8964A3AF53DE"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "CNtk/Coo/interceptor/CooToastInterceptor.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "22"
+            endingLineNumber = "22"
+            landmarkName = "intercept(context:next:)"
+            landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "277F6A38-FA17-4A4E-B3A4-8964A3AF53DE - 82e8197d0d4f2ac0"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(7) suspend resume partial function for CooNetwork.CooToastInterceptor.intercept(context: CooNetwork.NtkRequestContext, next: CooNetwork.NtkRequestHandler) async throws -&gt; CooNetwork.iNtkResponse"
+                  moduleName = "CooNetwork.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/coo/Desktop/CooNetwork/CNtk/Coo/interceptor/CooToastInterceptor.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "22"
+                  endingLineNumber = "22">
+               </Location>
+               <Location
+                  uuid = "277F6A38-FA17-4A4E-B3A4-8964A3AF53DE - 82e8197d0d4f2ac0"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(7) suspend resume partial function for CooNetwork.CooToastInterceptor.intercept(context: CooNetwork.NtkRequestContext, next: CooNetwork.NtkRequestHandler) async throws -&gt; CooNetwork.iNtkResponse"
+                  moduleName = "CooNetwork.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/coo/Desktop/CooNetwork/CNtk/Coo/interceptor/CooToastInterceptor.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "22"
+                  endingLineNumber = "22">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
    </Breakpoints>
 </Bucket>

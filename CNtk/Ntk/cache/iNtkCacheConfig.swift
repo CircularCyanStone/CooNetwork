@@ -15,7 +15,7 @@ import Foundation
  *
  * Copyright © Coo.2024−{2024}. All rights reserved.
  */
-protocol NtkCacheConfig {
+protocol iNtkCacheConfig {
     
     // 缓存时间（毫秒）
     var cacheTime: TimeInterval { get }
@@ -24,7 +24,7 @@ protocol NtkCacheConfig {
     func filterParameter(_ parameter: [String: Any]) -> [String: Any]
     
 }
-extension NtkCacheConfig {
+extension iNtkCacheConfig {
     func filterParameter(_ parameter: [String: Any]) -> [String: Any] {
         parameter
     }
