@@ -7,6 +7,6 @@
 // 表示{data: <null>}的数据情形
 import Foundation
 
-struct NtkNever: Codable {
+struct NtkNever: Decodable {
     
 }

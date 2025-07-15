@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UIKit
 
 @NtkActor
 class RpcClient<Keys: NtkResponseMapKeys>: iNtkClient {
@@ -59,18 +60,14 @@ class RpcClient<Keys: NtkResponseMapKeys>: iNtkClient {
 
 extension RpcClient {
     func execute<ResponseData>() async throws -> NtkResponse<ResponseData> {
-        try await handleNSObject()
+        if ResponseData.self is Decodable.Type {
+            return try await handleDecodableRuntime()
+        } else {
+            return try await handleNSObject()
+        }
     }
     
-    func execute<ResponseData>() async throws -> NtkResponse<ResponseData> where ResponseData: Decodable {
-        return try await handleDecodable()
-    }
-    
-    func execute<ResponseData>() async throws -> NtkResponse<ResponseData> where ResponseData: NSObject & Decodable {
-        return try await handleDecodable()
-    }
-    
-    private func handleDecodable<ResponseData>() async throws -> NtkResponse<ResponseData> where ResponseData: Decodable {
+    private func handleDecodableRuntime<ResponseData>() async throws -> NtkResponse<ResponseData> {
         let response = try await sendRpcRequest()
         guard let sendableResponse = response as? [String: Sendable] else {
             fatalError("接口数据仅支持sendable类型的数据，请核对")
@@ -94,9 +91,15 @@ extension RpcClient {
                 throw NtkError.jsonInvalid(request!, sendableResponse)
             }
             let responseData = try JSONSerialization.data(withJSONObject: data)
-            let decodeRetData = try JSONDecoder().decode(ResponseData.self, from: responseData)
-            let fixResponse = NtkResponse(code: retCode, data: decodeRetData, msg: msg, response: sendableResponse, request: self.request!)
-            return fixResponse
+            
+            // 使用运行时类型转换
+            if let decodableType = ResponseData.self as? Decodable.Type {
+                let decoded = try JSONDecoder().decode(decodableType, from: responseData)
+                let fixResponse = NtkResponse(code: retCode, data: decoded as! ResponseData, msg: msg, response: sendableResponse, request: self.request!)
+                return fixResponse
+            } else {
+                throw NtkError.serviceDataTypeInvalid
+            }
         } catch let error as DecodingError {
             // decoder字段解析报错，避免崩溃
             throw NtkError.decodeInvalid(error, request!, sendableResponse)
@@ -104,12 +107,7 @@ extension RpcClient {
             // 后端code验证成功，但是没有得到匹配的数据类型
             throw NtkError.serviceDataTypeInvalid
         }
-    }
-    
-    
-    func execute<ResponseData>() async throws -> NtkResponse<ResponseData> where ResponseData: NSObject {
-        return try await handleNSObject()
-    }
+    } 
     
     private func handleNSObject<ResponseData>() async throws -> NtkResponse<ResponseData> {
         let response = try await sendRpcRequest()
@@ -128,6 +126,11 @@ extension RpcClient {
                  所以不适用统一做自动解析。
                  */
                 let rpcRequest = request as! iRpcRequest
+                if ResponseData.self is NtkNever.Type {
+                    // 用户不关心retData
+                    let response = NtkResponse(code: retCode, data: NtkNever(), msg: msg, response: resposneObject, request: request!)
+                    return response as! NtkResponse<ResponseData>
+                }
                 guard let retData = try rpcRequest.OCResponseDataParse(data) as? ResponseData else {
                     throw NtkError.serviceDataTypeInvalid
                 }

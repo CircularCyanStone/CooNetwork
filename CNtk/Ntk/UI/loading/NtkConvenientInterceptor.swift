@@ -13,7 +13,7 @@ struct NtkConvenientInterceptor: iNtkInterceptor, Sendable {
     
     var interceptBefore: (@Sendable (_ request: iNtkRequest) -> Void)?
     
-    var interceptAfter: (@Sendable (_ request: iNtkRequest, _ response: any iNtkResponse) -> Void)?
+    var interceptAfter: (@Sendable (_ request: iNtkRequest, _ response: (any iNtkResponse)?, _ error: (any Error)?) -> Void)?
     
     func intercept(context: NtkRequestContext, next: any NtkRequestHandler) async throws -> any iNtkResponse {
         let requestWrapper = context.client.requestWrapper
@@ -27,10 +27,17 @@ struct NtkConvenientInterceptor: iNtkInterceptor, Sendable {
             interceptBefore?(request)
         }
         
-        let response = try await next.handle(context: context)
-        if showLoading {
-            interceptAfter?(request, response)
+        do {
+            let response = try await next.handle(context: context)
+            if showLoading {
+                interceptAfter?(request, response, nil)
+            }
+            return response
+        } catch {
+            if showLoading {
+                interceptAfter?(request, nil, error)
+            }
+            throw error
         }
-        return response
     }
 }

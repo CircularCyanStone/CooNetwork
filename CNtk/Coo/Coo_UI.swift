@@ -21,7 +21,7 @@ extension Coo {
             Task { @MainActor in
                 SVProgressHUD.show()
             }
-        } interceptAfter: {_, _  in
+        } interceptAfter: {_, _,_   in
             Task { @MainActor in
                 SVProgressHUD.dismiss()
             }

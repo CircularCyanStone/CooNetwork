@@ -48,7 +48,7 @@ struct ExampleSwiftUIView: View {
     private func loadTime() {
         Task {
             do {
-                let response: Int = try await Coo.with(Login.getTime).startRpc().data
+                let response: String = try await Coo.with(Login.getTime).startRpc().data
                 print("\(response)")
             }catch let error as NtkError {
                 print("\(error)")
@@ -62,7 +62,15 @@ struct ExampleSwiftUIView: View {
         ZStack {
             List {
                 Button("请求短信") {
-                    
+                    Task {
+                        do {
+                            let req = Login.sendSMS("300343", tmpLogin: false)
+                            let codeResult: CodeData = try await Coo.with(req).startRpc(req).data
+                            print("短信发送成功")
+                        }catch {
+                            print("短信发送失败 \(error)")
+                        }
+                    }
                 }
                 .listRowInsets(.none)
                 .listRowBackground(Color.orange)
