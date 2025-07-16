@@ -116,6 +116,15 @@ extension RpcClient {
         }
         
         do {
+            if let rpcRequest = request as? iRpcRequest, let retData = try rpcRequest.OCResponseDataParse(data) as? ResponseData {
+                /// 适配Objective-C的手动模型解析
+                /// 当遇到数组类型的数据时，ResponseData代表的是数组
+                /// 但是在OC里需要使用ResponseData数组里面的元素类型才能进行模型解析
+                /// 所以不使用统一的自动解析
+                let response = NtkResponse(code: retCode, data: retData, msg: msg, response: response, request: request!)
+                return response
+            }
+            
             guard JSONSerialization.isValidJSONObject(data) else {
                 // 后端code验证成功，但是没有得到匹配的数据类型
                 throw NtkError.jsonInvalid(request!, sendableResponse)

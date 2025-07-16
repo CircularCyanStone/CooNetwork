@@ -82,5 +82,83 @@
             </Locations>
          </BreakpointContent>
       </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "BA68B18E-2B3E-47D0-BD6D-37DB8FF083D2"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "CooNetwork/modules/login/request/LoginModuleAPIs.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "47"
+            endingLineNumber = "47"
+            landmarkName = "OCResponseDataParse(_:)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "2C07A41F-BB68-4545-9B1B-D0E0EEDD05B8"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "CNtk/Coo/rpc/RpcClient.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "157"
+            endingLineNumber = "157"
+            landmarkName = "handleNSObject(_:)"
+            landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "2C07A41F-BB68-4545-9B1B-D0E0EEDD05B8 - e114c97f4144f581"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(1) suspend resume partial function for CooNetwork.RpcClient.handleNSObject&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Sendable&gt;(Swift.Sendable) async throws -&gt; CooNetwork.NtkResponse&lt;&#x3c4;_1_0&gt;"
+                  moduleName = "CooNetwork.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/coo/Desktop/CooNetwork/CNtk/Coo/rpc/RpcClient.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "148"
+                  endingLineNumber = "148">
+               </Location>
+               <Location
+                  uuid = "2C07A41F-BB68-4545-9B1B-D0E0EEDD05B8 - fd651207ee1a3b8c"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(4) suspend resume partial function for CooNetwork.RpcClient.handleNSObject&lt;&#x3c4;_0_0 where &#x3c4;_1_0: Swift.Sendable&gt;(Swift.Sendable) async throws -&gt; CooNetwork.NtkResponse&lt;&#x3c4;_1_0&gt;"
+                  moduleName = "CooNetwork.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/coo/Desktop/CooNetwork/CNtk/Coo/rpc/RpcClient.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "148"
+                  endingLineNumber = "148">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "C88A6438-391C-40BE-8849-869CB1EBB8A7"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "CNtk/Coo/rpc/RpcClient.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "144"
+            endingLineNumber = "144"
+            landmarkName = "handleDecodableRuntime(_:)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
    </Breakpoints>
 </Bucket>
