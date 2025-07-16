@@ -40,6 +40,8 @@ protocol iNtkClient: Sendable {
     /// - Throws: 缓存加载过程中的错误
     func loadCache<ResponseData>() async throws -> NtkResponse<ResponseData>?
     
+    func saveCache(_ response: Sendable) async -> Bool
+    
     /// 检查是否有缓存数据
     /// - Returns: 如果存在缓存数据返回true，否则返回false
     func hasCacheData() -> Bool
@@ -52,7 +54,7 @@ extension iNtkClient {
     /// - Throws: 缓存加载过程中的错误
     func loadCache<ResponseData>() async throws -> NtkResponse<ResponseData>? {
         assert(requestWrapper.request != nil, "iNtkClient request must not nil")
-        let cacheUtil = NtkNetworkCache<Keys>(request: requestWrapper.request!, storage: storage)
+        let cacheUtil = NtkNetworkCache(request: requestWrapper.request!, storage: storage)
         let response = try await cacheUtil.loadData()
         guard let response else {
             return nil
@@ -61,11 +63,19 @@ extension iNtkClient {
         return ntkResponse
     }
     
+    /// 缓存响应结果到本地
+    /// - Parameter response: 后端的响应
+    /// - Returns: true成功 false失败
+    func saveCache(_ response: Sendable) async -> Bool {
+        let cacheUtil = NtkNetworkCache(request: requestWrapper.request!, storage: storage)
+        return await cacheUtil.save(data: response)
+    }
+    
     /// 默认的缓存检查实现
     /// - Returns: 如果存在缓存数据返回true，否则返回false
     func hasCacheData() -> Bool {
         assert(requestWrapper.request != nil, "iNtkClient request must not nil")
-        let cacheUtil = NtkNetworkCache<Keys>(request: requestWrapper.request!, storage: storage)
+        let cacheUtil = NtkNetworkCache(request: requestWrapper.request!, storage: storage)
         return cacheUtil.hasData()
     }
     

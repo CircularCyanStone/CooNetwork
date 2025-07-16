@@ -15,8 +15,8 @@ extension Coo {
     /// 构建loading的拦截器
     /// - Parameter request: 请求
     /// - Returns: 拦截器实例
-    static func getLoadingInterceptor(_ request: iRpcRequest) -> NtkConvenientInterceptor? {
-        let interceptor = NtkConvenientInterceptor { request in
+    static func getLoadingInterceptor(_ request: iRpcRequest) -> NtkLoadingInterceptor? {
+        let interceptor = NtkLoadingInterceptor { request in
             Task { @MainActor in
                 // TODO: 替换为项目中使用的Loading组件
                 print("Loading started for request: \(request)")

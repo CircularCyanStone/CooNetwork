@@ -12,7 +12,7 @@ import CryptoKit
 /// 网络缓存管理器
 /// 负责网络请求的缓存存储、读取和管理
 @NtkActor
-class NtkNetworkCache<Keys: NtkResponseMapKeys> {
+class NtkNetworkCache {
     /// 关联的网络请求
     let request: iNtkRequest
     /// 缓存存储实现

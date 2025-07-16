@@ -9,7 +9,7 @@ import Foundation
 
 /// 便捷拦截器
 /// 提供灵活的拦截器构造实现，支持自定义请求前后的处理逻辑
-struct NtkConvenientInterceptor: iNtkInterceptor, Sendable {
+struct NtkLoadingInterceptor: iNtkInterceptor, Sendable {
     
     /// 请求前拦截回调
     /// 在发起网络请求之前执行的回调函数

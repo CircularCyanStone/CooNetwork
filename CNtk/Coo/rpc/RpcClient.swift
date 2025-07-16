@@ -107,7 +107,7 @@ extension RpcClient {
         let retCode = NtkReturnCode(code)
         if ResponseData.self is NtkNever.Type {
             // 用户期待的数据类型就是Never，不需要数据
-            let fixResponse = NtkResponse(code: retCode, data: NtkNever() as! ResponseData, msg: msg, response: sendableResponse, request: self.request!)
+            let fixResponse = NtkResponse(code: retCode, data: NtkNever() as! ResponseData, msg: msg, response: response, request: self.request!)
             return fixResponse
         }
         
@@ -125,7 +125,7 @@ extension RpcClient {
             // 使用运行时类型转换
             if let decodableType = ResponseData.self as? Decodable.Type {
                 let decoded = try JSONDecoder().decode(decodableType, from: responseData)
-                let fixResponse = NtkResponse(code: retCode, data: decoded as! ResponseData, msg: msg, response: sendableResponse, request: self.request!)
+                let fixResponse = NtkResponse(code: retCode, data: decoded as! ResponseData, msg: msg, response: response, request: self.request!)
                 return fixResponse
             } else {
                 throw NtkError.serviceDataTypeInvalid
@@ -161,13 +161,13 @@ extension RpcClient {
                 let rpcRequest = request as! iRpcRequest
                 if ResponseData.self is NtkNever.Type {
                     // 用户不关心返回数据
-                    let response = NtkResponse(code: retCode, data: NtkNever(), msg: msg, response: resposneObject, request: request!)
+                    let response = NtkResponse(code: retCode, data: NtkNever(), msg: msg, response: response, request: request!)
                     return response as! NtkResponse<ResponseData>
                 }
                 guard let retData = try rpcRequest.OCResponseDataParse(data) as? ResponseData else {
                     throw NtkError.serviceDataTypeInvalid
                 }
-                let response = NtkResponse(code: retCode, data: retData, msg: msg, response: resposneObject, request: request!)
+                let response = NtkResponse(code: retCode, data: retData, msg: msg, response: response, request: request!)
                 return response
             }else {
                 fatalError("RpcClient only support RpcRequest \(String(describing: request))")
