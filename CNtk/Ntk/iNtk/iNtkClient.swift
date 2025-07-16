@@ -28,7 +28,7 @@ extension iNtkClient {
     
     func loadCache<ResponseData: Decodable>() async throws -> NtkResponse<ResponseData>? {
         assert(requestWrapper.request != nil, "iNtkClient request must not nil")
-        let cacheUtil = NtkNetworkCache<Keys>(request: requestWrapper.request!, storage: storage, cacheConfig: nil)
+        let cacheUtil = NtkNetworkCache<Keys>(request: requestWrapper.request!, storage: storage)
         let response: NtkResponse<ResponseData>? = try await cacheUtil.loadData()
         return response
     }
@@ -39,7 +39,7 @@ extension iNtkClient {
     
     func hasCacheData() -> Bool {
         assert(requestWrapper.request != nil, "iNtkClient request must not nil")
-        let cacheUtil = NtkNetworkCache<Keys>(request: requestWrapper.request!, storage: storage, cacheConfig: nil)
+        let cacheUtil = NtkNetworkCache<Keys>(request: requestWrapper.request!, storage: storage)
         return cacheUtil.hasData()
     }
     

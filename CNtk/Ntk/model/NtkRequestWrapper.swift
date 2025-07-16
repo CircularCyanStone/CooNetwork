@@ -12,6 +12,7 @@ struct NtkRequestWrapper: Sendable {
     
     private(set) var request: iNtkRequest?
     
+    /// 用于在整个组件的调用链中传递值
     var extraData: [String: Sendable] = [:]
     
     init() {

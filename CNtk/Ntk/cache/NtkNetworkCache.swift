@@ -31,10 +31,10 @@ class NtkNetworkCache<Keys: NtkResponseMapKeys> {
     // 缓存配置
     let cacheConfig: iNtkCachePolicy?
     
-    init(request: iNtkRequest, storage: iNtkCacheStorage, cacheConfig: iNtkCachePolicy? = nil) {
+    init(request: iNtkRequest, storage: iNtkCacheStorage) {
         self.request = request
         self.storage = storage
-        self.cacheConfig = cacheConfig
+        self.cacheConfig = request.cachePolicy
     }
     
     /**
