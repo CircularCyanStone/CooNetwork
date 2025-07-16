@@ -7,6 +7,8 @@
 
 import Foundation
 
+// iNtkCacheConfig协议在同一模块中定义
+
 @objcMembers
 final class NtkHTTPMethod: NSObject, RawRepresentable, Sendable {
     /// `CONNECT` method.
@@ -37,7 +39,7 @@ final class NtkHTTPMethod: NSObject, RawRepresentable, Sendable {
     }
 }
 
-protocol iNtkRequest: Sendable, iNtkCacheConfig, CustomStringConvertible, CustomDebugStringConvertible {
+protocol iNtkRequest: Sendable, CustomStringConvertible, CustomDebugStringConvertible {
     
     var baseURL: URL? { get }
     
@@ -51,6 +53,8 @@ protocol iNtkRequest: Sendable, iNtkCacheConfig, CustomStringConvertible, Custom
     var parameters: [String: Sendable]? { get }
     
     var timeout: TimeInterval { get }
+    
+    var cachePolicy: iNtkCachePolicy? { get }
     
 }
 
@@ -75,6 +79,13 @@ extension iNtkRequest {
     
     var timeout: TimeInterval {
         20
+    }
+    
+    // 缓存策略。
+    // 1. 直接在iNtkRequest的实现类内部定义内嵌类型。
+    // 2. 使用默认实现。
+    var cachePolicy: iNtkCachePolicy? {
+        nil
     }
     
     // MARK: - CustomStringConvertible

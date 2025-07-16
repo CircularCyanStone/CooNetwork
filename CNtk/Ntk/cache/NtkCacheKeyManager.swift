@@ -29,7 +29,7 @@ class NtkCacheKeyManager {
     /**
      * 获取缓存键（线程安全）
      */
-    func getCacheKey(request: iNtkRequest, cacheConfig: iNtkCacheConfig?) -> String {
+    func getCacheKey(request: iNtkRequest, cacheConfig: iNtkCachePolicy?) -> String {
         let serialized = serializeRequest(request: request, cacheConfig: cacheConfig)
         
         // 内存缓存命中
@@ -46,7 +46,7 @@ class NtkCacheKeyManager {
     /**
      * 序列化请求参数（私有方法）
      */
-    private func serializeRequest(request: iNtkRequest, cacheConfig: iNtkCacheConfig?) -> String {
+    private func serializeRequest(request: iNtkRequest, cacheConfig: iNtkCachePolicy?) -> String {
         var parameter: Any = ""
         if let params = request.parameters {
             if let config = cacheConfig {

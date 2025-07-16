@@ -29,9 +29,9 @@ class NtkNetworkCache<Keys: NtkResponseMapKeys> {
     // 缓存能力工具
     let storage: iNtkCacheStorage
     // 缓存配置
-    let cacheConfig: iNtkCacheConfig?
+    let cacheConfig: iNtkCachePolicy?
     
-    init(request: iNtkRequest, storage: iNtkCacheStorage, cacheConfig: iNtkCacheConfig? = nil) {
+    init(request: iNtkRequest, storage: iNtkCacheStorage, cacheConfig: iNtkCachePolicy? = nil) {
         self.request = request
         self.storage = storage
         self.cacheConfig = cacheConfig
