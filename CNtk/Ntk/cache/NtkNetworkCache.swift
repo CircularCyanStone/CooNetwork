@@ -57,7 +57,7 @@ class NtkNetworkCache<Keys: NtkResponseMapKeys> {
     /**
      * 读取request关联的缓存数据
      */
-    func loadData<ResponseData: Decodable>() async throws -> NtkResponse<ResponseData>? {
+    func loadData() async throws -> (any Sendable)? {
         let cacheKey = createCacheKey()
         guard let cacheMetaData = await storage.getData(key: cacheKey) else {
             return nil
@@ -67,30 +67,7 @@ class NtkNetworkCache<Keys: NtkResponseMapKeys> {
             // 过期了
             return nil
         }
-        
-        var returnData: Data?
-        if let cacheData = cacheMetaData.data as? Data {
-            returnData = cacheData
-        }else {
-            returnData = try JSONSerialization.data(withJSONObject: cacheMetaData.data)
-        }
-        
-        guard let returnData else {
-            throw NtkError.serviceDataEmpty
-        }
-        let responseData = try JSONDecoder().decode(NtkResponseDecoder<ResponseData, Keys>.self, from: returnData)
-        
-        if let returnData = responseData.data {
-            let fixResponse = NtkResponse(code: responseData.code, data: returnData, msg: responseData.msg, response: cacheMetaData, request: request)
-            return fixResponse
-        }else if ResponseData.self is NtkNever.Type {
-            // 用户期待的数据类型就是Never，啥都没有
-            let fixResponse = NtkResponse(code: responseData.code, data: NtkNever() as! ResponseData, msg: responseData.msg, response: cacheMetaData, request: request)
-            return fixResponse
-        }else {
-            // 后端code验证成功，但是没有得到匹配的数据类型
-            throw NtkError.serviceDataEmpty
-        }
+        return cacheMetaData.data
     }
     
     /**

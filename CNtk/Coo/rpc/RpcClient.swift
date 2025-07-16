@@ -61,15 +61,20 @@ class RpcClient<Keys: NtkResponseMapKeys>: iNtkClient {
 }
 
 extension RpcClient {
-    func execute<ResponseData>() async throws -> NtkResponse<ResponseData> {
+    
+    func execute() async throws -> any Sendable {
+        try await sendRpcRequest()
+    }
+    
+    func handleResponse<ResponseData>(_ response: any Sendable) async throws -> NtkResponse<ResponseData> where ResponseData : Sendable {
         if ResponseData.self is Decodable.Type {
-            return try await handleDecodableRuntime()
+            return try await handleDecodableRuntime(response)
         } else {
-            return try await handleNSObject()
+            return try await handleNSObject(response)
         }
     }
     
-    private func handleDecodableRuntime<ResponseData>() async throws -> NtkResponse<ResponseData> {
+    private func handleDecodableRuntime<ResponseData>(_ response: any Sendable) async throws -> NtkResponse<ResponseData> {
         let response = try await sendRpcRequest()
         guard let sendableResponse = response as? [String: Sendable] else {
             fatalError("接口数据仅支持sendable类型的数据，请核对")
@@ -111,7 +116,7 @@ extension RpcClient {
         }
     } 
     
-    private func handleNSObject<ResponseData>() async throws -> NtkResponse<ResponseData> {
+    private func handleNSObject<ResponseData>(_ response: any Sendable) async throws -> NtkResponse<ResponseData> {
         let response = try await sendRpcRequest()
         if let resposneObject = response as? [String: Sendable] {
             let code = resposneObject[Keys.code]
