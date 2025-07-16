@@ -29,7 +29,7 @@ struct NtkDefaultCacheInterceptor: iNtkInterceptor {
         guard let request = context.client.requestWrapper.request, let cachePolicy = request.cachePolicy else { return response }
          if cachePolicy.cacheTime > 0 && cachePolicy.customPolicy(response) {
              // 根据缓存时间和自定义策略保存响应到缓存
-             let result = await context.client.saveCache(response)
+             let result = await context.client.saveCache(response.response)
              print("NTK请求缓存\(result ? "成功" : "失败")")
          }
         return response
