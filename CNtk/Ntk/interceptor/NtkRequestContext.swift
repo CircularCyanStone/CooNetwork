@@ -13,13 +13,10 @@ struct NtkRequestContext: Sendable {
     
     let client: any iNtkClient
     
-    let storage: iNtkCacheStorage?
-    
     var extraData: [String: Sendable] = [:]
     
-    init(validation: iNtkResponseValidation, client: any iNtkClient, storage: iNtkCacheStorage? = nil) {
+    init(validation: iNtkResponseValidation, client: any iNtkClient) {
         self.validation = validation
         self.client = client
-        self.storage = storage
     }
 }

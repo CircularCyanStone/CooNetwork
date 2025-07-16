@@ -16,7 +16,10 @@ import Foundation
  * Copyright © Coo.2024−{2024}. All rights reserved.
  */
 protocol iNtkCacheStorage: Sendable {
-    var request: iNtkRequest { get }
+   
+    
+    func addRequest(_ request: iNtkRequest)
+    
     /**
      * 存储数据到缓存
      * @param metaData 缓存元数据

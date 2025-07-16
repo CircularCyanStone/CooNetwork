@@ -13,25 +13,31 @@ protocol iNtkClient: Sendable {
     
     var requestWrapper: NtkRequestWrapper { get set }
     
+    var storage: iNtkCacheStorage { get }
+    
     func execute<ResponseData>() async throws -> NtkResponse<ResponseData>
     
     func cancel()
     
-    func loadCache<ResponseData>(_ storage: iNtkCacheStorage) async throws -> NtkResponse<ResponseData>?
+    func loadCache<ResponseData>() async throws -> NtkResponse<ResponseData>?
     
-    func hasCacheData(_ storage: iNtkCacheStorage) -> Bool
+    func hasCacheData() -> Bool
 }
 
 extension iNtkClient {
     
-    func loadCache<ResponseData>(_ storage: any iNtkCacheStorage) async throws -> NtkResponse<ResponseData>? {
+    func loadCache<ResponseData: Decodable>() async throws -> NtkResponse<ResponseData>? {
         assert(requestWrapper.request != nil, "iNtkClient request must not nil")
         let cacheUtil = NtkNetworkCache<Keys>(request: requestWrapper.request!, storage: storage, cacheConfig: nil)
         let response: NtkResponse<ResponseData>? = try await cacheUtil.loadData()
         return response
     }
     
-    func hasCacheData(_ storage: any iNtkCacheStorage) -> Bool {
+    func loadCache<ResponseData>() async throws -> NtkResponse<ResponseData>? {
+        fatalError("Swift都应该使用Codable进行模型解析")
+    }
+    
+    func hasCacheData() -> Bool {
         assert(requestWrapper.request != nil, "iNtkClient request must not nil")
         let cacheUtil = NtkNetworkCache<Keys>(request: requestWrapper.request!, storage: storage, cacheConfig: nil)
         return cacheUtil.hasData()

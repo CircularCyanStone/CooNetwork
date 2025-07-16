@@ -37,7 +37,7 @@ final class NtkHTTPMethod: NSObject, RawRepresentable, Sendable {
     }
 }
 
-protocol iNtkRequest: Sendable, CustomStringConvertible, CustomDebugStringConvertible {
+protocol iNtkRequest: Sendable, iNtkCacheConfig, CustomStringConvertible, CustomDebugStringConvertible {
     
     var baseURL: URL? { get }
     
@@ -51,6 +51,7 @@ protocol iNtkRequest: Sendable, CustomStringConvertible, CustomDebugStringConver
     var parameters: [String: Sendable]? { get }
     
     var timeout: TimeInterval { get }
+    
 }
 
 extension iNtkRequest {

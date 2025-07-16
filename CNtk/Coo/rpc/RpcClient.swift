@@ -11,6 +11,8 @@ import UIKit
 @NtkActor
 class RpcClient<Keys: NtkResponseMapKeys>: iNtkClient {
     
+    var storage: any iNtkCacheStorage = RpcCacheStorage()
+    
     var requestWrapper: NtkRequestWrapper = NtkRequestWrapper()
     
     private var request: iNtkRequest? {

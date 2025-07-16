@@ -15,7 +15,7 @@ import Foundation
  *
  * Copyright © Coo.2024−{2024}. All rights reserved.
  */
-protocol iNtkCacheConfig {
+protocol iNtkCacheConfig: Sendable {
     
     // 缓存时间（毫秒）
     var cacheTime: TimeInterval { get }
@@ -23,9 +23,20 @@ protocol iNtkCacheConfig {
     // 参数过滤器
     func filterParameter(_ parameter: [String: Any]) -> [String: Any]
     
+    // 自定义缓存策略，默认返回true。
+    func customPolicy(_: any iNtkResponse) -> Bool
+    
 }
 extension iNtkCacheConfig {
+    var cacheTime: TimeInterval {
+        0
+    }
+    
     func filterParameter(_ parameter: [String: Any]) -> [String: Any] {
         parameter
+    }
+    
+    func customPolicy(_: any iNtkResponse) -> Bool {
+        true
     }
 }

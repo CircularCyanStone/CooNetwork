@@ -43,6 +43,7 @@ extension NtkNetwork {
         operation.addInterceptor(i)
         return self
     }
+    
 
     func validation(_ validation: iNtkResponseValidation) -> Self {
         self.operation.validation = validation
@@ -72,13 +73,17 @@ extension NtkNetwork {
         }
     }
     
-    func loadCache(_ storage: iNtkCacheStorage) async throws -> NtkResponse<ResponseData>? {
-        return try await operation.loadCache(storage)
+//    func storage(_ storage: inout iNtkCacheStorage) -> Self {
+//        return self
+//    }
+    
+    func loadCache() async throws -> NtkResponse<ResponseData>? {
+        return try await operation.loadCache()
     }
     
     /// 判断是否有缓存Sending global actor 'NktActor'-isolated 'self.operation' to nonisolated callee risks causing data races between nonisolated and global actor 'NktActor'-isolated uses
     /// - Parameter storage: 存储工具
-    func hasCacheData(_ storage: iNtkCacheStorage) -> Bool {
-        return operation.client.hasCacheData(storage)
+    func hasCacheData() -> Bool {
+        return operation.client.hasCacheData()
     }
 }

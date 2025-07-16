@@ -67,11 +67,13 @@ extension NtkOperation {
     
     func with(_ request: iNtkRequest) {
         client.requestWrapper.addRequest(request)
+        client.storage.addRequest(request)
     }
     
     func run<ResponseData>() async throws -> NtkResponse<ResponseData> {
         assert(validation != nil, "iNtkResponseValidation must not be nil")
         let context = NtkRequestContext(validation: validation!, client: client)
+        
         let tmpInterceptors =  interceptors + coreInterceptors
         let realApiHandle: NtkDefaultApiRequestHandler<ResponseData> = NtkDefaultApiRequestHandler()
         let realChainManager = NtkInterceptorChainManager(interceptors: tmpInterceptors, finalHandler: realApiHandle)
@@ -93,7 +95,10 @@ extension NtkOperation {
     /// 加载缓存
     /// - Parameter storage: 缓存加载工具
     /// - Returns: 结果
-    func loadCache<ResponseData>(_ storage: any iNtkCacheStorage) async throws -> NtkResponse<ResponseData>? {
+    func loadCache<ResponseData>() async throws -> NtkResponse<ResponseData>? {
+        guard client.requestWrapper.request != nil else {
+            fatalError("request must not be nil")
+        }
         let context = NtkRequestContext(validation: validation!, client: client)
         let realApiHandle: NtkDefaultCacheRequestHandler<ResponseData> = NtkDefaultCacheRequestHandler()
         
