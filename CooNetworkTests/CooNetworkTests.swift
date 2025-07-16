@@ -6,7 +6,6 @@
 //
 
 import XCTest
-@testable import CooNetwork
 
 final class CooNetworkTests: XCTestCase {
 

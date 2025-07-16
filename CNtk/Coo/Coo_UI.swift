@@ -9,7 +9,6 @@
 // 这样子可以避免将更多的类转换成OC版本，只需要最终被调用请求方法支持OC和返回值模型支持OC就可以了。
 // 成本最小.
 import Foundation
-import SVProgressHUD
 
 extension Coo {
  
@@ -19,11 +18,13 @@ extension Coo {
     static func getLoadingInterceptor(_ request: iRpcRequest) -> NtkConvenientInterceptor? {
         let interceptor = NtkConvenientInterceptor { request in
             Task { @MainActor in
-                SVProgressHUD.show()
+                // TODO: 替换为项目中使用的Loading组件
+                print("Loading started for request: \(request)")
             }
         } interceptAfter: {_, _,_   in
             Task { @MainActor in
-                SVProgressHUD.dismiss()
+                // TODO: 替换为项目中使用的Loading组件
+                print("Loading finished")
             }
         }
         return interceptor
