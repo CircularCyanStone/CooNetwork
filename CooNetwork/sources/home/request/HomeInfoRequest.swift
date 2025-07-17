@@ -16,7 +16,7 @@ final class HomeInfoRequest: NSObject, iRpcRequest {
     
     let path: String = ""
     
-    func OCResponseDataParse(_ retData: Any) throws -> Any {
+    func OCResponseDataDecode(_ retData: Any) throws -> Any {
         retData
     }
 }

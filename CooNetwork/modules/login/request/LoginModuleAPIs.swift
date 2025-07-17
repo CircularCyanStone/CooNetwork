@@ -43,7 +43,7 @@ enum Login: iRpcRequest {
         return params
     }
     
-    func OCResponseDataParse(_ retData: Any) throws -> Any {
+    func customRetureDataDecode(_ retData: any Sendable) throws -> any Sendable {
         switch self {
         case .getTime:
             if let responseObj = retData as? [String: Sendable], let sysTime = responseObj["sysTime"] as? Int {

@@ -22,7 +22,7 @@ let NtkCacheErrorDomain = "NtkCacheErrorDomain"
     case decodeInvalid = 10003       // 解码失败
     case serviceDataEmpty = 10004    // 服务端数据为空
     case serviceDataTypeInvalid = 10005  // 服务端数据类型无效
-    case other = 10006               // 其他错误
+    case other = 10020               // 其他错误
 }
 
 @objc enum NtkCacheErrorCode: Int {

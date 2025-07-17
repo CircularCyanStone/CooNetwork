@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import UIKit
 
 /// RPC客户端实现
 /// 负责执行RPC网络请求，支持泛型响应键映射和缓存功能
@@ -85,19 +84,18 @@ extension RpcClient {
     /// - Returns: 类型化的网络响应对象
     /// - Throws: 数据处理过程中的错误
     func handleResponse<ResponseData>(_ response: any Sendable) async throws -> NtkResponse<ResponseData> where ResponseData : Sendable {
-        if ResponseData.self is Decodable.Type {
-            return try await handleDecodableRuntime(response)
-        } else {
-            return try await handleNSObject(response)
-        }
+        return try await handleDecodableRuntime(response)
     }
     
     /// 处理Decodable类型的响应数据
-    /// 使用JSONDecoder进行自动解析
+    /// 根据enableCustomResponseDataDecode属性选择解码策略
     /// - Parameter response: 服务端响应数据
     /// - Returns: 类型化的网络响应对象
     /// - Throws: JSON解析或类型转换错误
     private func handleDecodableRuntime<ResponseData>(_ response: any Sendable) async throws -> NtkResponse<ResponseData> {
+        guard let rpcRequest = request as? iRpcRequest else {
+            fatalError("request must be iRpcRequest type")
+        }
         let response = try await sendRpcRequest()
         guard let sendableResponse = response as? [String: Sendable] else {
             fatalError("接口数据仅支持sendable类型的数据，请核对")
@@ -105,9 +103,10 @@ extension RpcClient {
         let code = sendableResponse[Keys.code]
         let msg = sendableResponse[Keys.msg] as? String
         let retCode = NtkReturnCode(code)
+        
         if ResponseData.self is NtkNever.Type {
             // 用户期待的数据类型就是Never，不需要数据
-            let fixResponse = NtkResponse(code: retCode, data: NtkNever() as! ResponseData, msg: msg, response: response, request: self.request!)
+            let fixResponse = NtkResponse(code: retCode, data: NtkNever() as! ResponseData, msg: msg, response: response, request: rpcRequest)
             return fixResponse
         }
         
@@ -116,15 +115,24 @@ extension RpcClient {
         }
         
         do {
-            if let rpcRequest = request as? iRpcRequest, let retData = try rpcRequest.OCResponseDataParse(data) as? ResponseData {
-                /// 适配Objective-C的手动模型解析
-                /// 当遇到数组类型的数据时，ResponseData代表的是数组
-                /// 但是在OC里需要使用ResponseData数组里面的元素类型才能进行模型解析
-                /// 所以不使用统一的自动解析
-                let response = NtkResponse(code: retCode, data: retData, msg: msg, response: response, request: request!)
-                return response
+            // 检查是否启用自定义响应数据解码
+            var enableCustomResponseDataDecode: Bool = rpcRequest.enableCustomRetureDataDecode
+            if !enableCustomResponseDataDecode {
+                if ResponseData.self is String.Type || ResponseData.self is Bool.Type || ResponseData.self is Int.Type || ResponseData.self is [String: Sendable].Type {
+                    enableCustomResponseDataDecode = true
+                }
             }
             
+            if enableCustomResponseDataDecode {
+                // 使用自定义解码器
+                if let retData = try rpcRequest.customRetureDataDecode(data) as? ResponseData {
+                    let response = NtkResponse(code: retCode, data: retData, msg: msg, response: response, request: request!)
+                    return response
+                } else {
+                    throw NtkError.serviceDataTypeInvalid
+                }
+            }
+            // 使用默认的JSONDecoder自动解码
             guard JSONSerialization.isValidJSONObject(data) else {
                 // 后端code验证成功，但是没有得到匹配的数据类型
                 throw NtkError.jsonInvalid(request!, sendableResponse)
@@ -143,48 +151,9 @@ extension RpcClient {
             // decoder字段解析报错，避免崩溃
             throw NtkError.decodeInvalid(error, request!, sendableResponse)
         } catch {
-            // 后端code验证成功，但是没有得到匹配的数据类型
-            throw NtkError.serviceDataTypeInvalid
+            // 重新抛出其他错误
+            throw error
         }
-    } 
-    
-    /// 处理NSObject类型的响应数据
-    /// 适配Objective-C的手动模型解析方式
-    /// - Parameter response: 服务端响应数据
-    /// - Returns: 类型化的网络响应对象
-    /// - Throws: 数据解析或类型转换错误
-    private func handleNSObject<ResponseData>(_ response: any Sendable) async throws -> NtkResponse<ResponseData> {
-        let response = try await sendRpcRequest()
-        if let resposneObject = response as? [String: Sendable] {
-            let code = resposneObject[Keys.code]
-            guard let data = resposneObject[Keys.data] else {
-                throw NtkError.serviceDataEmpty
-            }
-            let msg = resposneObject[Keys.msg] as? String
-            let retCode = NtkReturnCode(code)
-            if request is iRpcRequest {
-                /// 适配Objective-C的手动模型解析
-                /// 当遇到数组类型的数据时，ResponseData代表的是数组
-                /// 但是在OC里需要使用ResponseData数组里面的元素类型才能进行模型解析
-                /// 所以不使用统一的自动解析
-                let rpcRequest = request as! iRpcRequest
-                if ResponseData.self is NtkNever.Type {
-                    // 用户不关心返回数据
-                    let response = NtkResponse(code: retCode, data: NtkNever(), msg: msg, response: response, request: request!)
-                    return response as! NtkResponse<ResponseData>
-                }
-                guard let retData = try rpcRequest.OCResponseDataParse(data) as? ResponseData else {
-                    throw NtkError.serviceDataTypeInvalid
-                }
-                let response = NtkResponse(code: retCode, data: retData, msg: msg, response: response, request: request!)
-                return response
-            }else {
-                fatalError("RpcClient only support RpcRequest \(String(describing: request))")
-            }
-        }else {
-            throw NtkError.Rpc.responseTypeError
-        }
-
     }
     
 }
