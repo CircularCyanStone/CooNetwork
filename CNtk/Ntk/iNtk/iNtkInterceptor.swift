@@ -78,6 +78,7 @@ class NtkInterceptorPriority: Comparable {
 /// 网络拦截器协议
 /// 定义了网络请求拦截器的基本行为，支持请求和响应的拦截处理
 /// 使用责任链模式，允许多个拦截器按优先级顺序处理请求
+/// 因为iNtkInterceptor里面的方法是在网络组件中被调用，添加NtkActor避免隔离域的跳转。
 @NtkActor
 protocol iNtkInterceptor: Sendable {
     

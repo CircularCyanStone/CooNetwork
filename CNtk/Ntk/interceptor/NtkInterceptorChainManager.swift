@@ -9,6 +9,7 @@ import Foundation
 
 /// 拦截器链管理器
 /// 负责将所有拦截器组织成一个链，并启动请求处理
+@NtkActor
 struct NtkInterceptorChainManager {
     /// 所有注册的拦截器
     private let interceptors: [iNtkInterceptor]

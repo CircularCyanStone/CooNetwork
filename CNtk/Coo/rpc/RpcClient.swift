@@ -10,7 +10,6 @@ import Foundation
 /// RPC客户端实现
 /// 负责执行RPC网络请求，支持泛型响应键映射和缓存功能
 /// 集成了DTRpc框架进行底层网络通信
-@NtkActor
 class RpcClient<Keys: NtkResponseMapKeys>: iNtkClient {
     
     /// 缓存存储实现

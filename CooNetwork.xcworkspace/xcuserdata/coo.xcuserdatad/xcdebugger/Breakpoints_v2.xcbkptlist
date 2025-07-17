@@ -46,8 +46,8 @@
             filePath = "CNtk/Coo/rpc/RpcClient.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "148"
-            endingLineNumber = "148"
+            startingLineNumber = "147"
+            endingLineNumber = "147"
             landmarkName = "handleDecodableRuntime(_:)"
             landmarkType = "7">
          </BreakpointContent>
