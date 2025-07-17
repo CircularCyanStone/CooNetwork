@@ -20,6 +20,7 @@ struct CooToastInterceptor: iNtkInterceptor {
             return response
         } catch let error as NtkError {
             if case let .validation(_, response) = error {
+                // 服务端验证失败，提示消息。
                 if rpcRequest.toastRetErrorMsg, let msg = response.msg {
                     // toast提示
                     Task { @MainActor in
@@ -28,9 +29,26 @@ struct CooToastInterceptor: iNtkInterceptor {
                 }
             }
             throw error
-        } catch {
+        } catch let rpcError as NtkError.Rpc {
+            var msg: String?
+            switch rpcError {
+            case .responseEmpty:
+                msg = "mPaaS接口响应数据为空"
+            case .responseTypeError:
+                msg = "接口数据类型异常"
+            case .unknown(let message):
+                msg = message
+            }
+            if let msg {
+                // toast提示
+                Task { @MainActor in
+                    UIApplication.getKeyWindow()?.makeToast(msg)
+                }
+            }
+            throw rpcError
+        }
+        catch {
             // 系统级别错误 mpaas框架提示
-            
             throw error
         }
     }

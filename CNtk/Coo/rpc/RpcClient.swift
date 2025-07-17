@@ -98,7 +98,7 @@ extension RpcClient {
         }
         let response = try await sendRpcRequest()
         guard let sendableResponse = response as? [String: Sendable] else {
-            fatalError("接口数据仅支持sendable类型的数据，请核对")
+            throw NtkError.Rpc.responseTypeError
         }
         let code = sendableResponse[Keys.code]
         let msg = sendableResponse[Keys.msg] as? String

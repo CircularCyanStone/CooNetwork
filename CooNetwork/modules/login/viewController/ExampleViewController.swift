@@ -48,7 +48,7 @@ struct ExampleSwiftUIView: View {
     private func loadTime() {
         Task {
             do {
-                let response: String = try await DefaultCoo.with(Login.getTime).startRpc().data
+                let response: Int = try await DefaultCoo.with(Login.getTime).startRpc().data
                 print("\(response)")
             }catch let error as NtkError {
                 print("\(error)")
