@@ -61,6 +61,17 @@ struct ExampleSwiftUIView: View {
     var body: some View {
         ZStack {
             List {
+                Button("actor测试") {
+                    let actorExample = CooActorExample()
+                    Task {
+                        await actorExample.modifyName("ccc")
+                        await actorExample.changeSchool()
+                    }
+                }
+                .listRowInsets(.none)
+                .listRowBackground(Color.orange)
+
+                
                 Button("请求短信") {
                     Task {
                         do {
