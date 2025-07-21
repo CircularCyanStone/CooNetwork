@@ -69,7 +69,30 @@
 		FB78FC632E015421008A96E6 /* Exceptions for "CooNetwork" folder in "CooNetwork" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				actor_test/TaskContextTest.swift,
 				Info.plist,
+			);
+			target = FB78FC3A2E01541E008A96E6 /* CooNetwork */;
+		};
+		FB8F11332E2A3AB600541C1E /* Exceptions for "CNtk" folder in "CooNetwork" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"doc/大规模线程池验证.swift",
+				"doc/极端饥饿演示.swift",
+				"doc/简单线程池验证.swift",
+				"doc/简化饥饿演示.swift",
+				"doc/深入验证线程共用条件.swift",
+				"doc/线程池容量与阻塞任务分析.swift",
+				"doc/严格原始例子测试.swift",
+				"doc/验证线程空闲时任务执行.swift",
+				"doc/验证用户线程池理论.swift",
+				"doc/验证优先级线程关系.swift",
+				"doc/真正无限循环测试.swift",
+				"doc/阻塞vs协作式挂起演示.swift",
+				"doc/Actor注释对比测试.swift",
+				doc/concurrencyschedulingtest.swift,
+				"doc/Task调度饥饿验证.swift",
+				doc/threadarchitecturetest.swift,
 			);
 			target = FB78FC3A2E01541E008A96E6 /* CooNetwork */;
 		};
@@ -96,6 +119,9 @@
 		};
 		FB78FC792E0154A0008A96E6 /* CNtk */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				FB8F11332E2A3AB600541C1E /* Exceptions for "CNtk" folder in "CooNetwork" target */,
+			);
 			path = CNtk;
 			sourceTree = "<group>";
 		};

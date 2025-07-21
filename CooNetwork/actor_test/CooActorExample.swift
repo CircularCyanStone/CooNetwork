@@ -15,6 +15,10 @@ struct School {
         print("play 2")
         return "play"
     }
+    
+    func goToClass() {
+        
+    }
 }
 
 
@@ -33,6 +37,8 @@ class CooActorExample {
     
     func changeSchool() async {
         print("change 1")
+        school.goToClass()
+        _ = await school.play()
         Task {
             print("change task 1")
             let s = await school.play()

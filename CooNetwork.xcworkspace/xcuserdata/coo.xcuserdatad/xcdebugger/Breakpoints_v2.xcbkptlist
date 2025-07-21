@@ -14,101 +14,9 @@
             filePath = "CooNetwork/actor_test/CooActorExample.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "43"
-            endingLineNumber = "43"
+            startingLineNumber = "49"
+            endingLineNumber = "49"
             landmarkName = "changeSchool()"
-            landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "A2936797-7AB7-4A31-BF05-2FCC00D39C15 - 3b71475129a601b4"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(3) suspend resume partial function for CooNetwork.CooActorExample.changeSchool() async -&gt; ()"
-                  moduleName = "CooNetwork.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/coo/Desktop/CooNetwork/CooNetwork/actor_test/CooActorExample.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "43"
-                  endingLineNumber = "43">
-               </Location>
-               <Location
-                  uuid = "A2936797-7AB7-4A31-BF05-2FCC00D39C15 - d88029ce4a6a6b5"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(4) suspend resume partial function for CooNetwork.CooActorExample.changeSchool() async -&gt; ()"
-                  moduleName = "CooNetwork.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/coo/Desktop/CooNetwork/CooNetwork/actor_test/CooActorExample.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "43"
-                  endingLineNumber = "43">
-               </Location>
-            </Locations>
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "33F832F4-24F0-4269-9EDD-6B9FBB668A6D"
-            shouldBeEnabled = "Yes"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "CooNetwork/actor_test/CooActorExample.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "15"
-            endingLineNumber = "15"
-            landmarkName = "play()"
-            landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "33F832F4-24F0-4269-9EDD-6B9FBB668A6D - 32438d73207c241c"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(3) suspend resume partial function for CooNetwork.School.play() async -&gt; Swift.String"
-                  moduleName = "CooNetwork.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/coo/Desktop/CooNetwork/CooNetwork/actor_test/CooActorExample.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "15"
-                  endingLineNumber = "15">
-               </Location>
-               <Location
-                  uuid = "33F832F4-24F0-4269-9EDD-6B9FBB668A6D - f46d3781661a481d"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(4) suspend resume partial function for CooNetwork.School.play() async -&gt; Swift.String"
-                  moduleName = "CooNetwork.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/coo/Desktop/CooNetwork/CooNetwork/actor_test/CooActorExample.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "15"
-                  endingLineNumber = "15">
-               </Location>
-            </Locations>
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "04C7A3C8-8729-49A7-A557-AE5DAD431077"
-            shouldBeEnabled = "Yes"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "CooNetwork/actor_test/CooActorExample.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "13"
-            endingLineNumber = "13"
-            landmarkName = "play()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -122,8 +30,8 @@
             filePath = "CooNetwork/actor_test/CooActorExample.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "39"
-            endingLineNumber = "39"
+            startingLineNumber = "45"
+            endingLineNumber = "45"
             landmarkName = "changeSchool()"
             landmarkType = "7">
          </BreakpointContent>
@@ -138,8 +46,8 @@
             filePath = "CooNetwork/actor_test/CooActorExample.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "35"
-            endingLineNumber = "35"
+            startingLineNumber = "39"
+            endingLineNumber = "39"
             landmarkName = "changeSchool()"
             landmarkType = "7">
          </BreakpointContent>
