@@ -45,6 +45,8 @@ struct ExampleSwiftUIView: View {
     @State private var counter = 0
     @State private var text = "Hello SwiftUI!"
     
+    @State var stream: AsyncThrowingStream<NtkResponse<CodeData>, any Error>?
+    
     private func loadTime() {
         Task {
             do {
@@ -95,20 +97,20 @@ struct ExampleSwiftUIView: View {
                     Task {
                         do {
                             let req = Login.sendSMS("300343", tmpLogin: false)
-                            let stream: AsyncThrowingStream<NtkResponse<CodeData>, Error> = await DefaultCoo.with(req).startRpcWithCache()
+                            let stream: AsyncThrowingStream<NtkResponse<CodeData>, any Error> = await DefaultCoo.with(req).startRpcWithCache(req)
                             for try await response in stream {
                                 let codeResult: CodeData = response.data
-//                                if response.isCache {
-//                                    print("收到缓存短信: \(codeResult)")
-//                                } else {
-//                                    print("收到网络短信: \(codeResult)")
-//                                }
+                                if response.isCache {
+                                    print("收到缓存短信: \(codeResult)")
+                                } else {
+                                    print("收到网络短信: \(codeResult)")
+                                }
                             }
-                            print("短信处理完成")
                         } catch {
                             print("短信(带缓存)发送失败 \(error)")
                         }
                     }
+                    print("startRpc task ")
                 }
                 .listRowInsets(.none)
                 .listRowBackground(Color.orange)

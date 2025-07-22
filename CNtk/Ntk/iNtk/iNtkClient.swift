@@ -59,7 +59,8 @@ extension iNtkClient {
         guard let response else {
             return nil
         }
-        let ntkResponse: NtkResponse<ResponseData> = try await handleResponse(response)
+        var ntkResponse: NtkResponse<ResponseData> = try await handleResponse(response)
+        ntkResponse.isCache = true
         return ntkResponse
     }
     

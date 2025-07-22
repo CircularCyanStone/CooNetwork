@@ -32,6 +32,7 @@ struct RpcCacheStorage: iNtkCacheStorage {
     }
     
     func getData(key: String) async -> NtkCacheMeta? {
+        print("startRpc 读取缓存")
         guard let request else {
             fatalError("request is nil or not iRpcRequest")
         }

@@ -133,7 +133,7 @@ extension NtkOperation {
         let realApiHandle: NtkDefaultCacheRequestHandler<ResponseData> = NtkDefaultCacheRequestHandler()
         
         // 缓存直接进行最终读取缓存解析处理
-        let realChainManager = NtkInterceptorChainManager(interceptors: [], finalHandler: realApiHandle)
+        let realChainManager = NtkInterceptorChainManager(interceptors: coreInterceptors, finalHandler: realApiHandle)
         do {
             let response = try await realChainManager.execute(context: context)
             if let response = response as? NtkResponse<ResponseData> {

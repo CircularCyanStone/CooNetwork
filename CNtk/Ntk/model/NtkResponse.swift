@@ -110,6 +110,8 @@ struct NtkResponse<ResponseData: Sendable>: iNtkResponse, Sendable {
     /// 关联的请求对象
     let request: iNtkRequest
     
+    var isCache: Bool = false
+    
     /// 初始化网络响应对象
     /// - Parameters:
     ///   - code: 响应状态码

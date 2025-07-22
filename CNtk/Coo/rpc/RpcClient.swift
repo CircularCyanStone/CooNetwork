@@ -95,7 +95,6 @@ extension RpcClient {
         guard let rpcRequest = request as? iRpcRequest else {
             fatalError("request must be iRpcRequest type")
         }
-        let response = try await sendRpcRequest()
         guard let sendableResponse = response as? [String: Sendable] else {
             throw NtkError.Rpc.responseTypeError
         }

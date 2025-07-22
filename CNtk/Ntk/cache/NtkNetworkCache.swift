@@ -54,7 +54,7 @@ class NtkNetworkCache {
             return nil
         }
         
-        if cacheMetaData.expirationDate < Date().timeIntervalSince1970 * 1000 {
+        if cacheMetaData.expirationDate < Date().timeIntervalSince1970 {
             // 缓存已过期
             return nil
         }
@@ -81,7 +81,7 @@ class NtkNetworkCache {
         }
         
         let versionName = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
-        let createTime = Date().timeIntervalSince1970 * 1000
+        let createTime = Date().timeIntervalSince1970
         let expirationDate = createTime + config.cacheTime
         let metaData = NtkCacheMeta(appVersion: versionName, creationDate: createTime, expirationDate: expirationDate, data: data)
         

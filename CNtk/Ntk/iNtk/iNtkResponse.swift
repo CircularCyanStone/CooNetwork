@@ -35,4 +35,7 @@ protocol iNtkResponse: Sendable {
     /// 对应的请求对象
     /// - Returns: 产生此响应的原始请求
     var request: iNtkRequest { get }
+    
+    /// 是否是缓存
+    var isCache: Bool { get }
 }

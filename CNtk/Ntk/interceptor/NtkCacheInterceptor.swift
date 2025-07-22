@@ -10,7 +10,7 @@ import Foundation
 
 /// 默认缓存拦截器实现
 /// 提供基础的响应缓存功能，支持自定义缓存策略
-struct NtkDefaultCacheInterceptor: iNtkInterceptor {
+struct NtkCacheInterceptor: iNtkInterceptor {
     /// 拦截器优先级
     /// 使用最低优先级（0），确保在所有其他拦截器之后执行
     var priority: NtkInterceptorPriority {
