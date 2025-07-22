@@ -40,6 +40,8 @@ PODS:
     - APOpenSSL
     - MPAntSSM
   - MPAntSSM (1.0.0.230523113201)
+  - MPDataCenter (1.0.0.240226153100):
+    - mPaas
   - MPGMAdapter (1.0.0.230223110808):
     - APLog
     - APOpenSSL
@@ -71,6 +73,7 @@ DEPENDENCIES:
   - mPaas (= 1.0.0.250604161734)
   - MPaaSCryptoSDK (= 1.0.0.240228202929)
   - MPAntSSM (= 1.0.0.230523113201)
+  - MPDataCenter (= 1.0.0.240226153100)
   - MPGMAdapter (= 1.0.0.230223110808)
   - MPMasAdapter (= 1.0.0.250402155246)
   - MPMgsAdapter (= 1.0.0.240724143439)
@@ -95,6 +98,7 @@ SPEC REPOS:
     - mPaas
     - MPaaSCryptoSDK
     - MPAntSSM
+    - MPDataCenter
     - MPGMAdapter
     - MPMasAdapter
     - MPMgsAdapter
@@ -122,6 +126,7 @@ SPEC CHECKSUMS:
   mPaas: 23b95c8058767b49ccd40c771164abd2300c37a0
   MPaaSCryptoSDK: f7558c5ede32f60e2ab91f94bcb939ecdeb46c51
   MPAntSSM: c8a3caf67c86d31c712cb5c8be0f57947567ba51
+  MPDataCenter: 157926567dc9d8e765618a35d0584ca3eb903225
   MPGMAdapter: b77a8ffa406e11e455521b3a2cdd7b6fd4436702
   MPMasAdapter: 89f18bc8b234866908867d441cd601adf0cbeedf
   MPMgsAdapter: 2b55f22ef684d056fdc747e323a37ddbe92b1ad5
@@ -131,6 +136,6 @@ SPEC CHECKSUMS:
   Toast-Swift: 7a03a532afe3a560d4044bc7c237e2864d295173
   UTDID: cebf7ff624513ec6799675eef7dc07f4b41a8d5a
 
-PODFILE CHECKSUM: 296f0b65f86f86eeec068fe2bd1dcc089ee7f48f
+PODFILE CHECKSUM: 03408aa64d3bfd69eb798595f74413973e87dd67
 
 COCOAPODS: 1.16.2

@@ -95,8 +95,10 @@ extension NtkOperation {
     /// - Returns: 类型化的网络响应对象
     /// - Throws: 网络请求过程中的错误
     func run<ResponseData>() async throws -> NtkResponse<ResponseData> {
-        assert(validation != nil, "iNtkResponseValidation must not be nil")
-        let context = NtkRequestContext(validation: validation!, client: client)
+        guard let validation else {
+            fatalError("iNtkResponseValidation must not be nil, you should call method 'func validation(_ validation: iNtkResponseValidation) -> Self' first")
+        }
+        let context = NtkRequestContext(validation: validation, client: client)
         
         let tmpInterceptors =  interceptors + coreInterceptors
         let realApiHandle: NtkDefaultApiRequestHandler<ResponseData> = NtkDefaultApiRequestHandler()
@@ -124,7 +126,10 @@ extension NtkOperation {
         guard client.requestWrapper.request != nil else {
             fatalError("request must not be nil")
         }
-        let context = NtkRequestContext(validation: validation!, client: client)
+        guard let validation else {
+            fatalError("iNtkResponseValidation must not be nil, you should call method 'func validation(_ validation: iNtkResponseValidation) -> Self' first")
+        }
+        let context = NtkRequestContext(validation: validation, client: client)
         let realApiHandle: NtkDefaultCacheRequestHandler<ResponseData> = NtkDefaultCacheRequestHandler()
         
         // 缓存直接进行最终读取缓存解析处理

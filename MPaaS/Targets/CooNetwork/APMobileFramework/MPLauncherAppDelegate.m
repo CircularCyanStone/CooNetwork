@@ -32,7 +32,7 @@
                                @"TabBar_Friends_Sel", nil];
         
         UIViewController* tab1ViewController = (UIViewController *) [self createLoggingViewController:@"CooNetwork.ExampleViewController"];
-        UIViewController* tab2ViewController = [[DTViewController alloc] init];
+        UIViewController* tab2ViewController = (UIViewController *) [self createLoggingViewController:@"CooNetwork.ConcurrencyTestViewController"];
         UIViewController* tab3ViewController = [[DTViewController alloc] init];
         UIViewController* tab4ViewController = [[DTViewController alloc] init];
         

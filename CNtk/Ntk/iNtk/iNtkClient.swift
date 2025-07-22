@@ -19,7 +19,7 @@ protocol iNtkClient: Sendable {
     
     /// 缓存存储器
     /// - Returns: 用于缓存网络响应的存储实现
-    var storage: iNtkCacheStorage { get }
+    var storage: iNtkCacheStorage { get set }
     
     /// 执行网络请求
     /// - Returns: 原始的网络响应数据

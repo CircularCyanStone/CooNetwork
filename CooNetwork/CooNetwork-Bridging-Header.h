@@ -4,3 +4,4 @@
 
 #import <APMobileNetwork/APMobileNetwork.h>
 #import <MPMgsAdapter/MPRpcInterface.h>
+#import <MPDataCenter/MPDataCenter.h>

@@ -15,7 +15,7 @@ protocol iNtkCacheStorage: Sendable {
     /// 添加请求到缓存管理
     /// 用于注册需要缓存的请求，可用于预处理或统计
     /// - Parameter request: 网络请求对象
-    func addRequest(_ request: iNtkRequest)
+    mutating func addRequest(_ request: iNtkRequest)
     
     /// 存储数据到缓存
     /// 将网络响应数据及其元信息保存到缓存存储中

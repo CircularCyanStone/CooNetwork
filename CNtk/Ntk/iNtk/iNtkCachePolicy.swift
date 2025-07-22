@@ -70,11 +70,11 @@ struct NtkDefaultCachePolicy: iNtkCachePolicy {
     
     /// 初始化缓存配置
     /// - Parameters:
-    ///   - cacheTime: 缓存时间（秒），默认为0（不缓存）
+    ///   - cacheTime: 缓存时间（秒）
     ///   - filterParameter: 参数过滤器，用于过滤不参与缓存键生成的参数
     ///   - customPolicy: 自定义缓存策略，用于判断响应是否应该被缓存
     init(
-        cacheTime: TimeInterval = 0,
+        cacheTime: TimeInterval,
         filterParameter: (@Sendable ([String: Sendable]) -> [String: Sendable])? = nil,
         customPolicy: (@Sendable (any iNtkResponse) -> Bool)? = nil
     ) {

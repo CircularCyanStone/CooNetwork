@@ -7,48 +7,80 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "A2936797-7AB7-4A31-BF05-2FCC00D39C15"
+            uuid = "1E732A9D-581A-46D2-8F98-AF5FDB4AB00C"
             shouldBeEnabled = "Yes"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
-            filePath = "CooNetwork/actor_test/CooActorExample.swift"
+            filePath = "CooNetwork/actor_test/TaskContextTest.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "49"
-            endingLineNumber = "49"
-            landmarkName = "changeSchool()"
+            startingLineNumber = "90"
+            endingLineNumber = "90"
+            landmarkName = "doWork()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "CBEAC48B-F06D-4024-BF5A-53A99BE12651"
+            uuid = "4356F9CD-6EEB-48C0-A2C6-497CE59359F5"
             shouldBeEnabled = "Yes"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
-            filePath = "CooNetwork/actor_test/CooActorExample.swift"
+            filePath = "CooNetwork/actor_test/ConcurrencyDispatchVerification.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "45"
-            endingLineNumber = "45"
-            landmarkName = "changeSchool()"
+            startingLineNumber = "22"
+            endingLineNumber = "22"
+            landmarkName = "runTest()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "AE2A892F-C1BE-4683-B6FF-88DA1A5C1B36"
+            uuid = "2192B368-EAB7-418E-BC38-B99C1725A854"
             shouldBeEnabled = "Yes"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
-            filePath = "CooNetwork/actor_test/CooActorExample.swift"
+            filePath = "CooNetwork/actor_test/ConcurrencyDispatchVerification.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "39"
-            endingLineNumber = "39"
-            landmarkName = "changeSchool()"
+            startingLineNumber = "30"
+            endingLineNumber = "30"
+            landmarkName = "runTest()"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "515496AA-37AB-4252-8B96-A796435D888F"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "CooNetwork/actor_test/ConcurrencyDispatchVerification.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "14"
+            endingLineNumber = "14"
+            landmarkName = "runTest()"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "397BFEB6-9757-4DE6-A3CD-4EE0EF74884C"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "CNtk/Coo/cache/RpcCacheStorage.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "35"
+            endingLineNumber = "35"
+            landmarkName = "getData(key:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

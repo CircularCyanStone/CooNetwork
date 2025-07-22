@@ -74,24 +74,42 @@
 			);
 			target = FB78FC3A2E01541E008A96E6 /* CooNetwork */;
 		};
-		FB8F11332E2A3AB600541C1E /* Exceptions for "CNtk" folder in "CooNetwork" target */ = {
+		FB8F13402E2E0B4900541C1E /* Exceptions for "CNtk" folder in "CooNetwork" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				"doc/澄清Swift并发调度误解.md",
 				"doc/大规模线程池验证.swift",
 				"doc/极端饥饿演示.swift",
 				"doc/简单线程池验证.swift",
 				"doc/简化饥饿演示.swift",
 				"doc/深入验证线程共用条件.swift",
 				"doc/线程池容量与阻塞任务分析.swift",
+				"doc/续体调度详细示例.swift",
 				"doc/严格原始例子测试.swift",
+				"doc/严格原始例子分析结果.md",
 				"doc/验证线程空闲时任务执行.swift",
 				"doc/验证用户线程池理论.swift",
 				"doc/验证优先级线程关系.swift",
 				"doc/真正无限循环测试.swift",
 				"doc/阻塞vs协作式挂起演示.swift",
 				"doc/Actor注释对比测试.swift",
+				"doc/CNtk框架技术文档.md",
 				doc/concurrencyschedulingtest.swift,
+				"doc/objccn-async-swift.pdf",
+				doc/README.md,
+				doc/run_actor_annotation_test.sh,
+				doc/run_all_concurrency_tests.sh,
+				doc/run_blocking_vs_cooperative_demo.sh,
+				doc/run_concurrency_test.sh,
+				doc/run_scheduling_mechanism_test.sh,
+				doc/run_thread_architecture_test.sh,
+				"doc/Swift并发测试验证与结论.md",
+				"doc/Swift并发饥饿问题详解.md",
+				"doc/Swift并发机制完整指南.md",
 				"doc/Task调度饥饿验证.swift",
+				"doc/Task调度真实机制验证结果.md",
+				doc/test_actor_serialization.sh,
+				doc/test_concurrent_queue_behavior.sh,
 				doc/threadarchitecturetest.swift,
 			);
 			target = FB78FC3A2E01541E008A96E6 /* CooNetwork */;
@@ -120,7 +138,7 @@
 		FB78FC792E0154A0008A96E6 /* CNtk */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				FB8F11332E2A3AB600541C1E /* Exceptions for "CNtk" folder in "CooNetwork" target */,
+				FB8F13402E2E0B4900541C1E /* Exceptions for "CNtk" folder in "CooNetwork" target */,
 			);
 			path = CNtk;
 			sourceTree = "<group>";

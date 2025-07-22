@@ -14,6 +14,9 @@ target 'CooNetwork' do
   use_frameworks!
   mPaaS_pod "mPaaS_MobileFramework"
   mPaaS_pod "mPaaS_RPC"
+  mPaaS_pod "mPaaS_DataCenter"
+  mPaaS_pod "mPaaS_MobileFramework"
+  
     pod 'CodableWrappers'
     pod 'Alamofire'
     pod 'Moya'

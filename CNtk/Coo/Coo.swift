@@ -26,6 +26,7 @@ class Coo<Keys: NtkResponseMapKeys> {
             net = await net.addInterceptor(ntkLoadingInterceptor).hud(true)
         }
         net = await net.addInterceptor(CooToastInterceptor())
+        net = await net.addInterceptor(NtkDefaultCacheInterceptor())
         return net
     }
 }
@@ -39,5 +40,9 @@ extension NtkNetwork {
     /// - Throws: 网络请求过程中的错误
     func startRpc(_ validation: iNtkResponseValidation = RpcDetaultResponseValidation()) async throws -> NtkResponse<ResponseData> {
         return try await self.validation(validation).sendRequest()
+    }
+    
+    func loadRpcCache(_ validation: iNtkResponseValidation = RpcDetaultResponseValidation()) async throws -> NtkResponse<ResponseData>? {
+        return try await self.validation(validation).loadCache()
     }
 }
