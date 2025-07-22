@@ -10,10 +10,10 @@ import Foundation
 /// 缓存元数据结构
 /// 包含缓存数据的完整元信息，用于缓存的版本控制、过期管理和数据存储
 final class NtkCacheMeta: NSObject, NSSecureCoding, Sendable {
+    
     static var supportsSecureCoding: Bool {
         true
     }
-    
     
     /// 缓存数据版本号
     /// 用于标识缓存数据对应的应用版本，便于版本升级时的缓存清理
@@ -29,6 +29,7 @@ final class NtkCacheMeta: NSObject, NSSecureCoding, Sendable {
     
     /// 实际缓存数据
     /// 存储的网络响应数据，必须遵循Sendable协议以确保线程安全
+    /// 支持类型[String:Sendable]、[Sendable]、String、Bool、Int
     let data: Sendable?
     
     /// 初始化缓存元数据
