@@ -89,6 +89,29 @@ struct ExampleSwiftUIView: View {
                 }
                 .listRowInsets(.none)
                 .listRowBackground(Color.orange)
+
+
+                Button("请求短信(带缓存)") {
+                    Task {
+                        do {
+                            let req = Login.sendSMS("300343", tmpLogin: false)
+                            let stream: AsyncThrowingStream<NtkResponse<CodeData>, Error> = await DefaultCoo.with(req).startRpcWithCache()
+                            for try await response in stream {
+                                let codeResult: CodeData = response.data
+//                                if response.isCache {
+//                                    print("收到缓存短信: \(codeResult)")
+//                                } else {
+//                                    print("收到网络短信: \(codeResult)")
+//                                }
+                            }
+                            print("短信处理完成")
+                        } catch {
+                            print("短信(带缓存)发送失败 \(error)")
+                        }
+                    }
+                }
+                .listRowInsets(.none)
+                .listRowBackground(Color.orange)
                 
                 
                 Button("获取服务器时间") {
