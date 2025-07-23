@@ -1,0 +1,5 @@
+"Assert:type:empty" = "Le type de suivi des performances ne peut pas être vide.";
+"Assert:pageId:empty" = "L'ID de page ne peut pas être vide.";
+"Assert:number:incorrect" = "Le nombre de paramètres de journal est incorrect.";
+"Assert:actionid:empty" = "L'ActionID du journal ne peut pas être vide.";
+"Assert:kActionID:unmatch" = "Le kActionID ne correspond pas à auto_openPage.";

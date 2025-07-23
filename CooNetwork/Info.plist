@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
+	<key>Product Version</key>
+	<string>1.0.0.0</string>
+	<key>mPaaSCrypt</key>
+	<dict>
+		<key>Crypt</key>
+		<true/>
+		<key>GWWhiteList</key>
+		<array>
+			<string>https://mpaas3.bankofshanghai.net:3601/mgw.htm</string>
+		</array>
+		<key>PubKey</key>
+		<string>-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoEcz1UBgi0DQgAE1rJVgxJ0T7E18nxidEMDQQCMWOUr
+tOLqXHvR/6yRMpVtegNbdsmlHJYCSN33pSOEJ041KC/3yJ7Nmm0G33l7CA==
+-----END PUBLIC KEY-----</string>
+		<key>RSA/ECC/SM2</key>
+		<string>SM2</string>
+	</dict>
+	<key>mPaaSLicense</key>
+	<dict>
+		<key>AppConfigUpdate</key>
+		<dict>
+			<key>ExpireDate</key>
+			<string>2123-01-01</string>
+			<key>Key</key>
+			<string>jVcC9WO6Ieb/A9r764SwhEBXJdBLa4IBnmgiVbrTTg9pjZNbuuE38J6AA5tOBOZXVTCntQ2wabZHTUqnAHdQwroEaqubeR1Is2TfeJs6FNVSdH0ZcXLMCDrlrPkNbX0CqB7LBClbNKN+DpCVr0D0QJrAjGq9qbl9EMut3AHNshl2UgQmxV8F19bH1EHld2YOWdflYyYkHVn9zO9hTLoXP7d2KG5hynxJ04CzbsATv4X9UCBDutbtMVQXOmRCuGS4fuddtEXfuwi7bSEN7FRW72wikTH3xXdm2txK3l11ckpQiBKq63S+DMSgjc9S2R3yBJZ8EY4X3HLSqjKADx2lXw==</string>
+			<key>Trial</key>
+			<string>0</string>
+			<key>Version</key>
+			<string>1</string>
+		</dict>
+	</dict>
+</dict>
+</plist>

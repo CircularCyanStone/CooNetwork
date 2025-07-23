@@ -1,0 +1,141 @@
+PODS:
+  - AFNetworking (4.0.1):
+    - AFNetworking/NSURLSession (= 4.0.1)
+    - AFNetworking/Reachability (= 4.0.1)
+    - AFNetworking/Security (= 4.0.1)
+    - AFNetworking/Serialization (= 4.0.1)
+    - AFNetworking/UIKit (= 4.0.1)
+  - AFNetworking/NSURLSession (4.0.1):
+    - AFNetworking/Reachability
+    - AFNetworking/Security
+    - AFNetworking/Serialization
+  - AFNetworking/Reachability (4.0.1)
+  - AFNetworking/Security (4.0.1)
+  - AFNetworking/Serialization (4.0.1)
+  - AFNetworking/UIKit (4.0.1):
+    - AFNetworking/NSURLSession
+  - Alamofire (5.10.2)
+  - APCrashReporter (1.0.0.250623105119):
+    - APLog
+    - mPaas
+  - APLog (3.0.2.231019134014)
+  - APMobileFramework (1.0.0.250415141519):
+    - APLog
+    - mPaas
+  - APMobileNetwork (1.0.0.250623105119):
+    - mPaas
+  - APOpenSSL (1.0.0.240313134806)
+  - APProtocolBuffers (1.0.1.230223103631)
+  - APRemoteLogging (1.0.0.250623105119.62):
+    - mPaas
+  - CodableWrappers (2.0.7)
+  - Moya (15.0.0):
+    - Moya/Core (= 15.0.0)
+  - Moya/Core (15.0.0):
+    - Alamofire (~> 5.0)
+  - mPaas (1.0.0.250604161734):
+    - APLog
+  - MPaaSCryptoSDK (1.0.0.240228202929):
+    - APLog
+    - APOpenSSL
+    - MPAntSSM
+  - MPAntSSM (1.0.0.230523113201)
+  - MPDataCenter (1.0.0.240226153100):
+    - mPaas
+  - MPGMAdapter (1.0.0.230223110808):
+    - APLog
+    - APOpenSSL
+  - MPMasAdapter (1.0.0.250402155246)
+  - MPMgsAdapter (1.0.0.240724143439):
+    - APMobileNetwork
+    - mPaas
+  - MPSignatureAdapter (1.0.0.231129192920):
+    - APLog
+  - SecurityGuardSDK (2.2.3.230223114620)
+  - SVProgressHUD (2.3.1):
+    - SVProgressHUD/Core (= 2.3.1)
+  - SVProgressHUD/Core (2.3.1)
+  - Toast-Swift (5.1.1)
+  - UTDID (1.0.2.190226130141)
+
+DEPENDENCIES:
+  - AFNetworking
+  - Alamofire
+  - APCrashReporter (= 1.0.0.250623105119)
+  - APLog (= 3.0.2.231019134014)
+  - APMobileFramework (= 1.0.0.250415141519)
+  - APMobileNetwork (= 1.0.0.250623105119)
+  - APOpenSSL (= 1.0.0.240313134806)
+  - APProtocolBuffers (= 1.0.1.230223103631)
+  - APRemoteLogging (= 1.0.0.250623105119.62)
+  - CodableWrappers
+  - Moya
+  - mPaas (= 1.0.0.250604161734)
+  - MPaaSCryptoSDK (= 1.0.0.240228202929)
+  - MPAntSSM (= 1.0.0.230523113201)
+  - MPDataCenter (= 1.0.0.240226153100)
+  - MPGMAdapter (= 1.0.0.230223110808)
+  - MPMasAdapter (= 1.0.0.250402155246)
+  - MPMgsAdapter (= 1.0.0.240724143439)
+  - MPSignatureAdapter (= 1.0.0.231129192920)
+  - SecurityGuardSDK (= 2.2.3.230223114620)
+  - SVProgressHUD
+  - Toast-Swift
+  - UTDID (= 1.0.2.190226130141)
+
+SPEC REPOS:
+  https://gitee.com/mirrors/CocoaPods-Specs:
+    - SVProgressHUD
+    - Toast-Swift
+  https://gitee.com/mpaas/podspecs.git:
+    - APCrashReporter
+    - APLog
+    - APMobileFramework
+    - APMobileNetwork
+    - APOpenSSL
+    - APProtocolBuffers
+    - APRemoteLogging
+    - mPaas
+    - MPaaSCryptoSDK
+    - MPAntSSM
+    - MPDataCenter
+    - MPGMAdapter
+    - MPMasAdapter
+    - MPMgsAdapter
+    - MPSignatureAdapter
+    - SecurityGuardSDK
+    - UTDID
+  trunk:
+    - AFNetworking
+    - Alamofire
+    - CodableWrappers
+    - Moya
+
+SPEC CHECKSUMS:
+  AFNetworking: 3bd23d814e976cd148d7d44c3ab78017b744cd58
+  Alamofire: 7193b3b92c74a07f85569e1a6c4f4237291e7496
+  APCrashReporter: 27d34e844b7d04e47e93fe4fc35ba40198a733f5
+  APLog: ba809b47f2b24bfdc5a8eae7d2f872168a995ab5
+  APMobileFramework: 2d77fd1b4d49f81deae15fefea1312539d776160
+  APMobileNetwork: 2384e69a29bd0667d4382679b9fe0e14a75beb28
+  APOpenSSL: 80757fd189b417673cc8127560726cf579af4069
+  APProtocolBuffers: 1ebae052ea6f3764bf76ff7a227237779ed79a5b
+  APRemoteLogging: d9fd5e3c57718a1461a2a422ca242fc65cba36b6
+  CodableWrappers: c14b64d713e28e5355368f1726afd898f7772c6d
+  Moya: 138f0573e53411fb3dc17016add0b748dfbd78ee
+  mPaas: 23b95c8058767b49ccd40c771164abd2300c37a0
+  MPaaSCryptoSDK: f7558c5ede32f60e2ab91f94bcb939ecdeb46c51
+  MPAntSSM: c8a3caf67c86d31c712cb5c8be0f57947567ba51
+  MPDataCenter: 157926567dc9d8e765618a35d0584ca3eb903225
+  MPGMAdapter: b77a8ffa406e11e455521b3a2cdd7b6fd4436702
+  MPMasAdapter: 89f18bc8b234866908867d441cd601adf0cbeedf
+  MPMgsAdapter: 2b55f22ef684d056fdc747e323a37ddbe92b1ad5
+  MPSignatureAdapter: 9b43d5c936dd93eea3dcb04090f76c27de3d9069
+  SecurityGuardSDK: 1985bc7b81d55ddb491de954d7da66a54627e1b6
+  SVProgressHUD: 4837c74bdfe2e51e8821c397825996a8d7de6e22
+  Toast-Swift: 7a03a532afe3a560d4044bc7c237e2864d295173
+  UTDID: cebf7ff624513ec6799675eef7dc07f4b41a8d5a
+
+PODFILE CHECKSUM: 03408aa64d3bfd69eb798595f74413973e87dd67
+
+COCOAPODS: 1.16.2

@@ -1,0 +1,5 @@
+"Assert:type:empty" = "效能追蹤的類型不能為空。";
+"Assert:pageId:empty" = "頁面ID不能為空。";
+"Assert:number:incorrect" = "日誌參數的數量不正確。";
+"Assert:actionid:empty" = "日誌的ActionID不能為空。";
+"Assert:kActionID:unmatch" = "kActionID與auto_openPage不匹配。";

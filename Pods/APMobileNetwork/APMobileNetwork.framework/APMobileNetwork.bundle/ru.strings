@@ -1,0 +1,45 @@
+/* 
+  Localizable.strings
+  
+
+  Created by jiangzhipeng on 2025/6/10.
+  
+*/
+
+/* 反序列化对象出错 */
+"APNetwork:error.deserializeError"          = "Ошибка десериализации объекта";
+
+/* 网络已取消 */
+"APNetwork:error.networkCancel"             = "Сеть отменена";
+
+/* 网络无法连接 */
+"APNetwork:error.networkUnreachable"        = "Сеть не может подключиться";
+
+/* 服务端返回的数据格式不正确。 */
+"APNetwork:message.error.serverFormatError" = "Формат данных, возвращаемых сервером, некорректен.";
+
+/* 服务端返回的数据为空。 */
+"APNetwork:message.error.serverReturnEmpty" = "Сервер вернул пустые данные.";
+
+/* 系统错误，请稍候再试。 */
+"APNetwork:message.error.systemError"       = "Системная ошибка, пожалуйста, попробуйте позже.";
+
+/* The response string: %@ */
+"APNetwork:reason.HTTPResponseString"       = "Содержимое, возвращаемое сервером: %@";
+
+/* 服务器返回的 HTTP 状态码: %ld */
+"APNetwork:reason.HTTPStatusCode"           = "Сервер вернул HTTP статус-код: %ld";
+
+/* 发生未知错误 */
+"APNetwork:reason.unknowError"              = "Произошла неизвестная ошибка";
+
+/* No comment provided by engineer. */
+"APNetwork:connect.Cellular"                = "Сотовая мобильная сеть";
+
+/* No comment provided by engineer. */
+"APNetwork:connect.NoConnection"            = "Нет доступа к сети";
+
+/* No comment provided by engineer. */
+"APNetwork:connect.WiFi"                    = "WiFi";
+
+
