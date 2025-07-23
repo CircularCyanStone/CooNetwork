@@ -49,7 +49,42 @@ struct CooToastInterceptor: iNtkInterceptor {
         }
         catch {
             // 系统级别错误 mpaas框架提示
+            let nsError = error as NSError
+            if nsError.domain == kDTRpcException {
+                /// mPaaS错误类型
+                handleRpcError(nsError)
+            }
             throw error
+        }
+    }
+    
+    private func handleRpcError(_ error: NSError) {
+        if let sysError = error.userInfo[kDTRpcErrorCauseError] as? URLError {
+            /// mPaaS携带的抛向业务层的系统错误信息
+            var msg: String = ""
+            switch sysError.code {
+            case .cancelled:
+                print("mPaaS error")
+                msg = "请求取消"
+            case .badURL:
+                print("mPaaS error")
+                msg = "URL异常"
+            case .networkConnectionLost:
+                print("mPaaS error")
+                msg = "异常错误"
+            case .secureConnectionFailed:
+                print("mPaaS error")
+                msg = "异常错误"
+            default:
+                print("mPaaS error \(sysError.code)")
+            }
+            if !msg.isEmpty {
+                Task { @MainActor in
+                    UIApplication.getKeyWindow()?.makeToast(msg)
+                }
+            }
+        }else {
+            print("mPaaS error \(error)")
         }
     }
 }
