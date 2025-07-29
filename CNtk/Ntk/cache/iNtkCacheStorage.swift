@@ -10,6 +10,7 @@ import Foundation
 /// 网络缓存存储协议
 /// 定义了缓存存储的核心接口，支持数据的存储、读取和检查功能
 /// 实现类需要提供具体的缓存存储机制（如磁盘缓存、内存缓存等）
+@NtkActor
 protocol iNtkCacheStorage: Sendable {
     
     /// 添加请求到缓存管理

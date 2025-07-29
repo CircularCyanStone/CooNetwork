@@ -38,7 +38,7 @@ struct RpcResponseParsingInterceptor<ResponseData: Sendable, Keys: iNtkResponseM
         
         if ResponseData.self is NtkNever.Type {
             // 用户期待的数据类型就是Never，不需要数据
-            let fixResponse = NtkResponse(code: retCode, data: NtkNever() as! ResponseData, msg: msg, response: response, request: rpcRequest)
+            let fixResponse = NtkResponse(code: retCode, data: NtkNever() as! ResponseData, msg: msg, response: response, request: rpcRequest, isCache: response.isCache)
             return fixResponse
         }
         
@@ -58,7 +58,7 @@ struct RpcResponseParsingInterceptor<ResponseData: Sendable, Keys: iNtkResponseM
             if enableCustomResponseDataDecode {
                 // 使用自定义解码器
                 if let retData = try rpcRequest.customRetureDataDecode(data) as? ResponseData {
-                    let response = NtkResponse(code: retCode, data: retData, msg: msg, response: response.response, request: rpcRequest)
+                    let response = NtkResponse(code: retCode, data: retData, msg: msg, response: response.response, request: rpcRequest, isCache: response.isCache)
                     return response
                 } else {
                     throw NtkError.serviceDataTypeInvalid
@@ -74,7 +74,7 @@ struct RpcResponseParsingInterceptor<ResponseData: Sendable, Keys: iNtkResponseM
             // 使用运行时类型转换
             if let decodableType = ResponseData.self as? Decodable.Type {
                 let decoded = try JSONDecoder().decode(decodableType, from: responseData)
-                let fixResponse = NtkResponse(code: retCode, data: decoded as! ResponseData, msg: msg, response: response.response, request: rpcRequest)
+                let fixResponse = NtkResponse(code: retCode, data: decoded as! ResponseData, msg: msg, response: response.response, request: rpcRequest, isCache: response.isCache)
                 return fixResponse
             } else {
                 throw NtkError.serviceDataTypeInvalid

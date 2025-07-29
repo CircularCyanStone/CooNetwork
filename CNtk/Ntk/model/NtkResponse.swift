@@ -110,22 +110,7 @@ struct NtkResponse<ResponseData: Sendable>: iNtkResponse, Sendable {
     /// 关联的请求对象
     let request: iNtkRequest
     
-    var isCache: Bool = false
-    
-    /// 初始化网络响应对象
-    /// - Parameters:
-    ///   - code: 响应状态码
-    ///   - data: 响应数据
-    ///   - msg: 响应消息
-    ///   - response: 原始响应数据
-    ///   - request: 关联的请求对象
-    init(code: NtkReturnCode, data: ResponseData, msg: String?, response: Sendable, request: iNtkRequest) {
-        self.code = code
-        self.data = data
-        self.msg = msg
-        self.response = response
-        self.request = request
-    }
+    let isCache: Bool
     
 }
 
