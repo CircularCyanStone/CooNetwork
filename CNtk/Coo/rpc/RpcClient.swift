@@ -66,7 +66,13 @@ class RpcClient<Keys: iNtkResponseMapKeys>: iNtkClient {
             } completion: { error in
                 if let error {
                     // 接口报错时会走这里
-                    continuation.resume(throwing: error)
+                    let nsError = error as NSError
+                    if nsError.domain == kDTRpcException, let sysError = nsError.userInfo[kDTRpcErrorCauseError] as? URLError {
+                        /// mPaaS错误类型
+                        continuation.resume(throwing: NtkError.other(sysError))
+                    }else {
+                        continuation.resume(throwing: NtkError.other(error))
+                    }
                 }
             }
         }

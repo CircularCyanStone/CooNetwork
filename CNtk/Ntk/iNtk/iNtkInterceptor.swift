@@ -97,15 +97,6 @@ protocol iNtkInterceptor: Sendable {
     /// - Returns: 处理后的响应对象
     /// - Throws: 拦截过程中的错误
     func intercept(context: NtkRequestContext, next: NtkRequestHandler) async throws -> any iNtkResponse
-    
-    /// 错误重试判断方法（可选）
-    /// 在请求失败时调用，判断是否需要重试以及重试策略
-    /// - Parameters:
-    ///   - error: 导致请求失败的错误
-    ///   - request: 原始请求对象
-    ///   - retryCount: 当前已重试的次数
-    /// - Returns: 元组(shouldRetry: Bool, delay: TimeInterval?) 指示是否重试以及重试前的延迟时间
-    func shouldRetry(error: Error, for request: iNtkRequest, retryCount: Int) -> (Bool, TimeInterval?)
 }
 
 /// 拦截器协议的默认实现
@@ -116,16 +107,5 @@ extension iNtkInterceptor {
     /// - Returns: 中等优先级（750）
     var priority: NtkInterceptorPriority {
         .priority(.medium)
-    }
-    
-    /// 默认不重试
-    /// 默认情况下拦截器不处理重试逻辑，由具体实现决定
-    /// - Parameters:
-    ///   - error: 请求错误
-    ///   - request: 原始请求
-    ///   - retryCount: 重试次数
-    /// - Returns: 不重试，延迟为nil
-    func shouldRetry(error: Error, for request: iNtkRequest, retryCount: Int) -> (Bool, TimeInterval?) {
-        (false, nil)
     }
 }

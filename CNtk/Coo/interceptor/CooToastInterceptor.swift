@@ -27,6 +27,14 @@ struct CooToastInterceptor: iNtkInterceptor {
                         UIApplication.getKeyWindow()?.makeToast(msg)
                     }
                 }
+            } else if case .other(let error) = error {
+                // 系统级别错误 mpaas框架提示
+                let nsError = error as NSError
+                if nsError.domain == kDTRpcException {
+                    /// mPaaS错误类型
+                    handleRpcError(nsError)
+                }
+                throw error
             }
             throw error
         } catch let rpcError as NtkError.Rpc {
@@ -46,15 +54,6 @@ struct CooToastInterceptor: iNtkInterceptor {
                 }
             }
             throw rpcError
-        }
-        catch {
-            // 系统级别错误 mpaas框架提示
-            let nsError = error as NSError
-            if nsError.domain == kDTRpcException {
-                /// mPaaS错误类型
-                handleRpcError(nsError)
-            }
-            throw error
         }
     }
     

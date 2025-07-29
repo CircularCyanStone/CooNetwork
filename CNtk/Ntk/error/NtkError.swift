@@ -31,7 +31,7 @@ enum NtkError: Error {
     /// 当服务端返回的data字段类型与期望的泛型类型不匹配时抛出
     case serviceDataTypeInvalid
     
-    /// 其他类型错误
+    /// 其他类型错误（包括系统URLError）
     /// 包装其他未分类的错误
     case other(_ error: Error)
     
@@ -40,4 +40,5 @@ enum NtkError: Error {
         /// 没有缓存数据
         case noCache
     }
+    
 }

@@ -10,6 +10,7 @@ import Foundation
 /// 请求包装器
 /// 解决当用户使用enum实现iNtkRequest时无法使用存储型属性的问题
 /// 提供了额外数据存储和请求对象管理功能
+@NtkActor
 struct NtkRequestWrapper: Sendable {
     
     /// 包装的请求对象
