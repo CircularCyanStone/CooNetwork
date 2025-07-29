@@ -78,8 +78,8 @@
             filePath = "CooNetwork/modules/login/viewController/ExampleViewController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "86"
-            endingLineNumber = "86"
+            startingLineNumber = "130"
+            endingLineNumber = "130"
             landmarkName = "body"
             landmarkType = "24">
          </BreakpointContent>
@@ -132,28 +132,28 @@
             landmarkType = "7">
             <Locations>
                <Location
-                  uuid = "62CED8FB-E0F9-43E4-9737-CA3B70E8DF8B - 74f448cba155a1ec"
+                  uuid = "62CED8FB-E0F9-43E4-9737-CA3B70E8DF8B - bb72ff4f004db61e"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
                   symbolName = "CooNetwork.RpcDetaultResponseValidation.isServiceSuccess(CooNetwork.iNtkResponse) -&gt; Swift.Bool"
                   moduleName = "CooNetwork.debug.dylib"
                   usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/coo/Desktop/CooNetwork/CNtk/Coo/rpc/RpcDetaultResponseValidation.swift"
+                  urlString = "file:///Users/coo/Desktop/coo-network/CNtk/Coo/rpc/RpcDetaultResponseValidation.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
                   startingLineNumber = "12"
                   endingLineNumber = "12">
                </Location>
                <Location
-                  uuid = "62CED8FB-E0F9-43E4-9737-CA3B70E8DF8B - 74f448cba155a1ec"
+                  uuid = "62CED8FB-E0F9-43E4-9737-CA3B70E8DF8B - bb72ff4f004db61e"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
                   symbolName = "CooNetwork.RpcDetaultResponseValidation.isServiceSuccess(CooNetwork.iNtkResponse) -&gt; Swift.Bool"
                   moduleName = "CooNetwork.debug.dylib"
                   usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/coo/Desktop/CooNetwork/CNtk/Coo/rpc/RpcDetaultResponseValidation.swift"
+                  urlString = "file:///Users/coo/Desktop/coo-network/CNtk/Coo/rpc/RpcDetaultResponseValidation.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
                   startingLineNumber = "12"

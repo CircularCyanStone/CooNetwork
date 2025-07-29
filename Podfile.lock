@@ -29,6 +29,9 @@ PODS:
   - APRemoteLogging (1.0.0.250623105119.62):
     - mPaas
   - CodableWrappers (2.0.7)
+  - MMKV (2.2.2):
+    - MMKVCore (~> 2.2.2)
+  - MMKVCore (2.2.2)
   - Moya (15.0.0):
     - Moya/Core (= 15.0.0)
   - Moya/Core (15.0.0):
@@ -69,6 +72,7 @@ DEPENDENCIES:
   - APProtocolBuffers (= 1.0.1.230223103631)
   - APRemoteLogging (= 1.0.0.250623105119.62)
   - CodableWrappers
+  - MMKV
   - Moya
   - mPaas (= 1.0.0.250604161734)
   - MPaaSCryptoSDK (= 1.0.0.240228202929)
@@ -85,6 +89,8 @@ DEPENDENCIES:
 
 SPEC REPOS:
   https://gitee.com/mirrors/CocoaPods-Specs:
+    - MMKV
+    - MMKVCore
     - SVProgressHUD
     - Toast-Swift
   https://gitee.com/mpaas/podspecs.git:
@@ -122,6 +128,8 @@ SPEC CHECKSUMS:
   APProtocolBuffers: 1ebae052ea6f3764bf76ff7a227237779ed79a5b
   APRemoteLogging: d9fd5e3c57718a1461a2a422ca242fc65cba36b6
   CodableWrappers: c14b64d713e28e5355368f1726afd898f7772c6d
+  MMKV: b4802ebd5a7c68fc0c4a5ccb4926fbdfb62d68e0
+  MMKVCore: a255341a3746955f50da2ad9121b18cb2b346e61
   Moya: 138f0573e53411fb3dc17016add0b748dfbd78ee
   mPaas: 23b95c8058767b49ccd40c771164abd2300c37a0
   MPaaSCryptoSDK: f7558c5ede32f60e2ab91f94bcb939ecdeb46c51
@@ -136,6 +144,6 @@ SPEC CHECKSUMS:
   Toast-Swift: 7a03a532afe3a560d4044bc7c237e2864d295173
   UTDID: cebf7ff624513ec6799675eef7dc07f4b41a8d5a
 
-PODFILE CHECKSUM: 03408aa64d3bfd69eb798595f74413973e87dd67
+PODFILE CHECKSUM: 29a3f7020aca872f67991f0a564dd9c960c8aa6d
 
 COCOAPODS: 1.16.2

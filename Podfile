@@ -23,6 +23,7 @@ target 'CooNetwork' do
     pod 'AFNetworking'
     pod 'SVProgressHUD'
     pod 'Toast-Swift'
+    pod 'MMKV'
 #    pod 'YYModel'
 #    pod 'MJExtension'
 end

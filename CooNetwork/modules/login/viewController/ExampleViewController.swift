@@ -35,7 +35,7 @@ class ExampleViewController: UIViewController {
             hostingController.view.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             hostingController.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             hostingController.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            hostingController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+            hostingController.view.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
         ])
     }
 }
@@ -62,18 +62,62 @@ struct ExampleSwiftUIView: View {
     
     var body: some View {
         ZStack {
+            VStack {
+                HStack {
+                    Button("XX") {
+                        
+                    }
+                    .background(Color.gray)
+                    
+                    Text("还耗")
+                }
+                .background(Color.secondary)
+            }
+            .frame(minWidth: 120, maxWidth: .infinity, minHeight: 120, maxHeight: .infinity)
+            .background(Color.green)
+            
             List {
-                Button("actor测试") {
+                Button {
                     let actorExample = CooActorExample()
                     Task {
                         await actorExample.modifyName("ccc")
                         await actorExample.changeSchool()
                     }
+                } label: {
+                    HStack {
+                        Text("actor测试")
+                    }
+                    .frame(maxWidth: .infinity)
+                    .background(Color.blue)
+                    .contentShape(Rectangle()) // 使整个HStack区域可点击
                 }
-                .listRowInsets(.none)
+                .buttonStyle(.plain)
+                .background(Color.brown)
                 .listRowBackground(Color.orange)
-
+                .listRowInsets(EdgeInsets()) // 去除List的默认行内边距
                 
+                Button(action: {
+                    let actorExample = CooActorExample()
+                    Task {
+                        await actorExample.modifyName("ccc")
+                        await actorExample.changeSchool()
+                    }
+                }) {
+                    HStack {
+                        Text("actor测试")
+                            .font(.system(size: 14))
+                        Spacer() // 推开内容，确保背景填满
+                    }
+                    .padding(.vertical, 10) // 为内容添加垂直内边距，根据需要调整
+                    .frame(maxWidth: .infinity, alignment: .leading) // 确保HStack填满宽度，内容左对齐
+                    .contentShape(Rectangle()) // 使整个HStack区域可点击
+                }
+                .buttonStyle(.plain) // 关键：去除 Button 自身的默认样式和内边距
+                .listRowBackground(Color.orange) // 设置行背景色
+                .listRowSeparator(.hidden) // 隐藏行之间的分隔线
+                .listRowInsets(EdgeInsets()) // 去除List的默认行内边距
+                
+
                 Button("请求短信") {
                     Task {
                         do {
@@ -89,7 +133,8 @@ struct ExampleSwiftUIView: View {
                         }
                     }
                 }
-                .listRowInsets(.none)
+                .frame(minHeight: 150)
+                .listRowInsets(EdgeInsets()) // 去除List的默认行内边距
                 .listRowBackground(Color.orange)
 
 
@@ -115,18 +160,36 @@ struct ExampleSwiftUIView: View {
                 .listRowInsets(.none)
                 .listRowBackground(Color.orange)
                 
+                cell("获取服务器时间")
+                    .onTapGesture {
+                        loadTime()
+                    }
+                    .listRowInsets(.none)
+                    .listRowBackground(Color.orange)
                 
-                Button("获取服务器时间") {
-                    loadTime()
-                }
-                .listRowInsets(.none)
-                .listRowBackground(Color.orange)
                 
             }
             .listStyle(.plain)
+            .listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Color.pink)
+    }
+    
+    @ViewBuilder
+    func cell(_ title: String) -> some View {
+        ZStack {
+            HStack {
+                Text(title)
+                    .font(.system(size: 14))
+                Spacer()
+                Text(">")
+                    .font(.system(size: 24))
+            }
+        }
+        .background(Color.red)
+        .listRowInsets(EdgeInsets()) // 去除List的默认行内边距
     }
 }
 
