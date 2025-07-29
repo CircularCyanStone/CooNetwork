@@ -36,6 +36,9 @@ class NtkOperation {
             _coreInterceptors = newValue
         }
     }
+    
+    /// 数据解析插件
+    private(set) var dataParsingInterceptor: iNtkInterceptor
 
     /// 网络客户端实现
     private(set) var client: any iNtkClient
@@ -56,8 +59,11 @@ class NtkOperation {
     /// 初始化网络操作管理器
     /// - Parameter client: 网络客户端实现
     required
-    init(_ client: any iNtkClient) {
+    init(_ client: any iNtkClient, request: iNtkRequest, dataParsingInterceptor: iNtkInterceptor) {
         self.client = client
+        self.client.requestWrapper.addRequest(request)
+        self.client.storage.addRequest(request)
+        self.dataParsingInterceptor = dataParsingInterceptor
         embededCoreInterceptor()
     }
     
@@ -85,9 +91,8 @@ extension NtkOperation {
     /// 配置网络请求
     /// 将请求添加到请求包装器和缓存存储中
     /// - Parameter request: 网络请求对象
-    func with(_ request: iNtkRequest) {
-        client.requestWrapper.addRequest(request)
-        client.storage.addRequest(request)
+    private func with(_ request: iNtkRequest) {
+        
     }
     
     /// 执行网络请求
@@ -100,7 +105,8 @@ extension NtkOperation {
         }
         let context = NtkRequestContext(validation: validation, client: client)
         
-        let tmpInterceptors =  interceptors + coreInterceptors
+        var tmpInterceptors =  interceptors + coreInterceptors
+        tmpInterceptors.append(dataParsingInterceptor)
         let realApiHandle: NtkDefaultApiRequestHandler<ResponseData> = NtkDefaultApiRequestHandler()
         let realChainManager = NtkInterceptorChainManager(interceptors: tmpInterceptors, finalHandler: realApiHandle)
         
@@ -132,8 +138,10 @@ extension NtkOperation {
         let context = NtkRequestContext(validation: validation, client: client)
         let realApiHandle: NtkDefaultCacheRequestHandler<ResponseData> = NtkDefaultCacheRequestHandler()
         
+        var tmpInterceptors = coreInterceptors
+        tmpInterceptors.append(dataParsingInterceptor)
         // 缓存直接进行最终读取缓存解析处理
-        let realChainManager = NtkInterceptorChainManager(interceptors: coreInterceptors, finalHandler: realApiHandle)
+        let realChainManager = NtkInterceptorChainManager(interceptors: tmpInterceptors, finalHandler: realApiHandle)
         do {
             let response = try await realChainManager.execute(context: context)
             if let response = response as? NtkResponse<ResponseData> {

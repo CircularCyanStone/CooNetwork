@@ -9,7 +9,7 @@ import UIKit
 
 /// 响应键映射协议
 /// 定义了服务端响应JSON中各个字段的键名映射
-protocol NtkResponseMapKeys {
+protocol iNtkResponseMapKeys {
     /// 状态码字段的键名
     static var code: String { get }
     /// 数据字段的键名
@@ -59,7 +59,7 @@ struct NtkCodingKeys: CodingKey {
 
 /// 网络响应解码器
 /// 用于将JSON响应数据解码为结构化的响应对象
-struct NtkResponseDecoder<ResponseData: Decodable, Keys: NtkResponseMapKeys>: Decodable {
+struct NtkResponseDecoder<ResponseData: Decodable, Keys: iNtkResponseMapKeys>: Decodable {
     
     /// 响应状态码
     let code: NtkReturnCode

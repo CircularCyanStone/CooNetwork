@@ -8,7 +8,7 @@
 import Foundation
 
 
-/// 默认情况下通用的Keys: NtkResponseMapKeys为RpcResponseMapKeys的Coo的
+/// 默认情况下通用的Keys: iNtkResponseMapKeys为RpcResponseMapKeys的Coo的
 /// 类型别名
 typealias DefaultCoo<ResponseData> = Coo<ResponseData, RpcResponseMapKeys>
 
@@ -20,14 +20,22 @@ typealias DefaultCoo<ResponseData> = Coo<ResponseData, RpcResponseMapKeys>
 /// 但是如果让with变成泛型方法，则只能通过对返回值注明类型，才能让编译器推导泛型类型。
 /// 限定网络请求的逻辑都在@NtkActor隔离域内， 确保不会频繁的出现actor跳跃
 @NtkActor
-class Coo<ResponseData: Sendable, Keys: NtkResponseMapKeys> {
+class Coo<ResponseData: Sendable, Keys: iNtkResponseMapKeys> {
     /// 创建RPC网络请求
     /// 自动配置RPC客户端、Loading拦截器和Toast拦截器
     /// - Parameter request: RPC请求对象
     /// - Returns: 配置好的网络请求管理器
-    static func with(_ request: iRpcRequest) async -> NtkNetwork<ResponseData> {
+    static func with(_ request: iRpcRequest, validation: iNtkResponseValidation = RpcDetaultResponseValidation()) async -> NtkNetwork<ResponseData> {
+        
+        var _validation: iNtkResponseValidation
+        if let requestValidation = request as? iNtkResponseValidation {
+            _validation = requestValidation
+        }else {
+            _validation = validation
+        }
+        
         let client = RpcClient<Keys>()
-        var net = NtkNetwork<ResponseData>.with(request, client: client)
+        var net = NtkNetwork<ResponseData>.with(client, request: request, dataParsingInterceptor: RpcResponseParsingInterceptor<ResponseData, Keys>(), validation: _validation)
         // 添加loading拦截器
         if let ntkLoadingInterceptor = getLoadingInterceptor(request) {
             // 默认显示loading
@@ -40,20 +48,6 @@ class Coo<ResponseData: Sendable, Keys: NtkResponseMapKeys> {
 }
 
 extension NtkNetwork {
-    
-    /// RPC便捷发起请求方法
-    /// 使用默认的RPC响应验证器发起网络请求
-    /// - Parameter validation: 响应验证器，默认使用RpcDetaultResponseValidation
-    /// - Returns: 网络响应对象
-    /// - Throws: 网络请求过程中的错误
-    func startRpc(_ validation: iNtkResponseValidation = RpcDetaultResponseValidation()) async throws -> NtkResponse<ResponseData> {
-        return try await self.validation(validation).sendRequest()
-    }
-    
-    func loadRpcCache(_ validation: iNtkResponseValidation = RpcDetaultResponseValidation()) async throws -> NtkResponse<ResponseData>? {
-        return try await self.validation(validation).loadCache()
-    }
-    
     
     private enum ResponseResult {
         case cache(NtkResponse<ResponseData>?)
@@ -69,9 +63,7 @@ extension NtkNetwork {
     ///   - validation: 响应验证器，默认为 `RpcDetaultResponseValidation`。
     ///
     /// - Throws: 在网络请求或缓存加载过程中可能抛出的任何错误。
-    func startRpcWithCache(
-        _ validation: iNtkResponseValidation = RpcDetaultResponseValidation()
-    ) -> AsyncThrowingStream<NtkResponse<ResponseData>, Error> {
+    func startRpcWithCache() -> AsyncThrowingStream<NtkResponse<ResponseData>, Error> {
         return AsyncThrowingStream { continuation in
             let task = Task {
                 do {
@@ -80,7 +72,7 @@ extension NtkNetwork {
                         // 并发加载缓存
                         group.addTask {
                             do {
-                                return .cache(try await self.loadRpcCache(validation))
+                                return .cache(try await self.loadCache())
                             } catch {
                                 print("startRpc 缓存加载失败，但不影响网络请求: \(error)")
                                 return .cache(nil)
@@ -89,7 +81,7 @@ extension NtkNetwork {
 
                         // 并发发起网络请求
                         group.addTask {
-                            return .network(try await self.startRpc(validation))
+                            return .network(try await self.sendRequest())
                         }
 
                         // 按完成顺序处理结果

@@ -9,7 +9,7 @@ import Foundation
 
 struct NtkDefaultCacheRequestHandler<ResponseData: Sendable>: NtkRequestHandler {
     func handle(context: NtkRequestContext) async throws -> any iNtkResponse {
-        if let response: NtkResponse<ResponseData> = try await context.client.loadCache() {
+        if let response = try await context.client.loadCache() {
             return response
         }
         throw NtkError.Cache.noCache

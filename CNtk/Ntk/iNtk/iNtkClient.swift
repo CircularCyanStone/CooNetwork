@@ -12,7 +12,7 @@ import Foundation
 @NtkActor
 protocol iNtkClient: Sendable {
     /// 响应数据映射键的关联类型
-    associatedtype Keys: NtkResponseMapKeys
+    associatedtype Keys: iNtkResponseMapKeys
     
     /// 请求包装器，用于传递请求和额外数据
     var requestWrapper: NtkRequestWrapper { get set }
@@ -24,13 +24,7 @@ protocol iNtkClient: Sendable {
     /// 执行网络请求
     /// - Returns: 原始的网络响应数据
     /// - Throws: 网络请求过程中的错误
-    func execute() async throws -> Sendable
-    
-    /// 处理响应数据
-    /// - Parameter response: 原始响应数据
-    /// - Returns: 解析后的NtkResponse对象
-    /// - Throws: 数据解析过程中的错误
-    func handleResponse<ResponseData>(_ response: Sendable) async throws  -> NtkResponse<ResponseData>
+    func execute() async throws -> NtkClientResponse
     
     /// 取消当前请求
     func cancel()
@@ -38,7 +32,7 @@ protocol iNtkClient: Sendable {
     /// 加载缓存数据
     /// - Returns: 缓存的响应数据，如果没有缓存则返回nil
     /// - Throws: 缓存加载过程中的错误
-    func loadCache<ResponseData>() async throws -> NtkResponse<ResponseData>?
+    func loadCache() async throws -> NtkClientResponse?
     
     func saveCache(_ response: Sendable) async -> Bool
     
@@ -52,16 +46,14 @@ extension iNtkClient {
     /// 默认的缓存加载实现
     /// - Returns: 缓存的响应数据，如果没有缓存则返回nil
     /// - Throws: 缓存加载过程中的错误
-    func loadCache<ResponseData>() async throws -> NtkResponse<ResponseData>? {
+    func loadCache() async throws -> NtkClientResponse? {
         assert(requestWrapper.request != nil, "iNtkClient request must not nil")
         let cacheUtil = NtkNetworkCache(request: requestWrapper.request!, storage: storage)
         let response = try await cacheUtil.loadData()
         guard let response else {
             return nil
         }
-        var ntkResponse: NtkResponse<ResponseData> = try await handleResponse(response)
-        ntkResponse.isCache = true
-        return ntkResponse
+        return NtkClientResponse(data: response, msg: nil, response: response, request: requestWrapper.request!, isCache: true)
     }
     
     /// 缓存响应结果到本地

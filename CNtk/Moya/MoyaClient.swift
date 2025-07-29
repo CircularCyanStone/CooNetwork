@@ -8,7 +8,7 @@
 import UIKit
 @preconcurrency import Moya
 
-//class MoyaClient<R: TargetType, Keys: NtkResponseMapKeys>: NSObject, iNtkClient {
+//class MoyaClient<R: TargetType, Keys: iNtkResponseMapKeys>: NSObject, iNtkClient {
 //
 //    let storage: any iNtkCacheStorage = MoyaCacheStorage()
 //    

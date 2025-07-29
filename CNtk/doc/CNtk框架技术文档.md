@@ -72,7 +72,7 @@ let network = NtkNetwork(client)
 #### 3.2 自定义键映射
 
 ```swift
-protocol NtkResponseMapKeys {
+protocol iNtkResponseMapKeys {
     static var code: String { get }
     static var data: String { get }
     static var msg: String { get }

@@ -24,20 +24,28 @@ class NtkNetwork<ResponseData: Sendable> {
         currentRequestTask?.isCancelled ?? Task.isCancelled
     }
     
+    
     /// 初始化网络请求管理器
-    /// - Parameter client: 网络客户端实现
-    required init(_ client: any iNtkClient) {
-        operation = NtkOperation(client)
+    /// - Parameters:
+    ///   - client: 网络客户端实现
+    ///   - request: 网络请求对象
+    ///   - dataParsingInterceptor: 响应解析插件
+    ///   - validation: 响应验证器
+    required init(_ client: any iNtkClient, request: iNtkRequest, dataParsingInterceptor: iNtkInterceptor, validation: iNtkResponseValidation) {
+        operation = NtkOperation(client, request: request, dataParsingInterceptor: dataParsingInterceptor)
+        operation.validation = validation
     }
     
     /// 创建网络请求管理器的便捷方法
     /// - Parameters:
-    ///   - request: 网络请求对象
     ///   - client: 网络客户端实现
+    ///   - request: 网络请求对象
+    ///   - dataParsingInterceptor: 响应解析插件
+    ///   - validation: 响应验证器
     /// - Returns: 配置好的网络请求管理器实例
-    class func with(_ request: iNtkRequest, client: any iNtkClient) -> Self {
-        let net = self.init(client)
-        return net.with(request)
+    class func with(_ client: any iNtkClient, request: iNtkRequest, dataParsingInterceptor: iNtkInterceptor, validation: iNtkResponseValidation) -> Self {
+        let net = self.init(client, request: request, dataParsingInterceptor: dataParsingInterceptor, validation: validation)
+        return net
     }
     
     /// 取消当前请求
@@ -47,14 +55,6 @@ class NtkNetwork<ResponseData: Sendable> {
 }
 
 extension NtkNetwork {
-    
-    /// 配置网络请求
-    /// - Parameter request: 网络请求对象
-    /// - Returns: 当前实例，支持链式调用
-    func with(_ request: iNtkRequest) -> Self {
-        operation.with(request)
-        return self
-    }
     
     /// 添加拦截器
     /// - Parameter i: 拦截器实现

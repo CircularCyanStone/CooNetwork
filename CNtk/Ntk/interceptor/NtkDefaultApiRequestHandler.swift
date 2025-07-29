@@ -9,8 +9,8 @@ import Foundation
 
 struct NtkDefaultApiRequestHandler<ResponseData: Sendable>: NtkRequestHandler {
     func handle(context: NtkRequestContext) async throws -> any iNtkResponse {
-        let response: Sendable = try await context.client.execute()
-        let handledResponse: NtkResponse<ResponseData> = try await context.client.handleResponse(response)
-        return handledResponse
+        let response = try await context.client.execute()
+//        let handledResponse: NtkResponse<ResponseData> = try await context.client.handleResponse(response)
+        return response
     }
 }

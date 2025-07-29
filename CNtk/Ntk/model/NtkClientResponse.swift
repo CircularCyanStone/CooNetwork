@@ -7,6 +7,20 @@
 
 import Foundation
 
-struct NtkClientResponse {
+struct NtkClientResponse: iNtkResponse {
+    
+    typealias ResponseData = Sendable
+    var code: NtkReturnCode {
+        NtkReturnCode(-1)
+    }
+    let data: any ResponseData
+    
+    let msg: String?
+    
+    let response: any Sendable
+    
+    let request: any iNtkRequest
+    
+    let isCache: Bool
     
 }
