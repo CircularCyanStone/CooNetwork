@@ -7,7 +7,7 @@
 
 import Foundation
 
-// iNtkCacheConfig协议在同一模块中定义
+// iNtkRequestPolicy协议在同一模块中定义
 
 /// HTTP请求方法类型
 /// 封装了常用的HTTP方法，支持OC互操作
@@ -72,9 +72,10 @@ protocol iNtkRequest: Sendable, CustomStringConvertible, CustomDebugStringConver
     /// - Returns: 超时时间（秒），默认20秒
     var timeout: TimeInterval { get }
     
-    /// 缓存策略
-    /// - Returns: 缓存配置，如果为nil则不使用缓存
-    var cachePolicy: iNtkCachePolicy? { get }
+    /// 请求策略配置
+    /// - Returns: 请求策略配置，包含缓存和参数过滤设置，如果为nil则不使用缓存和参数过滤
+    /// - Note: 该策略用于请求去重时的参数过滤以及缓存键生成
+    var requestPolicy: iNtkRequestConfiguration? { get }
     
 }
 
@@ -105,11 +106,11 @@ extension iNtkRequest {
         20
     }
     
-    /// 默认缓存策略为空（不缓存）
-    /// 可以通过以下方式自定义缓存策略：
+    /// 默认请求策略配置为空
+    /// 可以通过以下方式自定义策略：
     /// 1. 直接在iNtkRequest的实现类内部定义内嵌类型
-    /// 2. 使用NtkDefaultCachePolicy默认实现
-    var cachePolicy: iNtkCachePolicy? {
+    /// 2. 使用NtkDefaultRequestConfiguration默认实现
+    var requestPolicy: iNtkRequestConfiguration? {
         nil
     }
     

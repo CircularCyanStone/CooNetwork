@@ -98,19 +98,63 @@ config.maxConcurrentRequests = 100
 config.isDebugLoggingEnabled = true
 ```
 
-### 动态Header管理
+### 缓存策略配置
+
+#### 新的协议设计
+
+为了更好地分离职责，我们将参数过滤功能拆分为独立的协议：
+
+- `iNtkParameterFilter`: 专门处理请求头和参数过滤
+- `iNtkRequestConfiguration`: 继承自 `iNtkParameterFilter`，专门处理请求配置（包含缓存和过滤）
+
+#### 使用新的过滤方法
+
+动态参数过滤现在通过每个请求的 `requestPolicy` 来配置，提供更灵活的过滤策略：
 
 ```swift
-// 添加需要忽略的动态Header（这些Header不参与去重判断）
-config.addDynamicHeader("x-timestamp")
-config.addDynamicHeader("x-nonce")
+// 实现自定义缓存策略
+struct CustomRequestPolicy: iNtkRequestConfiguration {
+    var cacheTime: TimeInterval = 300
+    
+    func filterHeaders<T>(_ headers: [String: T]) -> [String: T] {
+        // 过滤掉动态请求头
+        return headers.filter { key, _ in
+            ![
+                "x-request-time", "x-trace-id", "authorization",
+                "x-request-id", "x-timestamp"
+            ].contains(key.lowercased())
+        }
+    }
+    
+    func filterParameters<T>(_ parameters: [String: T]) -> [String: T] {
+        // 过滤掉动态参数
+        return parameters.filter { key, _ in
+            ![
+                "timestamp", "nonce", "request-id", "trace-id"
+            ].contains(key.lowercased())
+        }
+    }
+}
 
-// 移除动态Header
-config.removeDynamicHeader("authorization")
+// 在请求中使用自定义策略
+request.requestPolicy = CustomRequestPolicy()
+```
 
-// 检查Header是否为动态Header
-if config.isDynamicHeader("timestamp") {
-    print("timestamp会在去重时被忽略")
+#### 向后兼容性
+
+原有的 `filterParameter` 方法仍然可用，但已标记为废弃：
+
+```swift
+// 仍然支持，但建议迁移到新方法
+struct LegacyRequestPolicy: iNtkRequestConfiguration {
+    var cacheTime: TimeInterval = 300
+    
+    func filterParameter<T>(_ parameters: [String: T]) -> [String: T] {
+        // 这种方式仍然可用，但建议使用 filterParameters 和 filterHeaders
+        return parameters.filter { key, _ in
+            !["timestamp", "nonce"].contains(key.lowercased())
+        }
+    }
 }
 ```
 
@@ -238,13 +282,20 @@ let isOngoing = await manager.isRequestOngoing(request: wrapper)
 
 ## 最佳实践
 
-### 1. 合理配置动态Header
+### 1. 合理配置缓存策略
 
 ```swift
-// 添加应用特定的动态Header
-config.addDynamicHeader("x-session-id")
-config.addDynamicHeader("x-device-id")
-config.addDynamicHeader("x-app-version")
+// 为不同类型的请求配置不同的缓存策略
+struct UserInfoRequestPolicy: iNtkRequestConfiguration {
+    var cacheTime: TimeInterval = 600 // 10分钟缓存
+    
+    func filterParameter<T>(_ parameters: [String: T]) -> [String: T] {
+        // 用户信息请求过滤掉会话相关的动态参数
+        return parameters.filter { key, _ in
+            !["x-session-id", "x-device-id", "timestamp"].contains(key.lowercased())
+        }
+    }
+}
 ```
 
 ### 2. 根据场景选择性启用

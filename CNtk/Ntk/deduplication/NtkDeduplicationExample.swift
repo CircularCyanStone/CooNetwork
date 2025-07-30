@@ -3,208 +3,228 @@
 //  CNtk
 //
 //  Created by Trae Builder on 2024/12/19.
+//  Copyright © 2024 coo. All rights reserved.
 //
 
 import Foundation
 
-/// 请求去重功能使用示例
-/// 展示如何在实际项目中使用集成了去重功能的NtkNetwork
+/// 网络请求去重示例
 @NtkActor
 class NtkDeduplicationExample {
     
-    // MARK: - 基本使用示例
-    
-    /// 示例1: 使用NtkNetwork发送请求（自动启用去重）
-    /// NtkNetwork现在自动集成了去重功能，无需手动配置
-    func exampleBasicUsage() async {
-        // 创建网络客户端和请求
-        // let client = YourNetworkClient() // 实现iNtkClient协议
-        // let request = YourApiRequest() // 实现iNtkRequest协议
-        // let dataParser = YourDataParser() // 实现iNtkInterceptor协议
-        // let validation = YourValidation() // 实现iNtkResponseValidation协议
+    /// 演示基本的请求去重功能
+    /// 相同的请求在短时间内只会执行一次，后续请求会复用第一次的结果
+    func demonstrateBasicDeduplication() async {
+        print("=== 基本请求去重示例 ===")
         
-        // 创建NtkNetwork实例 - 去重功能自动启用
-        // let network = NtkNetwork(client, request: request, dataParsingInterceptor: dataParser, validation: validation)
+        // 创建三个相同的请求
+        let request1 = SampleRequest()
+        let request2 = SampleRequest()
+        let request3 = SampleRequest()
         
-        // 发送请求 - 如果有相同请求正在进行，会自动去重并共享结果
-        // let response = await network.sendRequest()
+        print("发起三个相同的请求...")
+        
+        // 同时发起三个请求，由于去重机制，实际只会执行一次网络请求
+        async let task1 = makeRequest(request1)
+        async let task2 = makeRequest(request2)
+        async let task3 = makeRequest(request3)
+        
+        // 等待所有请求完成
+        let results = await [task1, task2, task3]
+        
+        print("请求完成，结果数量: \(results.count)")
+        print("所有请求都应该返回相同的结果（由于去重机制）")
     }
     
-    /// 示例2: 禁用特定请求的去重功能
-    func exampleDisableDeduplication() {
-        // 如果需要禁用特定请求的去重功能，可以在请求对象中设置
-        // let request = YourApiRequest()
-        // request.disableDeduplication() // 在请求级别禁用去重
+    /// 演示带参数的请求去重
+    /// 不同参数的请求会被视为不同的请求，不会被去重
+    func demonstrateParameterizedDeduplication() async {
+        print("\n=== 带参数的请求去重示例 ===")
         
-        // 或者通过NtkRequestWrapper设置
-        var wrapper = NtkRequestWrapper()
-        // wrapper.addRequest(request)
-        wrapper.disableDeduplication()
+        // 创建不同参数的请求
+        let request1 = GetUserInfoRequest(userId: "user123")
+        let request2 = GetUserInfoRequest(userId: "user123") // 相同参数
+        let request3 = GetUserInfoRequest(userId: "user456") // 不同参数
+        
+        print("发起带参数的请求...")
+        
+        // 同时发起请求
+        async let task1 = makeRequest(request1)
+        async let task2 = makeRequest(request2) // 会被去重
+        async let task3 = makeRequest(request3) // 不会被去重
+        
+        let results = await [task1, task2, task3]
+        
+        print("请求完成，结果数量: \(results.count)")
+        print("相同参数的请求被去重，不同参数的请求独立执行")
     }
     
-    /// 示例3: 全局配置去重功能
-    func exampleGlobalConfiguration() {
-        // 全局禁用去重功能
-        NtkDeduplicationConfig.shared.isGloballyEnabled = false
+    /// 演示动态参数过滤
+    /// 某些参数（如时间戳）不参与去重判断
+    func demonstrateDynamicParameterFiltering() async {
+        print("\n=== 动态参数过滤示例 ===")
+        
+        // 创建带有动态参数的请求
+        let request1 = DynamicRequest(data: "test", timestamp: Date().timeIntervalSince1970)
+        let request2 = DynamicRequest(data: "test", timestamp: Date().timeIntervalSince1970 + 1)
+        
+        print("发起带动态参数的请求...")
+        print("虽然时间戳不同，但由于过滤策略，这两个请求会被去重")
+        
+        async let task1 = makeRequest(request1)
+        async let task2 = makeRequest(request2)
+        
+        let results = await [task1, task2]
+        
+        print("请求完成，结果数量: \(results.count)")
+        print("动态参数被过滤，请求被成功去重")
     }
     
-    // MARK: - 配置示例
-    
-    /// 示例4: 详细配置选项
-    func exampleDetailedConfiguration() {
-        let config = NtkDeduplicationConfig.shared
+    /// 演示缓存策略配置
+    /// 展示如何配置不同的缓存和去重策略
+    func demonstrateRequestPolicy() async {
+        print("\n=== 缓存策略配置示例 ===")
         
-        // 日志输出由NtkLogger统一控制
+        let request = ConfigurableRequest()
         
-        // 添加自定义动态Header
-        config.addDynamicHeader("x-custom-timestamp")
+        print("使用自定义缓存策略的请求...")
         
-        // 全局禁用去重功能
-        config.isGloballyEnabled = false
+        let result = await makeRequest(request)
+        
+        print("请求完成，缓存策略生效")
+        print("请求头和参数根据策略进行了过滤")
     }
     
-    /// 示例5: 动态Header管理
-    func exampleDynamicHeaderManagement() {
-        let config = NtkDeduplicationConfig.shared
-        
-        // 添加需要忽略的动态Header
-        config.addDynamicHeader("x-session-id")
-        config.addDynamicHeader("x-device-id")
-        
-        // 检查Header是否为动态Header
-        if config.isDynamicHeader("timestamp") {
-            print("timestamp是动态Header，在去重时会被忽略")
-        }
-        
-        // 移除动态Header
-        config.removeDynamicHeader("authorization")
+    /// 模拟网络请求
+    private func makeRequest<T: iNtkRequest>(_ request: T) async -> String {
+        // 模拟网络延迟
+        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
+        return "Response for \(type(of: request))"
     }
+}
+
+// MARK: - 示例请求类型
+
+/// 简单的示例请求
+struct SampleRequest: iNtkRequest {
+    var method: NtkHTTPMethod { .get }
+    var baseURL: String { "https://api.example.com" }
+    var path: String { "/sample" }
     
-    // MARK: - 实际场景示例
-    
-    /// 示例6: 用户信息请求去重
-    func exampleUserInfoDeduplication() async {
-        // 模拟多个地方同时请求用户信息
-        async let userInfo1 = fetchUserInfo(enableDeduplication: true)
-        async let userInfo2 = fetchUserInfo(enableDeduplication: true)
-        async let userInfo3 = fetchUserInfo(enableDeduplication: true)
-        
-        do {
-            // 这三个请求会被去重，只发送一次网络请求
-            let results = try await [userInfo1, userInfo2, userInfo3]
-            print("获取到用户信息: \(results)")
-        } catch {
-            print("请求失败: \(error)")
-        }
-    }
-    
-    /// 示例7: 列表数据请求去重
-    func exampleListDataDeduplication() async {
-        // 日志输出由NtkLogger统一控制，可通过NtkLogger观察去重效果
-        
-        // 模拟快速连续的列表请求
-        for i in 1...5 {
-            Task {
-                do {
-                    let data = try await fetchListData(page: 1, enableDeduplication: true)
-                    print("请求\(i)完成: \(data.count)条数据")
-                } catch {
-                    print("请求\(i)失败: \(error)")
+    // 使用新的缓存策略，分别配置请求头和参数过滤
+    var requestPolicy: (any iNtkRequestConfiguration)? {
+        NtkDefaultRequestConfiguration(
+            cacheTime: 300,
+            filterHeaders: { headers in
+                // 过滤掉动态请求头
+                headers.filter { key, _ in
+                    !["X-Request-ID", "X-Timestamp"].contains(key)
+                }
+            },
+            filterParameters: { parameters in
+                // 过滤掉时间戳参数
+                parameters.filter { key, _ in
+                    key != "timestamp"
                 }
             }
-        }
-    }
-    
-    // MARK: - 辅助方法
-    
-    private func fetchUserInfo(enableDeduplication: Bool) async throws -> ExampleUserInfo {
-        let request = GetUserInfoRequest()
-        var wrapper = NtkRequestWrapper()
-        wrapper.addRequest(request)
-        
-        if enableDeduplication {
-            wrapper.enableDeduplication()
-        }
-        
-        // 这里应该调用实际的网络客户端
-        // return try await client.send(wrapper)
-        
-        // 模拟返回
-        return ExampleUserInfo(id: "123", name: "Test User")
-    }
-    
-    private func fetchListData(page: Int, enableDeduplication: Bool) async throws -> [ListItem] {
-        let request = GetListDataRequest(page: page)
-        var wrapper = NtkRequestWrapper()
-        wrapper.addRequest(request)
-        
-        if enableDeduplication {
-            wrapper.enableDeduplication()
-        }
-        
-        // 这里应该调用实际的网络客户端
-        // return try await client.send(wrapper)
-        
-        // 模拟返回
-        return [ListItem(id: "1", title: "Item 1")]
+        )
     }
 }
 
-// MARK: - 示例数据模型
-
-struct ExampleUserInfo {
-    let id: String
-    let name: String
-}
-
-struct ListItem {
-    let id: String
-    let title: String
-}
-
-// MARK: - 示例请求
-
+/// 带用户ID参数的请求
 struct GetUserInfoRequest: iNtkRequest {
-    var method: NtkHTTPMethod { .get }
-    var path: String { "/api/user/info" }
-    var parameters: [String: Sendable]? { nil }
-    var headers: [String: String]? { nil }
-}
-
-struct GetListDataRequest: iNtkRequest {
-    let page: Int
+    let userId: String
     
     var method: NtkHTTPMethod { .get }
-    var path: String { "/api/list" }
-    var parameters: [String: Sendable]? { ["page": page] }
-    var headers: [String: String]? { nil }
+    var baseURL: String { "https://api.example.com" }
+    var path: String { "/user/\(userId)" }
+    
+    var parameters: [String: Sendable]? {
+        ["userId": userId]
+    }
 }
 
-// MARK: - 使用建议
+/// 带动态参数的请求
+struct DynamicRequest: iNtkRequest {
+    let data: String
+    let timestamp: TimeInterval
+    
+    var method: NtkHTTPMethod { .post }
+    var baseURL: String { "https://api.example.com" }
+    var path: String { "/dynamic" }
+    
+    var parameters: [String: Sendable]? {
+        [
+            "data": data,
+            "timestamp": timestamp
+        ]
+    }
+    
+    // 配置过滤策略，时间戳不参与去重
+    var requestPolicy: (any iNtkRequestConfiguration)? {
+        NtkDefaultRequestConfiguration(
+            cacheTime: 60,
+            filterParameters: { parameters in
+                parameters.filter { key, _ in
+                    key != "timestamp"
+                }
+            }
+        )
+    }
+}
 
-/*
- 使用建议:
- 
- 1. 适合去重的场景:
-    - 用户信息、配置信息等相对静态的数据请求
-    - 列表数据的首页请求
-    - 搜索建议、自动完成等频繁触发的请求
-    - 重复点击按钮导致的重复请求
- 
- 2. 不适合去重的场景:
-    - 提交表单、创建数据等写操作
-    - 包含时间戳等动态参数的请求
-    - 需要实时数据的请求
-    - 文件上传、下载等大数据传输
- 
- 3. 配置建议:
-    - 在开发和测试阶段启用调试日志
-    - 根据应用特点调整超时时间和并发数限制
-    - 合理配置动态Header黑名单
-    - 在性能敏感的场景中谨慎使用
- 
- 4. 监控和调试:
-    - 使用NtkLogger观察去重效果（category: .deduplication）
-    - 监控内存使用情况，避免请求积压
-    - 定期检查配置是否合理
- */
+/// 可配置的请求示例
+struct ConfigurableRequest: iNtkRequest {
+    var method: NtkHTTPMethod { .get }
+    var baseURL: String { "https://api.example.com" }
+    var path: String { "/configurable" }
+    
+    var headers: [String: String]? {
+        [
+            "Content-Type": "application/json",
+            "X-Request-ID": UUID().uuidString,
+            "X-Timestamp": "\(Date().timeIntervalSince1970)"
+        ]
+    }
+    
+    var parameters: [String: Sendable]? {
+        [
+            "query": "search term",
+            "nonce": UUID().uuidString
+        ]
+    }
+    
+    // 使用新的过滤方法
+    var requestPolicy: (any iNtkRequestConfiguration)? {
+        NtkDefaultRequestConfiguration(
+            cacheTime: 600,
+            filterHeaders: { headers in
+                // 过滤掉动态请求头
+                headers.filter { key, _ in
+                    !key.hasPrefix("X-")
+                }
+            },
+            filterParameters: { parameters in
+                // 过滤掉随机数参数
+                parameters.filter { key, _ in
+                    key != "nonce"
+                }
+            }
+        )
+    }
+}
+
+// MARK: - 使用示例
+
+/// 运行所有示例
+@NtkActor
+func runDeduplicationExamples() async {
+    let example = NtkDeduplicationExample()
+    
+    await example.demonstrateBasicDeduplication()
+    await example.demonstrateParameterizedDeduplication()
+    await example.demonstrateDynamicParameterFiltering()
+    await example.demonstrateRequestPolicy()
+    
+    print("\n=== 所有示例运行完成 ===")
+}

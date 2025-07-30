@@ -36,9 +36,6 @@ class NtkNetwork<ResponseData: Sendable> {
     required init(_ client: any iNtkClient, request: iNtkRequest, dataParsingInterceptor: iNtkInterceptor, validation: iNtkResponseValidation) {
         operation = NtkOperation(client, request: request, dataParsingInterceptor: dataParsingInterceptor)
         operation.validation = validation
-        
-        // 注意：请求去重逻辑已在 NtkTaskManager.executeWithDeduplication 中统一处理
-        // 不再需要添加 NtkDeduplicationInterceptor
     }
     
     /// 创建网络请求管理器的便捷方法
