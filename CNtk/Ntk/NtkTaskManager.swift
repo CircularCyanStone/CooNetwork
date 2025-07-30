@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import OSLog
 
 /// 网络请求任务管理器
 /// 负责统一管理网络请求的Task生命周期，包括去重、超时控制和取消操作
@@ -31,7 +32,7 @@ class NtkTaskManager {
     ) async throws -> T {
         // 检查全局去重配置
         guard NtkDeduplicationConfig.shared.isGloballyEnabled else {
-            NtkDeduplicationLogger.log("Global deduplication is disabled, executing with timeout only", level: .debug)
+            NtkLogger.debug("Global deduplication is disabled, executing with timeout only", category: .deduplication)
             return try await executeNewRequestWithTimeout(requestId: UUID().uuidString, request: request, execution: execution)
         }
         
@@ -39,21 +40,21 @@ class NtkTaskManager {
         var requestWrapper = NtkRequestWrapper()
         requestWrapper.addRequest(request)
         guard requestWrapper.isDeduplicationEnabled else {
-            NtkDeduplicationLogger.log("Request deduplication is disabled, executing with timeout only", level: .debug)
+            NtkLogger.debug("Request deduplication is disabled, executing with timeout only", category: .deduplication)
             return try await executeNewRequestWithTimeout(requestId: UUID().uuidString, request: request, execution: execution)
         }
         
         let requestId = NtkRequestIdentifierManager.shared.getRequestIdentifier(request: request)
-        NtkDeduplicationLogger.log("请求标识符: \(requestId)", level: .debug)
+        NtkLogger.debug("请求标识符: \(requestId)", category: .deduplication)
         
         // 检查是否有相同请求正在进行
         if let ongoingTask = Self.ongoingRequests[requestId] {
-            NtkDeduplicationLogger.log("发现重复请求，等待现有请求完成: \(requestId)", level: .info)
+            NtkLogger.info("发现重复请求，等待现有请求完成: \(requestId)", category: .deduplication)
             // 等待正在进行的请求完成
             do {
                 let result = try await ongoingTask.value
                 if let typedResult = result as? T {
-                    NtkDeduplicationLogger.log("重复请求完成，返回共享结果: \(requestId)", level: .info)
+                    NtkLogger.info("重复请求完成，返回共享结果: \(requestId)", category: .deduplication)
                     return typedResult
                 } else {
                     // 类型不匹配，移除缓存的Task并重新执行
@@ -63,12 +64,12 @@ class NtkTaskManager {
             } catch {
                 // 正在进行的请求失败，移除缓存并重新执行
                 Self.ongoingRequests.removeValue(forKey: requestId)
-                NtkDeduplicationLogger.log("现有请求失败，重新执行: \(requestId), 错误: \(error)", level: .warning)
+                NtkLogger.warning("现有请求失败，重新执行: \(requestId), 错误: \(error)", category: .deduplication)
                 throw error
             }
         } else {
             // 执行新请求
-            NtkDeduplicationLogger.log("创建新请求任务: \(requestId)", level: .debug)
+            NtkLogger.debug("创建新请求任务: \(requestId)", category: .deduplication)
             return try await executeNewRequestWithTimeout(requestId: requestId, request: request, execution: execution)
         }
     }
@@ -171,7 +172,7 @@ extension NtkTaskManager {
             
             // 请求完成，移除缓存
             Self.ongoingRequests.removeValue(forKey: requestId)
-            NtkDeduplicationLogger.log("请求成功完成: \(requestId)", level: .debug)
+            NtkLogger.debug("请求成功完成: \(requestId)", category: .deduplication)
             
             if let typedResult = result as? T {
                 return typedResult
@@ -185,12 +186,12 @@ extension NtkTaskManager {
             if error is NtkError.Deduplication {
                 switch error as! NtkError.Deduplication {
                 case .requestTimeout:
-                    NtkDeduplicationLogger.log("请求超时: \(requestId), 超时时间: \(timeout)秒", level: .warning)
+                    NtkLogger.warning("请求超时: \(requestId), 超时时间: \(timeout)秒", category: .deduplication)
                 default:
-                    NtkDeduplicationLogger.log("请求执行失败: \(requestId), 错误: \(error)", level: .error)
+                    NtkLogger.error("请求执行失败: \(requestId), 错误: \(error)", category: .deduplication)
                 }
             } else {
-                NtkDeduplicationLogger.log("请求执行失败: \(requestId), 错误: \(error)", level: .error)
+                NtkLogger.error("请求执行失败: \(requestId), 错误: \(error)", category: .deduplication)
             }
             
             throw error

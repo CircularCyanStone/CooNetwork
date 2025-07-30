@@ -19,9 +19,7 @@ class NtkDeduplicationConfig {
     /// 默认启用，可以通过此配置全局关闭去重功能
     var isGloballyEnabled: Bool = true
     
-    /// 是否启用调试日志
-    /// 开启后会输出去重相关的调试信息
-    var isDebugLoggingEnabled: Bool = false
+
     
     /// 动态Header黑名单
     /// 这些Header在生成请求标识符时会被忽略
@@ -60,7 +58,6 @@ class NtkDeduplicationConfig {
     /// 重置为默认配置
     func resetToDefault() {
         isGloballyEnabled = true
-        isDebugLoggingEnabled = false
         dynamicHeaderBlacklist = [
             "timestamp",
             "nonce",
@@ -73,35 +70,5 @@ class NtkDeduplicationConfig {
     }
 }
 
-/// 去重调试日志工具
-@NtkActor
-struct NtkDeduplicationLogger {
-    
-    /// 输出调试日志
-    /// - Parameters:
-    ///   - message: 日志消息
-    ///   - level: 日志级别
-    static func log(_ message: String, level: LogLevel = .info) {
-        guard NtkDeduplicationConfig.shared.isDebugLoggingEnabled else { return }
-        
-        let timestamp = DateFormatter.logFormatter.string(from: Date())
-        print("[NtkDeduplication][\(level.rawValue)][\(timestamp)] \(message)")
-    }
-    
-    /// 日志级别
-    enum LogLevel: String {
-        case debug = "DEBUG"
-        case info = "INFO"
-        case warning = "WARNING"
-        case error = "ERROR"
-    }
-}
-
-/// DateFormatter扩展
-private extension DateFormatter {
-    static let logFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
-        return formatter
-    }()
-}
+// 注意：NtkDeduplicationLogger已迁移到NtkLogger统一日志工具
+    // 请使用 NtkLogger.debug/info/warning/error 方法，并指定category为.deduplication

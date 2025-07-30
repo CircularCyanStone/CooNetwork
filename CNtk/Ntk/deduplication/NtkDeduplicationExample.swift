@@ -54,8 +54,7 @@ class NtkDeduplicationExample {
     func exampleDetailedConfiguration() {
         let config = NtkDeduplicationConfig.shared
         
-        // 启用调试日志
-        config.isDebugLoggingEnabled = true
+        // 日志输出由NtkLogger统一控制
         
         // 添加自定义动态Header
         config.addDynamicHeader("x-custom-timestamp")
@@ -101,8 +100,7 @@ class NtkDeduplicationExample {
     
     /// 示例7: 列表数据请求去重
     func exampleListDataDeduplication() async {
-        // 启用调试日志以观察去重效果
-        NtkDeduplicationConfig.shared.isDebugLoggingEnabled = true
+        // 日志输出由NtkLogger统一控制，可通过NtkLogger观察去重效果
         
         // 模拟快速连续的列表请求
         for i in 1...5 {
@@ -206,7 +204,7 @@ struct GetListDataRequest: iNtkRequest {
     - 在性能敏感的场景中谨慎使用
  
  4. 监控和调试:
-    - 使用NtkDeduplicationLogger观察去重效果
+    - 使用NtkLogger观察去重效果（category: .deduplication）
     - 监控内存使用情况，避免请求积压
     - 定期检查配置是否合理
  */
