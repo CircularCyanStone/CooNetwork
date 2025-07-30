@@ -46,7 +46,7 @@ CNtk 请求去重功能是一个高性能、线程安全的网络请求去重解
 ### 组件说明
 
 1. **NtkDeduplicationInterceptor**: 请求拦截器，负责检查和启动去重逻辑
-2. **NtkRequestDeduplicationManager**: 去重管理器，管理正在进行的请求和Task共享
+2. **NtkTaskManager**: 网络请求任务管理器，统一管理请求Task的生命周期，包括去重、超时控制和取消操作
 3. **NtkRequestIdentifierManager**: 请求标识符管理器，生成请求的唯一标识
 4. **NtkDeduplicationConfig**: 配置管理器，提供全局配置选项
 
@@ -227,7 +227,7 @@ NtkDeduplicationConfig.shared.isDebugLoggingEnabled = true
 ### 监控指标
 
 ```swift
-let manager = NtkRequestDeduplicationManager.shared
+let manager = NtkTaskManager.shared
 
 // 获取当前正在进行的请求数量
 let count = manager.getOngoingRequestCount()

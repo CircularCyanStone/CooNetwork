@@ -30,7 +30,7 @@ CNtk框架目前缺乏真正的请求去重机制，多次快速点击会发起�
 
 ### 2.2 核心组件
 
-#### 2.2.1 请求去重管理器 (NtkRequestDeduplicationManager)
+#### 2.2.1 网络请求任务管理器 (NtkTaskManager)
 
 **职责**：
 - 管理正在进行的请求Task
@@ -40,7 +40,7 @@ CNtk框架目前缺乏真正的请求去重机制，多次快速点击会发起�
 **核心实现**：
 ```swift
 @NtkActor
-class NtkRequestDeduplicationManager {
+class NtkTaskManager {
     // 存储正在进行的请求Task
     private var ongoingRequests: [String: Task<any iNtkResponse, Error>] = [:]
     
@@ -89,7 +89,7 @@ class NtkRequestDeduplicationManager {
 @NtkActor
 class NtkDeduplicationInterceptor: iNtkInterceptor {
     let priority = NtkInterceptorPriority.high
-    private let deduplicationManager = NtkRequestDeduplicationManager.shared
+    private let taskManager = NtkTaskManager.shared
     private let requestIdentifierManager = NtkRequestIdentifierManager.shared
     
     func intercept(
@@ -207,7 +207,7 @@ Task {
 **时间**：1-2天
 
 **任务**：
-1. 创建 `NtkRequestDeduplicationManager.swift`
+1. 创建 `NtkTaskManager.swift`
 2. 创建 `NtkDeduplicationInterceptor.swift`
 3. 扩展 `NtkRequestWrapper.swift`
 4. 编写基础单元测试

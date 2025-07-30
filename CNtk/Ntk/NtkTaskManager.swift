@@ -1,5 +1,5 @@
 //
-//  NtkRequestDeduplicationManager.swift
+//  NtkTaskManager.swift
 //  CNtk
 //
 //  Created by Trae Builder on 2024/12/19.
@@ -7,14 +7,14 @@
 
 import Foundation
 
-/// 请求去重管理器
-/// 负责管理正在进行的请求，实现请求去重逻辑
-/// 通过请求标识符识别相同请求，避免重复发送
+/// 网络请求任务管理器
+/// 负责统一管理网络请求的Task生命周期，包括去重、超时控制和取消操作
+/// 通过请求标识符识别相同请求，实现请求去重和Task复用
 @NtkActor
-class NtkRequestDeduplicationManager {
+class NtkTaskManager {
     
     /// 单例实例
-    static let shared = NtkRequestDeduplicationManager()
+    static let shared = NtkTaskManager()
     
     /// 正在进行的请求映射表
     /// Key: 请求标识符, Value: 正在执行的Task
@@ -34,6 +34,20 @@ class NtkRequestDeduplicationManager {
         request: any iNtkRequest,
         execution: @escaping @Sendable () async throws -> T
     ) async throws -> T {
+        // 检查全局去重配置
+        guard NtkDeduplicationConfig.shared.isGloballyEnabled else {
+            NtkDeduplicationLogger.log("Global deduplication is disabled, executing directly", level: .debug)
+            return try await execution()
+        }
+        
+        // 检查请求是否启用去重
+        var requestWrapper = NtkRequestWrapper()
+        requestWrapper.addRequest(request)
+        guard requestWrapper.isDeduplicationEnabled else {
+            NtkDeduplicationLogger.log("Request deduplication is disabled, executing directly", level: .debug)
+            return try await execution()
+        }
+        
         let requestId = NtkRequestIdentifierManager.shared.getRequestIdentifier(request: request)
         NtkDeduplicationLogger.log("请求标识符: \(requestId)", level: .debug)
         
@@ -63,6 +77,44 @@ class NtkRequestDeduplicationManager {
             return try await executeNewRequestWithTimeout(requestId: requestId, request: request, execution: execution)
         }
     }
+    
+
+    
+    /// 取消指定请求
+    /// - Parameter request: 要取消的请求
+    func cancelRequest(request: any iNtkRequest) {
+        let requestId = NtkRequestIdentifierManager.shared.getRequestIdentifier(request: request)
+        if let task = ongoingRequests[requestId] {
+            task.cancel()
+            ongoingRequests.removeValue(forKey: requestId)
+        }
+    }
+    
+    /// 取消所有正在进行的请求
+    func cancelAllRequests() {
+        for (_, task) in ongoingRequests {
+            task.cancel()
+        }
+        ongoingRequests.removeAll()
+    }
+    
+    /// 获取正在进行的请求数量
+    /// - Returns: 正在进行的请求数量
+    func getOngoingRequestCount() -> Int {
+        return ongoingRequests.count
+    }
+    
+    /// 检查指定请求是否正在进行中
+    /// - Parameter request: 要检查的请求
+    /// - Returns: 是否正在进行中
+    func isRequestOngoing(request: any iNtkRequest) -> Bool {
+        let requestId = NtkRequestIdentifierManager.shared.getRequestIdentifier(request: request)
+        return ongoingRequests[requestId] != nil
+    }
+}
+
+// MARK: - Private Methods
+extension NtkTaskManager {
     
     /// 执行带超时控制的请求（通用方法）
     /// - Parameters:
@@ -148,37 +200,5 @@ class NtkRequestDeduplicationManager {
             
             throw error
         }
-    }
-    
-    /// 取消指定请求
-    /// - Parameter request: 要取消的请求
-    func cancelRequest(request: any iNtkRequest) {
-        let requestId = NtkRequestIdentifierManager.shared.getRequestIdentifier(request: request)
-        if let task = ongoingRequests[requestId] {
-            task.cancel()
-            ongoingRequests.removeValue(forKey: requestId)
-        }
-    }
-    
-    /// 取消所有正在进行的请求
-    func cancelAllRequests() {
-        for (_, task) in ongoingRequests {
-            task.cancel()
-        }
-        ongoingRequests.removeAll()
-    }
-    
-    /// 获取正在进行的请求数量
-    /// - Returns: 正在进行的请求数量
-    func getOngoingRequestCount() -> Int {
-        return ongoingRequests.count
-    }
-    
-    /// 检查指定请求是否正在进行中
-    /// - Parameter request: 要检查的请求
-    /// - Returns: 是否正在进行中
-    func isRequestOngoing(request: any iNtkRequest) -> Bool {
-        let requestId = NtkRequestIdentifierManager.shared.getRequestIdentifier(request: request)
-        return ongoingRequests[requestId] != nil
     }
 }

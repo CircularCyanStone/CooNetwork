@@ -17,12 +17,10 @@ class NtkNetwork<ResponseData: Sendable> {
     /// 网络操作对象，封装了请求的具体执行逻辑
     private(set) var operation: NtkOperation
     
-    /// 当前正在执行的请求任务
-    private var currentRequestTask: Task<NtkResponse<ResponseData>, any Error>?
-    
     /// 请求是否已被取消
     var isCancelled: Bool {
-        currentRequestTask?.isCancelled ?? Task.isCancelled
+        guard let request = operation.client.requestWrapper.request else { return false }
+        return NtkTaskManager.shared.isRequestOngoing(request: request)
     }
     
     
@@ -55,7 +53,8 @@ class NtkNetwork<ResponseData: Sendable> {
     
     /// 取消当前请求
     func cancel() {
-        currentRequestTask?.cancel()
+        guard let request = operation.client.requestWrapper.request else { return }
+        NtkTaskManager.shared.cancelRequest(request: request)
     }
 }
 
@@ -83,11 +82,14 @@ extension NtkNetwork {
     /// - Throws: 网络请求过程中的错误
     func sendRequest() async throws -> NtkResponse<ResponseData> {
         let operation = operation
-        let task: Task<NtkResponse<ResponseData>, any Error> = Task {
+        guard let request = operation.client.requestWrapper.request else {
+            fatalError("Request object is nil - this should never happen in production")
+        }
+        return try await NtkTaskManager.shared.executeWithDeduplication(
+            request: request
+        ) {
             try await operation.run()
         }
-        self.currentRequestTask = task
-        return try await task.value
     }
     
     /// 发送网络请求（回调方式）
@@ -99,7 +101,14 @@ extension NtkNetwork {
         let operation = operation
         Task {
             do {
-                let response: NtkResponse<ResponseData> = try await operation.run()
+                guard let request = operation.client.requestWrapper.request else {
+            fatalError("Request object is nil - this should never happen in production")
+        }
+                let response: NtkResponse<ResponseData> = try await NtkTaskManager.shared.executeWithDeduplication(
+                    request: request
+                ) {
+                    try await operation.run()
+                }
                 completion(response)
             }catch {
                 failure?(error)
