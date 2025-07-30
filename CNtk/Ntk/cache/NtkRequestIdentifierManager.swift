@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CryptoKit
 
 /// 请求标识符管理器
 /// 基于内存的请求标识符复用管理，提供线程安全的请求唯一标识生成和管理功能
@@ -100,10 +101,10 @@ class NtkRequestIdentifierManager {
         if let parameters = request.parameters {
             if let config = cacheConfig {
                 let filteredParams = config.filterParameter(parameters)
-                let sortedKeys = (filteredParams as? [String: Any])?.keys.sorted() ?? []
+                let sortedKeys = filteredParams.keys.sorted()
                 for key in sortedKeys {
                     hasher.combine(key)
-                    if let value = (filteredParams as? [String: Any])?[key] {
+                    if let value = filteredParams[key] {
                         hasher.combine("\(value)")
                     }
                 }
@@ -126,46 +127,8 @@ class NtkRequestIdentifierManager {
         return hasher.finalize()
     }
     
-    /// 序列化请求用于去重标识（已弃用，保留用于向后兼容）
-    /// 生成用于请求去重的序列化字符串，不包含缓存配置信息
-    /// - Parameter request: 网络请求对象
-    /// - Returns: 序列化后的字符串
-    @available(*, deprecated, message: "Use generateHashForDeduplication instead for better performance")
-    private func serializeRequestForDeduplication(request: any iNtkRequest) -> String {
-        var components: [String] = []
-        
-        // HTTP方法
-        components.append(request.method.rawValue)
-        
-        // URL
-        if let baseURL = request.baseURL {
-            components.append(baseURL.absoluteString)
-        }
-        components.append(request.path)
-        
-        // 参数序列化
-        if let parameters = request.parameters {
-            let sortedKeys = parameters.keys.sorted()
-            for key in sortedKeys {
-                if let value = parameters[key] {
-                    components.append("\(key)=\(value)")
-                }
-            }
-        }
-        
-        // Headers序列化（排除动态headers如时间戳等）
-        if let headers = request.headers {
-            let sortedKeys = headers.keys.sorted()
-            for key in sortedKeys {
-                // 排除可能影响去重的动态header
-                if !isDynamicHeader(key) {
-                    components.append("\(key)=\(headers[key] ?? "")")
-                }
-            }
-        }
-        
-        return components.joined(separator: "&")
-    }
+    // 已移除已弃用的 serializeRequestForDeduplication 方法
+    // 使用 generateHashForDeduplication 方法获得更好的性能
     
     /// 判断是否为动态Header
     /// - Parameter headerKey: Header键名

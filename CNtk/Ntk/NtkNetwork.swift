@@ -37,9 +37,8 @@ class NtkNetwork<ResponseData: Sendable> {
         operation = NtkOperation(client, request: request, dataParsingInterceptor: dataParsingInterceptor)
         operation.validation = validation
         
-        // 自动添加请求去重拦截器作为核心功能
-        // 去重拦截器具有高优先级，确保在其他拦截器之前执行
-        operation.addInterceptor(NtkDeduplicationInterceptor.shared)
+        // 注意：请求去重逻辑已在 NtkTaskManager.executeWithDeduplication 中统一处理
+        // 不再需要添加 NtkDeduplicationInterceptor
     }
     
     /// 创建网络请求管理器的便捷方法

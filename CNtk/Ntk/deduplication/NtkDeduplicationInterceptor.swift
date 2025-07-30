@@ -7,16 +7,16 @@
 
 import Foundation
 
-/// 请求去重拦截器
-/// 去重拦截器（已简化）
-/// 去重逻辑已在 NtkNetwork 层面通过 NtkTaskManager 统一处理
-/// 优先级较高，确保在其他拦截器之前执行
+/// 请求去重拦截器（已弃用）
+/// 去重逻辑已完全迁移到 NtkTaskManager 中统一处理，此拦截器仅保留用于向后兼容
+/// 建议在未来版本中移除此拦截器，直接使用 NtkTaskManager 的去重功能
+@available(*, deprecated, message: "Deduplication logic has been moved to NtkTaskManager. This interceptor will be removed in future versions.")
 @NtkActor
 class NtkDeduplicationInterceptor: iNtkInterceptor {
     
-    /// 拦截器优先级 - 高优先级确保在其他拦截器之前执行
+    /// 拦截器优先级（设置为0，降低优先级）
     var priority: NtkInterceptorPriority {
-        return .priority(.high)
+        return .priority(.low)
     }
     
     /// 单例实例
@@ -24,14 +24,15 @@ class NtkDeduplicationInterceptor: iNtkInterceptor {
     
     private init() {}
     
-    /// 拦截请求并处理去重逻辑
-    /// 注意：去重逻辑已在NtkNetwork层面统一处理，此拦截器主要用于兼容性
+    /// 拦截请求处理
+    /// 直接传递请求，不进行任何处理
     /// - Parameters:
     ///   - context: 请求上下文
     ///   - next: 下一个处理器
-    /// - Returns: 响应结果
+    /// - Returns: 网络响应对象
+    /// - Throws: 处理过程中的错误
     func intercept(context: NtkRequestContext, next: any NtkRequestHandler) async throws -> any iNtkResponse {
-        // 直接传递给下一个处理器，去重逻辑已在NtkNetwork层面处理
+        // 直接传递给下一个处理器，不进行任何处理
         return try await next.handle(context: context)
     }
 }

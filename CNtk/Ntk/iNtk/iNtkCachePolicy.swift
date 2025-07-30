@@ -21,7 +21,7 @@ protocol iNtkCachePolicy: Sendable {
     /// 用于过滤不参与缓存键生成的参数
     /// - Parameter parameter: 原始请求参数
     /// - Returns: 过滤后的参数，用于生成缓存键
-    func filterParameter(_ parameter: [String: Any]) -> [String: Any]
+    func filterParameter(_ parameter: [String: Sendable]) -> [String: Sendable]
     
     /// 自定义缓存策略
     /// 用于判断响应是否应该被缓存
