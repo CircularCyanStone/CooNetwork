@@ -30,10 +30,13 @@ class NtkTaskManager {
         request: any iNtkRequest,
         execution: @escaping @Sendable () async throws -> T
     ) async throws -> T {
+        // 获取请求标识符（无论是否启用去重都需要正确的ID用于管理）
+        let requestId = NtkRequestIdentifierManager.shared.getRequestIdentifier(request: request)
+        
         // 检查全局去重配置
         guard NtkDeduplicationConfig.shared.isGloballyEnabled else {
             NtkLogger.debug("Global deduplication is disabled, executing with timeout only", category: .deduplication)
-            return try await executeNewRequestWithTimeout(requestId: UUID().uuidString, request: request, execution: execution)
+            return try await executeNewRequestWithTimeout(requestId: requestId, request: request, execution: execution)
         }
         
         // 检查请求是否启用去重
@@ -41,10 +44,8 @@ class NtkTaskManager {
         requestWrapper.addRequest(request)
         guard requestWrapper.isDeduplicationEnabled else {
             NtkLogger.debug("Request deduplication is disabled, executing with timeout only", category: .deduplication)
-            return try await executeNewRequestWithTimeout(requestId: UUID().uuidString, request: request, execution: execution)
+            return try await executeNewRequestWithTimeout(requestId: requestId, request: request, execution: execution)
         }
-        
-        let requestId = NtkRequestIdentifierManager.shared.getRequestIdentifier(request: request)
         NtkLogger.debug("请求标识符: \(requestId)", category: .deduplication)
         
         // 检查是否有相同请求正在进行
@@ -130,12 +131,12 @@ extension NtkTaskManager {
             // 添加超时任务
             group.addTask {
                 try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
-                throw NtkError.Deduplication.requestTimeout
+                throw NtkError.requestTimeout
             }
             
             // 等待第一个完成的任务
             guard let result = try await group.next() else {
-                throw NtkError.Deduplication.requestCancelled
+                throw NtkError.requestCancelled
             }
             
             // 取消其他任务
@@ -177,23 +178,19 @@ extension NtkTaskManager {
             if let typedResult = result as? T {
                 return typedResult
             } else {
-                throw NtkError.Deduplication.typeMismatch
+                throw NtkError.typeMismatch
             }
-        } catch {
+        } catch let error as NtkError {
             // 请求失败或超时，移除缓存
             Self.ongoingRequests.removeValue(forKey: requestId)
-            
-            if error is NtkError.Deduplication {
-                switch error as! NtkError.Deduplication {
-                case .requestTimeout:
-                    NtkLogger.warning("请求超时: \(requestId), 超时时间: \(timeout)秒", category: .deduplication)
-                default:
-                    NtkLogger.error("请求执行失败: \(requestId), 错误: \(error)", category: .deduplication)
-                }
-            } else {
+            if case .requestTimeout = error {
+                NtkLogger.warning("请求超时: \(requestId), 超时时间: \(timeout)秒", category: .deduplication)
+            }else {
                 NtkLogger.error("请求执行失败: \(requestId), 错误: \(error)", category: .deduplication)
             }
-            
+            throw error
+        } catch {
+            NtkLogger.error("请求执行失败: \(requestId), 错误: \(error)", category: .deduplication)
             throw error
         }
     }

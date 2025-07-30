@@ -22,6 +22,9 @@ let NtkCacheErrorDomain = "NtkCacheErrorDomain"
     case decodeInvalid = 10003       // 解码失败
     case serviceDataEmpty = 10004    // 服务端数据为空
     case serviceDataTypeInvalid = 10005  // 服务端数据类型无效
+    case typeMismatch = 10006        // 请求结果类型不匹配
+    case requestCancelled = 10007    // 请求已被取消
+    case requestTimeout = 10008      // 请求超时
     case other = 10020               // 其他错误
 }
 
@@ -81,6 +84,30 @@ let NtkCacheErrorDomain = "NtkCacheErrorDomain"
         return NSError(domain: NtkErrorDomain, code: NtkErrorCode.serviceDataTypeInvalid.rawValue, userInfo: userInfo)
     }
     
+    /// 创建请求结果类型不匹配错误
+    static func typeMismatchError() -> NSError {
+        let userInfo: [String: Any] = [
+            NSLocalizedDescriptionKey: "请求结果类型不匹配"
+        ]
+        return NSError(domain: NtkErrorDomain, code: NtkErrorCode.typeMismatch.rawValue, userInfo: userInfo)
+    }
+    
+    /// 创建请求已被取消错误
+    static func requestCancelledError() -> NSError {
+        let userInfo: [String: Any] = [
+            NSLocalizedDescriptionKey: "请求已被取消"
+        ]
+        return NSError(domain: NtkErrorDomain, code: NtkErrorCode.requestCancelled.rawValue, userInfo: userInfo)
+    }
+    
+    /// 创建请求超时错误
+    static func requestTimeoutError() -> NSError {
+        let userInfo: [String: Any] = [
+            NSLocalizedDescriptionKey: "请求超时"
+        ]
+        return NSError(domain: NtkErrorDomain, code: NtkErrorCode.requestTimeout.rawValue, userInfo: userInfo)
+    }
+    
     /// 创建其他类型错误
     static func otherError(underlyingError: NSError) -> NSError {
         let userInfo: [String: Any] = [
@@ -125,6 +152,21 @@ let NtkCacheErrorDomain = "NtkCacheErrorDomain"
     /// 检查是否为服务端数据类型无效错误
     static func isServiceDataTypeInvalidError(_ error: NSError) -> Bool {
         return error.domain == NtkErrorDomain && error.code == NtkErrorCode.serviceDataTypeInvalid.rawValue
+    }
+    
+    /// 检查是否为请求结果类型不匹配错误
+    static func isTypeMismatchError(_ error: NSError) -> Bool {
+        return error.domain == NtkErrorDomain && error.code == NtkErrorCode.typeMismatch.rawValue
+    }
+    
+    /// 检查是否为请求已被取消错误
+    static func isRequestCancelledError(_ error: NSError) -> Bool {
+        return error.domain == NtkErrorDomain && error.code == NtkErrorCode.requestCancelled.rawValue
+    }
+    
+    /// 检查是否为请求超时错误
+    static func isRequestTimeoutError(_ error: NSError) -> Bool {
+        return error.domain == NtkErrorDomain && error.code == NtkErrorCode.requestTimeout.rawValue
     }
     
     /// 检查是否为其他类型错误

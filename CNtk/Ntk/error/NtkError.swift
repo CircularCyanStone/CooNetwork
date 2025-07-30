@@ -31,6 +31,18 @@ enum NtkError: Error {
     /// 当服务端返回的data字段类型与期望的泛型类型不匹配时抛出
     case serviceDataTypeInvalid
     
+    /// 请求结果类型不匹配
+    /// 当请求返回的结果类型与期望类型不匹配时抛出
+    case typeMismatch
+    
+    /// 请求已被取消
+    /// 当请求在执行过程中被主动取消时抛出
+    case requestCancelled
+    
+    /// 请求超时
+    /// 当请求执行时间超过设定的超时时间时抛出
+    case requestTimeout
+    
     /// 其他类型错误（包括系统URLError）
     /// 包装其他未分类的错误
     case other(_ error: Error)
@@ -39,27 +51,6 @@ enum NtkError: Error {
     enum Cache: Error {
         /// 没有缓存数据
         case noCache
-    }
-    
-    /// 请求去重相关错误
-    enum Deduplication: Error {
-        /// 请求结果类型不匹配
-        case typeMismatch
-        /// 请求已被取消
-        case requestCancelled
-        /// 请求超时
-        case requestTimeout
-        
-        var localizedDescription: String {
-            switch self {
-            case .typeMismatch:
-                return "请求结果类型不匹配"
-            case .requestCancelled:
-                return "请求已被取消"
-            case .requestTimeout:
-                return "请求超时"
-            }
-        }
     }
     
 }

@@ -36,7 +36,8 @@ extension iNtkRetryPolicy {
         // 检查是否是可重试的错误
         if let ntkError = error as? NtkError {
             switch ntkError {
-            case .validation, .jsonInvalid, .decodeInvalid, .serviceDataEmpty, .serviceDataTypeInvalid:
+            case .validation, .jsonInvalid, .decodeInvalid, .serviceDataEmpty, .serviceDataTypeInvalid,
+                 .typeMismatch, .requestCancelled, .requestTimeout:
                 return false
             case .other(let error):
                 // 如果关联值是 URLError，使用 URLError 的重试逻辑
