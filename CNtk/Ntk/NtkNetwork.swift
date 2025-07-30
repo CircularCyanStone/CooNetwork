@@ -17,10 +17,13 @@ class NtkNetwork<ResponseData: Sendable> {
     /// 网络操作对象，封装了请求的具体执行逻辑
     private(set) var operation: NtkOperation
     
-    /// 请求是否已被取消
+    /// 检查当前请求是否已被取消
     var isCancelled: Bool {
-        guard let request = operation.client.requestWrapper.request else { return false }
-        return NtkTaskManager.shared.isRequestOngoing(request: request)
+        guard let request = operation.client.requestWrapper.request else {
+            return false
+        }
+        let taskManager = NtkTaskManager()
+        return !taskManager.isRequestOngoing(request: request)
     }
     
     
@@ -54,7 +57,8 @@ class NtkNetwork<ResponseData: Sendable> {
     /// 取消当前请求
     func cancel() {
         guard let request = operation.client.requestWrapper.request else { return }
-        NtkTaskManager.shared.cancelRequest(request: request)
+        let taskManager = NtkTaskManager()
+        taskManager.cancelRequest(request: request)
     }
 }
 
@@ -85,7 +89,8 @@ extension NtkNetwork {
         guard let request = operation.client.requestWrapper.request else {
             fatalError("Request object is nil - this should never happen in production")
         }
-        return try await NtkTaskManager.shared.executeWithDeduplication(
+        let taskManager = NtkTaskManager()
+        return try await taskManager.executeWithDeduplication(
             request: request
         ) {
             try await operation.run()
@@ -104,7 +109,8 @@ extension NtkNetwork {
                 guard let request = operation.client.requestWrapper.request else {
             fatalError("Request object is nil - this should never happen in production")
         }
-                let response: NtkResponse<ResponseData> = try await NtkTaskManager.shared.executeWithDeduplication(
+                let taskManager = NtkTaskManager()
+                let response: NtkResponse<ResponseData> = try await taskManager.executeWithDeduplication(
                     request: request
                 ) {
                     try await operation.run()

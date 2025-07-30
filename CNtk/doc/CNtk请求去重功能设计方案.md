@@ -89,7 +89,7 @@ class NtkTaskManager {
 @NtkActor
 class NtkDeduplicationInterceptor: iNtkInterceptor {
     let priority = NtkInterceptorPriority.high
-    private let taskManager = NtkTaskManager.shared
+    private let taskManager = NtkTaskManager()
     private let requestIdentifierManager = NtkRequestIdentifierManager.shared
     
     func intercept(

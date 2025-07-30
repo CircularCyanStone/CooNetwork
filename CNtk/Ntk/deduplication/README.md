@@ -227,7 +227,7 @@ NtkDeduplicationConfig.shared.isDebugLoggingEnabled = true
 ### 监控指标
 
 ```swift
-let manager = NtkTaskManager.shared
+let manager = NtkTaskManager()
 
 // 获取当前正在进行的请求数量
 let count = manager.getOngoingRequestCount()
