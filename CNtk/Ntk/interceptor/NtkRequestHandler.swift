@@ -8,6 +8,6 @@
 import Foundation
 
 @NtkActor
-protocol NtkRequestHandler {
+protocol NtkRequestHandler: Sendable {
     func handle(context: NtkRequestContext) async throws -> any iNtkResponse
 }

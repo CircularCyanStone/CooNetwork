@@ -8,6 +8,7 @@
 import Foundation
 
 /// 重试策略协议
+@NtkActor
 protocol iNtkRetryPolicy: Sendable {
     /// 最大重试次数
     var maxRetryCount: Int { get }

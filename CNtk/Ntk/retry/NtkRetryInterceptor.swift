@@ -9,7 +9,6 @@ import Foundation
 
 /// 重试拦截器
 /// 负责在请求失败时根据重试策略进行重试
-@NtkActor
 struct NtkRetryInterceptor: iNtkInterceptor {
     /// 重试策略
     private let retryPolicy: iNtkRetryPolicy

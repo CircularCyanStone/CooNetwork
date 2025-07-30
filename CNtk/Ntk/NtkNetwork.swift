@@ -5,6 +5,7 @@
 //  Created by 李奇奇 on 2025/6/18.
 //
 
+import Foundation
 import UIKit
 
 /// 网络请求管理器
@@ -34,6 +35,10 @@ class NtkNetwork<ResponseData: Sendable> {
     required init(_ client: any iNtkClient, request: iNtkRequest, dataParsingInterceptor: iNtkInterceptor, validation: iNtkResponseValidation) {
         operation = NtkOperation(client, request: request, dataParsingInterceptor: dataParsingInterceptor)
         operation.validation = validation
+        
+        // 自动添加请求去重拦截器作为核心功能
+        // 去重拦截器具有高优先级，确保在其他拦截器之前执行
+        operation.addInterceptor(NtkDeduplicationInterceptor.shared)
     }
     
     /// 创建网络请求管理器的便捷方法
@@ -111,7 +116,7 @@ extension NtkNetwork {
     
     /// 判断是否存在缓存数据
     /// - Returns: 如果存在缓存数据返回true，否则返回false
-    func hasCacheData() -> Bool {
-        return operation.client.hasCacheData()
+    func hasCacheData() async -> Bool {
+        return await operation.client.hasCacheData()
     }
 }

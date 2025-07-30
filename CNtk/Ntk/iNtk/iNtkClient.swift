@@ -38,7 +38,7 @@ protocol iNtkClient: Sendable {
     
     /// 检查是否有缓存数据
     /// - Returns: 如果存在缓存数据返回true，否则返回false
-    func hasCacheData() -> Bool
+    func hasCacheData() async -> Bool
 }
 
 extension iNtkClient {
@@ -66,7 +66,7 @@ extension iNtkClient {
     
     /// 默认的缓存检查实现
     /// - Returns: 如果存在缓存数据返回true，否则返回false
-    func hasCacheData() -> Bool {
+    func hasCacheData() async -> Bool {
         assert(requestWrapper.request != nil, "iNtkClient request must not nil")
         let cacheUtil = NtkNetworkCache(request: requestWrapper.request!, storage: storage)
         return cacheUtil.hasData()

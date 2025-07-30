@@ -34,7 +34,7 @@ class NtkNetworkCache {
     /// 根据请求信息和缓存配置生成唯一的缓存键
     /// - Returns: 缓存键字符串
     private func createCacheKey() -> String {
-        return NtkCacheKeyManager.shared.getCacheKey(request: request, cacheConfig: cacheConfig)
+        return NtkRequestIdentifierManager.shared.getCacheKey(request: request, cacheConfig: cacheConfig)
     }
     
     /// 检查是否存在缓存数据

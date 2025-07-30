@@ -41,4 +41,25 @@ enum NtkError: Error {
         case noCache
     }
     
+    /// 请求去重相关错误
+    enum Deduplication: Error {
+        /// 请求结果类型不匹配
+        case typeMismatch
+        /// 请求已被取消
+        case requestCancelled
+        /// 请求超时
+        case requestTimeout
+        
+        var localizedDescription: String {
+            switch self {
+            case .typeMismatch:
+                return "请求结果类型不匹配"
+            case .requestCancelled:
+                return "请求已被取消"
+            case .requestTimeout:
+                return "请求超时"
+            }
+        }
+    }
+    
 }
