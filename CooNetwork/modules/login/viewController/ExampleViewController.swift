@@ -47,6 +47,10 @@ struct ExampleSwiftUIView: View {
     
     @State var stream: AsyncThrowingStream<NtkResponse<CodeData>, any Error>?
     
+    // 测试管理器
+    @StateObject private var deduplicationTestManager = DeduplicationTestManager()
+    @StateObject private var retryTestManager = RetryTestManager()
+    
     private func loadTime() {
         Task {
             do {
@@ -61,21 +65,7 @@ struct ExampleSwiftUIView: View {
     }
     
     var body: some View {
-        ZStack {
-            VStack {
-                HStack {
-                    Button("XX") {
-                        
-                    }
-                    .background(Color.gray)
-                    
-                    Text("还耗")
-                }
-                .background(Color.secondary)
-            }
-            .frame(minWidth: 120, maxWidth: .infinity, minHeight: 120, maxHeight: .infinity)
-            .background(Color.green)
-            
+        ZStack {    
             List {
                 Button {
                     let actorExample = CooActorExample()
@@ -123,10 +113,10 @@ struct ExampleSwiftUIView: View {
                         do {
                             let req = Login.sendSMS("300343", tmpLogin: false)
                             
-                            let cacheData: CodeData? = try await DefaultCoo.with(req).hud(true).loadCache()?.data
+                            let cacheData: CodeData? = try await DefaultCoo.with(req).loadCache()?.data
                             
                             
-                            let codeResult: CodeData = try await DefaultCoo.with(req, validation: req).sendRequest().data
+                            let codeResult: CodeData = try await DefaultCoo.with(req, validation: req).hud(true).sendRequest().data
                             print("短信发送成功")
                         }catch {
                             print("短信发送失败 \(error)")
@@ -136,6 +126,88 @@ struct ExampleSwiftUIView: View {
                 .frame(minHeight: 150)
                 .listRowInsets(EdgeInsets()) // 去除List的默认行内边距
                 .listRowBackground(Color.orange)
+                
+                // MARK: - 请求去重测试区域
+                Section("请求去重测试") {
+                    Button("并发去重测试") {
+                        deduplicationTestManager.testConcurrentDeduplication()
+                    }
+                    .listRowBackground(Color.blue.opacity(0.3))
+                    
+                    Button("顺序去重测试") {
+                        deduplicationTestManager.testSequentialDeduplication()
+                    }
+                    .listRowBackground(Color.blue.opacity(0.3))
+                    
+                    Button("禁用去重测试") {
+                        deduplicationTestManager.testDisabledDeduplication()
+                    }
+                    .listRowBackground(Color.blue.opacity(0.3))
+                    
+                    Button("清空去重测试结果") {
+                        deduplicationTestManager.clearResults()
+                    }
+                    .listRowBackground(Color.gray.opacity(0.3))
+                    
+                    if !deduplicationTestManager.testResults.isEmpty {
+                        ForEach(deduplicationTestManager.testResults, id: \.self) { result in
+                            Text(result)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .listRowBackground(Color.clear)
+                    }
+                }
+                
+                // MARK: - 请求重试测试区域
+                Section("请求重试测试") {
+                    Button("指数退避重试测试") {
+                        retryTestManager.testExponentialBackoffRetry()
+                    }
+                    .disabled(retryTestManager.isTestingExponential)
+                    .listRowBackground(Color.green.opacity(0.3))
+                    
+                    Button("快速重试测试") {
+                        retryTestManager.testFastRetry()
+                    }
+                    .disabled(retryTestManager.isTestingFast)
+                    .listRowBackground(Color.green.opacity(0.3))
+                    
+                    Button("自定义重试测试") {
+                        retryTestManager.testCustomRetry()
+                    }
+                    .disabled(retryTestManager.isTestingCustom)
+                    .listRowBackground(Color.green.opacity(0.3))
+                    
+                    Button("无重试对比测试") {
+                        retryTestManager.testNoRetry()
+                    }
+                    .listRowBackground(Color.green.opacity(0.3))
+                    
+                    Button("重试+缓存测试") {
+                        retryTestManager.testRetryWithCache()
+                    }
+                    .listRowBackground(Color.green.opacity(0.3))
+                    
+                    Button("重试性能对比") {
+                        retryTestManager.testRetryPerformanceComparison()
+                    }
+                    .listRowBackground(Color.green.opacity(0.3))
+                    
+                    Button("清空重试测试结果") {
+                        retryTestManager.clearResults()
+                    }
+                    .listRowBackground(Color.gray.opacity(0.3))
+                    
+                    if !retryTestManager.testResults.isEmpty {
+                        ForEach(retryTestManager.testResults, id: \.self) { result in
+                            Text(result)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .listRowBackground(Color.clear)
+                    }
+                }
 
 
                 Button("请求短信(带缓存)") {
