@@ -11,37 +11,27 @@ import Foundation
 
 /// HTTP请求方法类型
 /// 封装了常用的HTTP方法，支持OC互操作
-@objcMembers
-final class NtkHTTPMethod: NSObject, RawRepresentable, Sendable {
+enum NtkHTTPMethod: String, RawRepresentable, Sendable, CaseIterable {
     /// `CONNECT` method.
-    static let connect = NtkHTTPMethod(rawValue: "CONNECT")
+    case connect = "CONNECT"
     /// `DELETE` method.
-    static let delete = NtkHTTPMethod(rawValue: "DELETE")
+    case delete = "DELETE"
     /// `GET` method.
-    static let get = NtkHTTPMethod(rawValue: "GET")
+    case get = "GET"
     /// `HEAD` method.
-    static let head = NtkHTTPMethod(rawValue: "HEAD")
+    case head = "HEAD"
     /// `OPTIONS` method.
-    static let options = NtkHTTPMethod(rawValue: "OPTIONS")
+    case options = "OPTIONS"
     /// `PATCH` method.
-    static let patch = NtkHTTPMethod(rawValue: "PATCH")
+    case patch = "PATCH"
     /// `POST` method.
-    static let post = NtkHTTPMethod(rawValue: "POST")
+    case post = "POST"
     /// `PUT` method.
-    static let put = NtkHTTPMethod(rawValue: "PUT")
+    case put = "PUT"
     /// `QUERY` method.
-    static let query = NtkHTTPMethod(rawValue: "QUERY")
+    case query = "QUERY"
     /// `TRACE` method.
-    static let trace = NtkHTTPMethod(rawValue: "TRACE")
-
-    /// HTTP方法的原始字符串值
-    let rawValue: String
-
-    /// 使用原始字符串值初始化HTTP方法
-    /// - Parameter rawValue: HTTP方法的字符串表示
-    required init(rawValue: String) {
-        self.rawValue = rawValue
-    }
+    case trace = "TRACE"
 }
 
 /// 网络请求协议
@@ -75,7 +65,7 @@ protocol iNtkRequest: Sendable, CustomStringConvertible, CustomDebugStringConver
     /// 请求策略配置
     /// - Returns: 请求策略配置，包含缓存和参数过滤设置，如果为nil则不使用缓存和参数过滤
     /// - Note: 该策略用于请求去重时的参数过滤以及缓存键生成
-    var requestPolicy: iNtkRequestConfiguration? { get }
+    var requestConfiguration: (any iNtkRequestConfiguration)? { get }
     
 }
 
@@ -110,7 +100,7 @@ extension iNtkRequest {
     /// 可以通过以下方式自定义策略：
     /// 1. 直接在iNtkRequest的实现类内部定义内嵌类型
     /// 2. 使用NtkDefaultRequestConfiguration默认实现
-    var requestPolicy: iNtkRequestConfiguration? {
+    var requestConfiguration: (any iNtkRequestConfiguration)? {
         nil
     }
     

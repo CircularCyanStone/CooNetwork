@@ -56,7 +56,7 @@ enum Login: iRpcRequest {
         }
     }
     
-    var requestPolicy: (any iNtkRequestConfiguration)? {
+    var requestConfiguration: (any iNtkRequestConfiguration)? {
         NtkDefaultRequestConfiguration(cacheTime: 3600*24*30)
     }
     

@@ -139,7 +139,7 @@ extension NtkRequestIdentifierManager {
         
         // Headers哈希（通过requestPolicy过滤动态headers）
         if let headers = request.headers {
-            if let config = request.requestPolicy {
+            if let config = request.requestConfiguration {
                 let filteredHeaders = config.filterHeaders(headers)
                 let sortedKeys = filteredHeaders.keys.sorted()
                 for key in sortedKeys {
@@ -161,7 +161,7 @@ extension NtkRequestIdentifierManager {
         
         // 参数哈希（通过requestPolicy过滤动态参数）
         if let parameters = request.parameters {
-            if let config = request.requestPolicy {
+            if let config = request.requestConfiguration {
                 let filteredParams = config.filterParameters(parameters)
                 let sortedKeys = filteredParams.keys.sorted()
                 for key in sortedKeys {

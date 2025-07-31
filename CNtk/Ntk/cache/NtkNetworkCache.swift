@@ -27,7 +27,7 @@ class NtkNetworkCache {
     init(request: iNtkRequest, storage: iNtkCacheStorage) {
         self.request = request
         self.storage = storage
-        self.cacheConfig = request.requestPolicy
+        self.cacheConfig = request.requestConfiguration
     }
     
     /// 构建缓存键

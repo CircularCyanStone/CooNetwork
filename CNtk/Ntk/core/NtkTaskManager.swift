@@ -79,34 +79,34 @@ class NtkTaskManager {
     
     /// 取消指定请求
     /// - Parameter request: 要取消的请求
-    func cancelRequest(request: any iNtkRequest) {
+    static func cancelRequest(request: any iNtkRequest) {
         let requestId = NtkRequestIdentifierManager.shared.getRequestIdentifier(request: request)
-        if let task = Self.ongoingRequests[requestId] {
+        if let task = ongoingRequests[requestId] {
             task.cancel()
-            Self.ongoingRequests.removeValue(forKey: requestId)
+            ongoingRequests.removeValue(forKey: requestId)
         }
     }
     
     /// 取消所有正在进行的请求
-    func cancelAllRequests() {
-        for (_, task) in Self.ongoingRequests {
+    static func cancelAllRequests() {
+        for (_, task) in ongoingRequests {
             task.cancel()
         }
-        Self.ongoingRequests.removeAll()
+        ongoingRequests.removeAll()
     }
     
-    /// 获取正在进行的请求数量
+    /// 获取当前活跃请求数量
     /// - Returns: 正在进行的请求数量
-    func getOngoingRequestCount() -> Int {
-        return Self.ongoingRequests.count
+    static func activeRequestCount() -> Int {
+        return ongoingRequests.count
     }
     
-    /// 检查指定请求是否正在进行中
+    /// 检查指定请求是否处于活跃状态
     /// - Parameter request: 要检查的请求
-    /// - Returns: 是否正在进行中
-    func isRequestOngoing(request: any iNtkRequest) -> Bool {
+    /// - Returns: 请求是否正在执行中
+    static func isRequestActive(request: any iNtkRequest) -> Bool {
         let requestId = NtkRequestIdentifierManager.shared.getRequestIdentifier(request: request)
-        return Self.ongoingRequests[requestId] != nil
+        return ongoingRequests[requestId] != nil
     }
 }
 

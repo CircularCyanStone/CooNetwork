@@ -29,6 +29,3 @@ class NtkDeduplicationConfig {
     /// 私有初始化方法
     private init() {}
 }
-
-// 注意：NtkDeduplicationLogger已迁移到NtkLogger统一日志工具
-    // 请使用 NtkLogger.debug/info/warning/error 方法，并指定category为.deduplication

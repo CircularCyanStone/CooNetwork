@@ -31,19 +31,11 @@ protocol iNtkRequestConfiguration: iNtkParameterFilter {
     /// - Returns: 缓存有效期，0表示不缓存
     var cacheTime: TimeInterval { get }
     
-    /// 参数过滤器
-    /// 用于过滤不参与缓存键生成的参数
-    /// - Parameter parameter: 原始请求参数
-    /// - Returns: 过滤后的参数，用于生成缓存键
-    /// - Note: 此方法已废弃，请使用 filterParameters 方法
-    @available(*, deprecated, message: "Use filterParameters instead")
-    func filterParameter(_ parameter: [String: Sendable]) -> [String: Sendable]
-    
     /// 自定义缓存策略
     /// 用于判断响应是否应该被缓存
     /// - Parameter response: 网络响应对象
     /// - Returns: 是否应该缓存此响应，默认返回true
-    func customPolicy(_: any iNtkResponse) -> Bool
+    func cachePolicy(_: any iNtkResponse) -> Bool
     
 }
 // MARK: - 默认实现
@@ -75,7 +67,7 @@ extension iNtkRequestConfiguration {
     /// 默认缓存策略，总是缓存
     /// - Parameter response: 网络响应对象
     /// - Returns: 总是返回true
-    func customPolicy(_: any iNtkResponse) -> Bool {
+    func cachePolicy(_: any iNtkResponse) -> Bool {
         true
     }
 }
@@ -146,7 +138,7 @@ struct NtkDefaultRequestConfiguration: iNtkRequestConfiguration {
     /// 执行自定义缓存策略
     /// - Parameter response: 网络响应对象
     /// - Returns: 是否应该缓存此响应，如果没有自定义策略则返回true
-    func customPolicy(_ response: any iNtkResponse) -> Bool {
+    func cachePolicy(_ response: any iNtkResponse) -> Bool {
         return _customPolicy?(response) ?? true
     }
 }

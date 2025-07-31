@@ -33,7 +33,8 @@ let NtkCacheErrorDomain = "NtkCacheErrorDomain"
 }
 
 // MARK: - NtkError Objective-C 桥接类
-@objcMembers class NtkErrorBridge: NSObject {
+@objcMembers
+class NtkErrorBridge: NSObject {
     
     // MARK: - Objective-C 兼容的工厂方法
     

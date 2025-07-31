@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import UIKit
 
 /// 网络请求管理器
 /// 负责管理网络请求的生命周期，包括请求执行、取消、缓存等功能
@@ -22,8 +21,7 @@ class NtkNetwork<ResponseData: Sendable> {
         guard let request = operation.client.requestWrapper.request else {
             return false
         }
-        let taskManager = NtkTaskManager()
-        return !taskManager.isRequestOngoing(request: request)
+        return !NtkTaskManager.isRequestActive(request: request)
     }
     
     
@@ -53,8 +51,7 @@ class NtkNetwork<ResponseData: Sendable> {
     /// 取消当前请求
     func cancel() {
         guard let request = operation.client.requestWrapper.request else { return }
-        let taskManager = NtkTaskManager()
-        taskManager.cancelRequest(request: request)
+        NtkTaskManager.cancelRequest(request: request)
     }
 }
 
