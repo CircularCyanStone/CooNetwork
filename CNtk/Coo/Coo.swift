@@ -39,7 +39,7 @@ class Coo<ResponseData: Sendable, Keys: iNtkResponseMapKeys> {
         // 添加loading拦截器
         if let ntkLoadingInterceptor = getLoadingInterceptor(request) {
             // 默认显示loading
-            net = net.addInterceptor(ntkLoadingInterceptor).hud(true)
+            net = net.addInterceptor(ntkLoadingInterceptor)
         }
         net = net.addInterceptor(CooToastInterceptor())
         net = net.addInterceptor(NtkCacheInterceptor())

@@ -123,7 +123,7 @@ struct ExampleSwiftUIView: View {
                         do {
                             let req = Login.sendSMS("300343", tmpLogin: false)
                             
-                            let cacheData: CodeData? = try await DefaultCoo.with(req).loadCache()?.data
+                            let cacheData: CodeData? = try await DefaultCoo.with(req).hud(true).loadCache()?.data
                             
                             
                             let codeResult: CodeData = try await DefaultCoo.with(req, validation: req).sendRequest().data
