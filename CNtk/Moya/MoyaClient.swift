@@ -7,6 +7,7 @@
 
 import UIKit
 @preconcurrency import Moya
+import NtkNetwork
 
 //class MoyaClient<R: TargetType, Keys: iNtkResponseMapKeys>: NSObject, iNtkClient {
 //

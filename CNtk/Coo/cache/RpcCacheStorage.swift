@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import NtkNetwork
 
 let RpcCacheBusinessKey = "rpc_cache"
 

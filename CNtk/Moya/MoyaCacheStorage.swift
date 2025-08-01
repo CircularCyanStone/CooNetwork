@@ -6,7 +6,7 @@
 //
 
 import Foundation
-
+import NtkNetwork
 struct MoyaCacheStorage: iNtkCacheStorage {
     
     func addRequest(_ request: any iNtkRequest) {

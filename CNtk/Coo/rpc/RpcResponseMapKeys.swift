@@ -6,6 +6,8 @@
 //
 
 import Foundation
+import NtkNetwork
+
 struct RpcResponseMapKeys : iNtkResponseMapKeys {
     static var code: String {
         "retCode"

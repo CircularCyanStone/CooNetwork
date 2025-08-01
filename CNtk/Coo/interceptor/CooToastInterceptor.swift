@@ -7,7 +7,7 @@
 
 import Foundation
 import Toast_Swift
-
+import NtkNetwork
 
 struct CooToastInterceptor: iNtkInterceptor {
     func intercept(context: NtkRequestContext, next: any NtkRequestHandler) async throws -> any iNtkResponse {

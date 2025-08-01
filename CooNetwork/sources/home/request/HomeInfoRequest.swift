@@ -6,8 +6,8 @@
 //
 
 import Foundation
+import NtkNetwork
 
-@objcMembers
 final class HomeInfoRequest: NSObject, iRpcRequest {
     var parameters: [String : any Sendable]? {
         [:]

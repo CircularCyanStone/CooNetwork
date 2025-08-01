@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import NtkNetwork
 
 enum Login: iRpcRequest {
     

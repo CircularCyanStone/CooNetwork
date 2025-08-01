@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import NtkNetwork
 
 extension NtkError {
     enum Rpc: Error {

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import NtkNetwork
 
 struct RpcDetaultResponseValidation: iNtkResponseValidation {
     func isServiceSuccess(_ response: any iNtkResponse) -> Bool {

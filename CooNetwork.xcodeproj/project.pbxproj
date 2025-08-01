@@ -19,6 +19,7 @@
 		C9CBB425D9D75DCED607DCCF /* MobileRuntime.plist in Resources */ = {isa = PBXBuildFile; fileRef = 1C8A22E0F852684DCABBC6C0 /* MobileRuntime.plist */; };
 		FA5DDB46D4D02AD916163DD4 /* Pods_CooNetwork.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 91160050F613CD806A42B3DA /* Pods_CooNetwork.framework */; };
 		FB7B15592E17641100335C0F /* yw_1222.jpg in Resources */ = {isa = PBXBuildFile; fileRef = FB7B15582E17641100335C0F /* yw_1222.jpg */; };
+		FBCEC74D2E3C648600477529 /* NtkNetwork in Frameworks */ = {isa = PBXBuildFile; productRef = FBCEC74C2E3C648600477529 /* NtkNetwork */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -151,6 +152,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				FA5DDB46D4D02AD916163DD4 /* Pods_CooNetwork.framework in Frameworks */,
+				FBCEC74D2E3C648600477529 /* NtkNetwork in Frameworks */,
 				B376B469BAF1AD3FBDC6916D /* CoreTelephony.framework in Frameworks */,
 				0EF44F45B3E8F68F14286254 /* SystemConfiguration.framework in Frameworks */,
 			);
@@ -381,6 +383,9 @@
 			);
 			mainGroup = FB78FC322E01541E008A96E6;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				FBCEC74B2E3C648600477529 /* XCLocalSwiftPackageReference "NtkNetwork" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = FB78FC3C2E01541E008A96E6 /* Products */;
 			projectDirPath = "";
@@ -845,6 +850,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		FBCEC74B2E3C648600477529 /* XCLocalSwiftPackageReference "NtkNetwork" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = NtkNetwork;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		FBCEC74C2E3C648600477529 /* NtkNetwork */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = NtkNetwork;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = FB78FC332E01541E008A96E6 /* Project object */;
 }

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import NtkNetwork
 
 protocol iRpcRequestToast {
     
@@ -41,25 +42,25 @@ protocol iRpcRequest: iNtkRequest, iRpcRequestToast {
 
 extension iRpcRequest  {
     
-    var checkLogin: Bool {
+    public var checkLogin: Bool {
         true
     }
     
     /// 默认不启用自定义响应数据解码，使用JSONDecoder自动解码
-    var enableCustomRetureDataDecode: Bool {
+    public var enableCustomRetureDataDecode: Bool {
         false
     }
     
-    var toastRetErrorMsg: Bool {
+    public var toastRetErrorMsg: Bool {
         true
     }
     
-    var toastSystemErrorMsg: Bool {
+    public var toastSystemErrorMsg: Bool {
         true
     }
     
     /// 默认的自定义解码实现，直接返回原始数据
-    func customRetureDataDecode(_ retData: Sendable) throws -> Sendable {
+    public func customRetureDataDecode(_ retData: Sendable) throws -> Sendable {
         return retData
     }
 }

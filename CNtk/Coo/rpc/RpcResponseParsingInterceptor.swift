@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import NtkNetwork
 
 struct RpcResponseParsingInterceptor<ResponseData: Sendable, Keys: iNtkResponseMapKeys>: iNtkInterceptor {
     func intercept(context: NtkRequestContext, next: any NtkRequestHandler) async throws -> any iNtkResponse {

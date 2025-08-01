@@ -6,7 +6,7 @@
 //
 
 import Foundation
-
+import NtkNetwork
 
 /// 默认情况下通用的Keys: iNtkResponseMapKeys为RpcResponseMapKeys的Coo的
 /// 类型别名

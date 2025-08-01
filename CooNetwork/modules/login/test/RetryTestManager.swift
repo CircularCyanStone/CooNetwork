@@ -8,6 +8,7 @@
 
 import Foundation
 import SwiftUI
+import NtkNetwork
 
 /// 请求重试测试管理器
 /// 提供各种重试场景的测试方法
