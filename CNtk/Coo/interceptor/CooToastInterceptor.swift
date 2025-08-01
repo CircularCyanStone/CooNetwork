@@ -27,6 +27,10 @@ struct CooToastInterceptor: iNtkInterceptor {
                         UIApplication.getKeyWindow()?.makeToast(msg)
                     }
                 }
+            } else if case .requestTimeout = error {
+                Task { @MainActor in
+                    UIApplication.getKeyWindow()?.makeToast("连接超时~")
+                }
             } else if case .other(let error) = error {
                 // 系统级别错误 mpaas框架提示
                 let nsError = error as NSError

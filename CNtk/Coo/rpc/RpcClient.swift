@@ -70,7 +70,12 @@ class RpcClient<Keys: iNtkResponseMapKeys>: iNtkClient {
                     let nsError = error as NSError
                     if nsError.domain == kDTRpcException, let sysError = nsError.userInfo[kDTRpcErrorCauseError] as? URLError {
                         /// mPaaS错误类型
-                        continuation.resume(throwing: NtkError.other(sysError))
+                        if sysError.code == .timedOut {
+                            /// 统一超时的错误码
+                            continuation.resume(throwing: NtkError.requestTimeout)
+                        }else {
+                            continuation.resume(throwing: NtkError.other(sysError))
+                        }
                     }else {
                         continuation.resume(throwing: NtkError.other(error))
                     }
