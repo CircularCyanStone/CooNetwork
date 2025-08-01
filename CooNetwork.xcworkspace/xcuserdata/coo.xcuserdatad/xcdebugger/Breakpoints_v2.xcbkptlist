@@ -103,38 +103,6 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "D430D639-259E-4905-ACC9-1B379F29F084"
-            shouldBeEnabled = "Yes"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "CooNetwork/modules/login/viewController/ExampleViewController.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "135"
-            endingLineNumber = "135"
-            landmarkName = "body"
-            landmarkType = "24">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "728866A7-04F7-4817-AF67-1D034A4303D4"
-            shouldBeEnabled = "Yes"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "NtkNetwork/Sources/NtkNetwork/interceptor/NtkCacheInterceptor.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "34"
-            endingLineNumber = "34"
-            landmarkName = "intercept(context:next:)"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
             uuid = "8A6EBD5C-B6A1-46C4-AB13-67E4AC6B44FB"
             shouldBeEnabled = "Yes"
             ignoreCount = "0"
@@ -199,38 +167,6 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "39BD0741-AAFB-432E-BD34-14F95DA73401"
-            shouldBeEnabled = "Yes"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "NtkNetwork/Sources/NtkNetwork/core/NtkTaskManager.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "52"
-            endingLineNumber = "52"
-            landmarkName = "executeWithDeduplication(request:execution:)"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "AB0BA859-7F68-4A6D-8AB2-C8C99BB1B8EE"
-            shouldBeEnabled = "Yes"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "NtkNetwork/Sources/NtkNetwork/core/NtkTaskManager.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "57"
-            endingLineNumber = "57"
-            landmarkName = "executeWithDeduplication(request:execution:)"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
             uuid = "D99160D7-4088-4884-8400-C7661285BB94"
             shouldBeEnabled = "Yes"
             ignoreCount = "0"
@@ -270,114 +206,6 @@
                   endingColumnNumber = "9223372036854775807"
                   startingLineNumber = "67"
                   endingLineNumber = "67">
-               </Location>
-            </Locations>
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "DD0521F6-5233-4434-8E0D-9A3246EB6F58"
-            shouldBeEnabled = "Yes"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "NtkNetwork/Sources/NtkNetwork/core/NtkTaskManager.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "175"
-            endingLineNumber = "175"
-            landmarkName = "executeNewRequestWithTimeout(requestId:request:execution:)"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "B90968DC-AB42-46EC-A3C7-4EDB43D4C69C"
-            shouldBeEnabled = "Yes"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "NtkNetwork/Sources/NtkNetwork/core/NtkTaskManager.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "192"
-            endingLineNumber = "192"
-            landmarkName = "executeNewRequestWithTimeout(requestId:request:execution:)"
-            landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "B90968DC-AB42-46EC-A3C7-4EDB43D4C69C - 37a9a3b2a2a8dfba"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(3) suspend resume partial function for NtkNetwork.NtkTaskManager.executeNewRequestWithTimeout&lt;&#x3c4;_0_0 where &#x3c4;_0_0: Swift.Sendable&gt;(requestId: Swift.String, request: NtkNetwork.iNtkRequest, execution: @Sendable () async throws -&gt; &#x3c4;_0_0) async throws -&gt; &#x3c4;_0_0"
-                  moduleName = "CooNetwork.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/coo/Desktop/coo-network/NtkNetwork/Sources/NtkNetwork/core/NtkTaskManager.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "192"
-                  endingLineNumber = "192">
-               </Location>
-               <Location
-                  uuid = "B90968DC-AB42-46EC-A3C7-4EDB43D4C69C - ff0bf96188e1bb8"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(4) suspend resume partial function for NtkNetwork.NtkTaskManager.executeNewRequestWithTimeout&lt;&#x3c4;_0_0 where &#x3c4;_0_0: Swift.Sendable&gt;(requestId: Swift.String, request: NtkNetwork.iNtkRequest, execution: @Sendable () async throws -&gt; &#x3c4;_0_0) async throws -&gt; &#x3c4;_0_0"
-                  moduleName = "CooNetwork.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/coo/Desktop/coo-network/NtkNetwork/Sources/NtkNetwork/core/NtkTaskManager.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "192"
-                  endingLineNumber = "192">
-               </Location>
-            </Locations>
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "83D49FF5-6E6C-40F8-B3E9-E12BDC95901C"
-            shouldBeEnabled = "Yes"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "CNtk/Coo/rpc/RpcClient.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "56"
-            endingLineNumber = "56"
-            landmarkName = "sendRpcRequest()"
-            landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "83D49FF5-6E6C-40F8-B3E9-E12BDC95901C - 7902e1a9d7982b53"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "closure #1 () -&gt; () in closure #1 (Swift.UnsafeContinuation&lt;Swift.Sendable, Swift.Error&gt;) -&gt; () in CooNetwork.RpcClient.sendRpcRequest() async throws -&gt; NtkNetwork.NtkClientResponse"
-                  moduleName = "CooNetwork.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/coo/Desktop/coo-network/CNtk/Coo/rpc/RpcClient.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "56"
-                  endingLineNumber = "56">
-               </Location>
-               <Location
-                  uuid = "83D49FF5-6E6C-40F8-B3E9-E12BDC95901C - 7902e1a9d7982b53"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "closure #1 () -&gt; () in closure #1 (Swift.UnsafeContinuation&lt;Swift.Sendable, Swift.Error&gt;) -&gt; () in CooNetwork.RpcClient.sendRpcRequest() async throws -&gt; NtkNetwork.NtkClientResponse"
-                  moduleName = "CooNetwork.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/coo/Desktop/coo-network/CNtk/Coo/rpc/RpcClient.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "56"
-                  endingLineNumber = "56">
                </Location>
             </Locations>
          </BreakpointContent>

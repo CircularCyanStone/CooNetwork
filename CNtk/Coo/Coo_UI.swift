@@ -13,22 +13,29 @@ import SVProgressHUD
 import NtkNetwork
 
 extension Coo {
- 
-    /// 构建loading的拦截器
-    /// - Parameter request: 请求
-    /// - Returns: 拦截器实例
-    static func getLoadingInterceptor(_ request: iRpcRequest) -> NtkLoadingInterceptor? {
-        let interceptor = NtkLoadingInterceptor { request in
+    
+    /// 构建基于计数的loading拦截器（推荐使用）
+    /// 支持多个并发请求，解决Loading提前消失的问题
+    /// 支持Swift6严格并发模式
+    /// - Returns: 基于计数的拦截器实例
+    static func getLoadingInterceptor() -> NtkLoadingInterceptor {
+        let interceptor = NtkLoadingInterceptor { request, loadingText  in
             Task { @MainActor in
-                // TODO: 替换为项目中使用的Loading组件
-                print("Loading started for request: \(request)")
-                SVProgressHUD.show()
+                if let text = loadingText {
+                    LoadingManager.showLoading(with: text)
+                } else {
+                    LoadingManager.showLoading()
+                }
+#if DEBUG
+                LoadingManager.printDebugInfo()
+#endif
             }
-        } interceptAfter: {_, _,_   in
+        } interceptAfter: { request, response, error in
             Task { @MainActor in
-                // TODO: 替换为项目中使用的Loading组件
-                print("Loading finished")
-                SVProgressHUD.dismiss()
+                LoadingManager.hideLoading()
+#if DEBUG
+                LoadingManager.printDebugInfo()
+#endif
             }
         }
         return interceptor

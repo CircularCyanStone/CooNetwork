@@ -117,7 +117,7 @@ struct ExampleSwiftUIView: View {
                             let cacheData: CodeData? = try await DefaultCoo.with(req).loadCache()?.data
                             
                             
-                            let codeResult: CodeData = try await DefaultCoo.with(req, validation: req).hud(true).sendRequest().data
+                            let codeResult: CodeData = try await DefaultCoo.with(req, validation: req).loadingText("加载中...").sendRequest().data
                             print("短信发送成功")
                         }catch {
                             print("短信发送失败 \(error)")

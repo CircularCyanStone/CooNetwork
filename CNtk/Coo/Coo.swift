@@ -37,14 +37,13 @@ class Coo<ResponseData: Sendable, Keys: iNtkResponseMapKeys> {
         let client = RpcClient<Keys>()
         var net = NtkNetwork<ResponseData>.with(client, request: request, dataParsingInterceptor: RpcResponseParsingInterceptor<ResponseData, Keys>(), validation: _validation)
         // 添加loading拦截器
-        if let ntkLoadingInterceptor = getLoadingInterceptor(request) {
-            // 默认显示loading
-            net = net.addInterceptor(ntkLoadingInterceptor)
-        }
+        net = net.addInterceptor(getLoadingInterceptor())
         net = net.addInterceptor(CooToastInterceptor())
         net = net.addInterceptor(NtkCacheInterceptor())
         return net
     }
+    
+    
 }
 
 extension NtkNetwork {
