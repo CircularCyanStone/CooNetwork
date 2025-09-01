@@ -8,17 +8,23 @@
 
 /* Begin PBXBuildFile section */
 		0EF44F45B3E8F68F14286254 /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 06391987C9AB3E7800B37059 /* SystemConfiguration.framework */; };
+		18C95CFAC55FB020D69CB14A /* CoreMotion.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 84080B40A290B0A4600B70E5 /* CoreMotion.framework */; };
 		19E548698C37BF5B15C78193 /* MPLauncherAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = D3944B14FC3A5618091C83F5 /* MPLauncherAppDelegate.m */; };
 		25DD4015D3294CD964000A8F /* meta.config in Resources */ = {isa = PBXBuildFile; fileRef = 77EE4152A888FD78B3BFC246 /* meta.config */; };
+		64E850D4C67C1EE5FA4DFBAA /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE1D0AAA5B5DA739BB9F48B4 /* WebKit.framework */; };
 		69947E712AAB349C28AA0C91 /* MPTabBarController.m in Sources */ = {isa = PBXBuildFile; fileRef = C6A978938BC35EF430B8D7AB /* MPTabBarController.m */; };
 		7BEE0755C1CE369A09788610 /* Images_mPaaS.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F845FA05AC58DE47C2AD2DCD /* Images_mPaaS.xcassets */; };
 		8285D9E7769CBC0DCAB00D54 /* DemoViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 732CED32D221AA2A49DC4A88 /* DemoViewController.m */; };
 		9769FA5C6D63F580844C75F2 /* MPaaSInterface+CooNetwork.m in Sources */ = {isa = PBXBuildFile; fileRef = EFE060E3D3671AD06305CC48 /* MPaaSInterface+CooNetwork.m */; };
+		9A5A398F668A494A7F73AADE /* MessageUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F5E92DAB1D8B222B5E1E0A79 /* MessageUI.framework */; };
 		B376B469BAF1AD3FBDC6916D /* CoreTelephony.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FD93EA07F4787BD78FAE8770 /* CoreTelephony.framework */; };
 		B531F7A61A1BDD98733E3E1C /* DTFrameworkInterface+CooNetwork.m in Sources */ = {isa = PBXBuildFile; fileRef = 05F82E0272F1E0FE3F95D80F /* DTFrameworkInterface+CooNetwork.m */; };
 		C9CBB425D9D75DCED607DCCF /* MobileRuntime.plist in Resources */ = {isa = PBXBuildFile; fileRef = 1C8A22E0F852684DCABBC6C0 /* MobileRuntime.plist */; };
 		FA5DDB46D4D02AD916163DD4 /* Pods_CooNetwork.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 91160050F613CD806A42B3DA /* Pods_CooNetwork.framework */; };
 		FB7B15592E17641100335C0F /* yw_1222.jpg in Resources */ = {isa = PBXBuildFile; fileRef = FB7B15582E17641100335C0F /* yw_1222.jpg */; };
+		FB98308D2E4C2ECA007BB12C /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FB98308C2E4C2ECA007BB12C /* Security.framework */; };
+		FB98308F2E4C2ED1007BB12C /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FB98308E2E4C2ED1007BB12C /* AudioToolbox.framework */; };
+		FB9830912E4C2ED8007BB12C /* libc++.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = FB9830902E4C2ED8007BB12C /* libc++.tbd */; };
 		FBCEC74D2E3C648600477529 /* NtkNetwork in Frameworks */ = {isa = PBXBuildFile; productRef = FBCEC74C2E3C648600477529 /* NtkNetwork */; };
 /* End PBXBuildFile section */
 
@@ -48,20 +54,26 @@
 		732CED32D221AA2A49DC4A88 /* DemoViewController.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = DemoViewController.m; sourceTree = "<group>"; };
 		77EE4152A888FD78B3BFC246 /* meta.config */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = meta.config; sourceTree = "<group>"; };
 		7D01E047CF009E4353B1BBA8 /* MPaaSInterface+CooNetwork.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "MPaaSInterface+CooNetwork.h"; sourceTree = "<group>"; };
+		84080B40A290B0A4600B70E5 /* CoreMotion.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMotion.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/CoreMotion.framework; sourceTree = DEVELOPER_DIR; };
 		91160050F613CD806A42B3DA /* Pods_CooNetwork.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_CooNetwork.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		A657CAE772F2B7260C02CF71 /* Pods-CooNetwork.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-CooNetwork.debug.xcconfig"; path = "Target Support Files/Pods-CooNetwork/Pods-CooNetwork.debug.xcconfig"; sourceTree = "<group>"; };
 		BA6522CFE24C7D859F178F5F /* Pods-CooNetwork.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-CooNetwork.release.xcconfig"; path = "Target Support Files/Pods-CooNetwork/Pods-CooNetwork.release.xcconfig"; sourceTree = "<group>"; };
 		C6A978938BC35EF430B8D7AB /* MPTabBarController.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = MPTabBarController.m; sourceTree = "<group>"; };
 		C7FF91538A65AAB58FEA27A9 /* DTFrameworkInterface+CooNetwork.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "DTFrameworkInterface+CooNetwork.h"; sourceTree = "<group>"; };
+		CE1D0AAA5B5DA739BB9F48B4 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/WebKit.framework; sourceTree = DEVELOPER_DIR; };
 		D15B2D2615E9E985918D08CB /* MPTabBarController.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = MPTabBarController.h; sourceTree = "<group>"; };
 		D3944B14FC3A5618091C83F5 /* MPLauncherAppDelegate.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = MPLauncherAppDelegate.m; sourceTree = "<group>"; };
 		EFE060E3D3671AD06305CC48 /* MPaaSInterface+CooNetwork.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "MPaaSInterface+CooNetwork.m"; sourceTree = "<group>"; };
 		F21013613310DD93A3D26A48 /* MPLauncherAppDelegate.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = MPLauncherAppDelegate.h; sourceTree = "<group>"; };
+		F5E92DAB1D8B222B5E1E0A79 /* MessageUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MessageUI.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/MessageUI.framework; sourceTree = DEVELOPER_DIR; };
 		F845FA05AC58DE47C2AD2DCD /* Images_mPaaS.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Images_mPaaS.xcassets; sourceTree = "<group>"; };
 		FB78FC3B2E01541E008A96E6 /* CooNetwork.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CooNetwork.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FB78FC512E015421008A96E6 /* CooNetworkTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CooNetworkTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		FB78FC5B2E015421008A96E6 /* CooNetworkUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CooNetworkUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		FB7B15582E17641100335C0F /* yw_1222.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = yw_1222.jpg; sourceTree = "<group>"; };
+		FB98308C2E4C2ECA007BB12C /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		FB98308E2E4C2ED1007BB12C /* AudioToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = System/Library/Frameworks/AudioToolbox.framework; sourceTree = SDKROOT; };
+		FB9830902E4C2ED8007BB12C /* libc++.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = "libc++.tbd"; path = "usr/lib/libc++.tbd"; sourceTree = SDKROOT; };
 		FBCBF50E7AC2A36A479C5E2A /* DemoViewController.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = DemoViewController.h; sourceTree = "<group>"; };
 		FD93EA07F4787BD78FAE8770 /* CoreTelephony.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreTelephony.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/CoreTelephony.framework; sourceTree = DEVELOPER_DIR; };
 /* End PBXFileReference section */
@@ -128,15 +140,11 @@
 		};
 		FB78FC542E015421008A96E6 /* CooNetworkTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = CooNetworkTests;
 			sourceTree = "<group>";
 		};
 		FB78FC5E2E015421008A96E6 /* CooNetworkUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = CooNetworkUITests;
 			sourceTree = "<group>";
 		};
@@ -155,10 +163,16 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FB9830912E4C2ED8007BB12C /* libc++.tbd in Frameworks */,
+				FB98308F2E4C2ED1007BB12C /* AudioToolbox.framework in Frameworks */,
+				FB98308D2E4C2ECA007BB12C /* Security.framework in Frameworks */,
 				FA5DDB46D4D02AD916163DD4 /* Pods_CooNetwork.framework in Frameworks */,
 				FBCEC74D2E3C648600477529 /* NtkNetwork in Frameworks */,
 				B376B469BAF1AD3FBDC6916D /* CoreTelephony.framework in Frameworks */,
 				0EF44F45B3E8F68F14286254 /* SystemConfiguration.framework in Frameworks */,
+				64E850D4C67C1EE5FA4DFBAA /* WebKit.framework in Frameworks */,
+				18C95CFAC55FB020D69CB14A /* CoreMotion.framework in Frameworks */,
+				9A5A398F668A494A7F73AADE /* MessageUI.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -182,6 +196,9 @@
 		058A60D64B1371983BE12BA8 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				FB9830902E4C2ED8007BB12C /* libc++.tbd */,
+				FB98308E2E4C2ED1007BB12C /* AudioToolbox.framework */,
+				FB98308C2E4C2ECA007BB12C /* Security.framework */,
 				91160050F613CD806A42B3DA /* Pods_CooNetwork.framework */,
 				80D764F631011E5351FB18C1 /* iOS */,
 			);
@@ -240,6 +257,9 @@
 			children = (
 				FD93EA07F4787BD78FAE8770 /* CoreTelephony.framework */,
 				06391987C9AB3E7800B37059 /* SystemConfiguration.framework */,
+				CE1D0AAA5B5DA739BB9F48B4 /* WebKit.framework */,
+				84080B40A290B0A4600B70E5 /* CoreMotion.framework */,
+				F5E92DAB1D8B222B5E1E0A79 /* MessageUI.framework */,
 			);
 			name = iOS;
 			sourceTree = "<group>";
@@ -296,8 +316,8 @@
 				FB78FC372E01541E008A96E6 /* Sources */,
 				FB78FC382E01541E008A96E6 /* Frameworks */,
 				FB78FC392E01541E008A96E6 /* Resources */,
-				3CD584813737CA8707C2CA73 /* [CP] Embed Pods Frameworks */,
 				AC2887470E48C5D8C43D6490 /* [CP] Copy Pods Resources */,
+				2318E51BB61549F1E5921E21 /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -431,6 +451,27 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		2318E51BB61549F1E5921E21 /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-CooNetwork/Pods-CooNetwork-frameworks-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			inputPaths = (
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-CooNetwork/Pods-CooNetwork-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-CooNetwork/Pods-CooNetwork-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
 		29750A1A29CB0D0FC931173E /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -453,23 +494,6 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		3CD584813737CA8707C2CA73 /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-CooNetwork/Pods-CooNetwork-frameworks-${CONFIGURATION}-input-files.xcfilelist",
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-CooNetwork/Pods-CooNetwork-frameworks-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-CooNetwork/Pods-CooNetwork-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
 		AC2887470E48C5D8C43D6490 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -478,9 +502,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-CooNetwork/Pods-CooNetwork-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-CooNetwork/Pods-CooNetwork-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -559,6 +587,10 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/iOSPGLib",
+				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.bankofshanghai.emop;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -599,6 +631,10 @@
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/iOSPGLib",
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.bankofshanghai.emop;

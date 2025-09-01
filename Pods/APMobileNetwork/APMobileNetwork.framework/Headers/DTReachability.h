@@ -84,4 +84,7 @@
 + (NSString *)networkName;
 
 + (NSString *)networkNameAdapt;
+
+- (NSString *)getNetworkTypeString;
+
 @end

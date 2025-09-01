@@ -12,7 +12,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 typedef enum {
     MPSecurityComponentTypeSG = 0,
-    MPSecurityComponentTypeBS
+    MPSecurityComponentTypeBS = 1,
+    MPSecurityComponentTypeCustom = 2
 } MPSecurityComponentType;
 
 typedef enum {
@@ -55,6 +56,12 @@ typedef enum {
  * authCode
  */
 - (NSString *)authCode;
+
+/**
+ * 自定义签名密钥
+ * 安全组件类型为MPSecurityComponentTypeCustom时有效
+ */
+- (NSString *)customSignKey;
 
 @end
 
