@@ -16,36 +16,28 @@ class RpcClient<Keys: iNtkResponseMapKeys>: iNtkClient {
     /// 缓存存储实现
     var storage: any iNtkCacheStorage = RpcCacheStorage()
     
-    /// 请求包装器
-    var requestWrapper: NtkRequestWrapper = NtkRequestWrapper()
-    
-    /// 当前请求对象
-    private var request: iNtkRequest? {
-        requestWrapper.request
-    }
-    
     /// 执行网络请求
     /// - Returns: 服务端响应数据
     /// - Throws: 网络请求过程中的错误
-    func execute() async throws -> NtkClientResponse {
-        try await sendRpcRequest()
+    func execute(_ request: NtkMutableRequest) async throws -> NtkClientResponse {
+        try await sendRpcRequest(request)
     }
     
     /// 发送RPC请求
     /// 使用DTRpc框架执行底层网络请求
     /// - Returns: 服务端响应数据
     /// - Throws: 网络请求过程中的错误
-    private func sendRpcRequest() async throws -> NtkClientResponse {
-        guard let request = requestWrapper.request as? iRpcRequest else {
+    private func sendRpcRequest(_ request: NtkMutableRequest) async throws -> NtkClientResponse {
+        guard let mRequest = request.originalRequest as? iRpcRequest else {
             fatalError("request must be iRpcRequest")
         }
         let method = DTRpcMethod()
-        method.operationType = request.path
-        method.checkLogin = request.checkLogin
-        method.timeoutInterval = request.timeout
+        method.operationType = mRequest.path
+        method.checkLogin = mRequest.checkLogin
+        method.timeoutInterval = mRequest.timeout
         method.returnType = "@\"NSDictionary\""
-        let parameters = request.parameters ?? [:]
-        let headers = request.headers ?? [:]
+        let parameters = mRequest.parameters ?? [:]
+        let headers = mRequest.headers ?? [:]
         
         try Task.checkCancellation()
         let response: Sendable = try await withUnsafeThrowingContinuation { continuation in
@@ -83,6 +75,6 @@ class RpcClient<Keys: iNtkResponseMapKeys>: iNtkClient {
             }
         }
         try Task.checkCancellation()
-        return NtkClientResponse(data: response, msg: nil, response: response, request: request, isCache: false)
+        return NtkClientResponse(data: response, msg: nil, response: response, request: mRequest, isCache: false)
     }
 }

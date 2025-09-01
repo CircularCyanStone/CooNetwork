@@ -9,7 +9,7 @@ import Foundation
 import NtkNetwork
 
 struct RpcResponseParsingInterceptor<ResponseData: Sendable, Keys: iNtkResponseMapKeys>: iNtkInterceptor {
-    func intercept(context: NtkRequestContext, next: any NtkRequestHandler) async throws -> any iNtkResponse {
+    func intercept(context: NtkInterceptorContext, next: any NtkRequestHandler) async throws -> any iNtkResponse {
         let response = try await next.handle(context: context)
         guard let clientResponse = response as? NtkClientResponse else {
             if let ntkResponse = response as? NtkResponse<ResponseData> {
@@ -17,7 +17,7 @@ struct RpcResponseParsingInterceptor<ResponseData: Sendable, Keys: iNtkResponseM
             }
             fatalError("RpcClient func execute() result type error ")
         }
-        guard let rpcRequest = context.client.requestWrapper.request as? iRpcRequest else {
+        guard let rpcRequest = context.mutableRequest.originalRequest as? iRpcRequest else {
             fatalError("request must be iRpcRequest type")
         }
         return try await handleDecodableRuntime(rpcRequest, response: clientResponse)

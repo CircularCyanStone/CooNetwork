@@ -84,6 +84,37 @@
 			membershipExceptions = (
 				actor_test/TaskContextTest.swift,
 				Info.plist,
+				TFNNetwork/Alamofire/Client/TFNAlamofireClient.swift,
+				TFNNetwork/Alamofire/Request/iAlamofireRequest.swift,
+				TFNNetwork/Cache/HashHelper.swift,
+				TFNNetwork/Cache/iTFNCacheStorage.swift,
+				TFNNetwork/Cache/TFNCacheManager.swift,
+				TFNNetwork/Common/TFNTypes.swift,
+				"TFNNetwork/Common/URLRequest+TFN.swift",
+				TFNNetwork/Core/TFNActor.swift,
+				TFNNetwork/Core/TFNCachePolicy.swift,
+				TFNNetwork/Interceptors/TFNCacheSaveInterceptor.swift,
+				TFNNetwork/Interceptors/TFNDataParsingInterceptor.swift,
+				TFNNetwork/Interceptors/TFNInterceptorChain.swift,
+				TFNNetwork/Interceptors/TFNInterceptorContext.swift,
+				TFNNetwork/Interceptors/TFNLoggingInterceptor.swift,
+				TFNNetwork/Interceptors/TFNMonitoringInterceptor.swift,
+				TFNNetwork/Interceptors/TFNNextHandler.swift,
+				TFNNetwork/Interceptors/TFNURLBuilderInterceptor.swift,
+				TFNNetwork/iTFN/iTFNClient.swift,
+				TFNNetwork/iTFN/iTFNInterceptor.swift,
+				TFNNetwork/iTFN/iTFNRequest.swift,
+				TFNNetwork/iTFN/iTFNResponse.swift,
+				TFNNetwork/iTFN/iTFNResponseMapKeys.swift,
+				TFNNetwork/Models/TFNCacheMeta.swift,
+				TFNNetwork/Models/TFNDataResponse.swift,
+				TFNNetwork/Models/TFNDynamicData.swift,
+				TFNNetwork/Models/TFNEmptyResponse.swift,
+				TFNNetwork/Models/TFNMutableRequest.swift,
+				TFNNetwork/Models/TFNResponse.swift,
+				TFNNetwork/Models/TFNReturnCode.swift,
+				TFNNetwork/TFN.swift,
+				TFNNetwork/TFNNetwork.swift,
 			);
 			target = FB78FC3A2E01541E008A96E6 /* CooNetwork */;
 		};
@@ -587,10 +618,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/iOSPGLib",
-				);
+				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.bankofshanghai.emop;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -632,10 +660,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/iOSPGLib",
-				);
+				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.bankofshanghai.emop;
 				PRODUCT_NAME = "$(TARGET_NAME)";

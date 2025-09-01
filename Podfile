@@ -10,6 +10,7 @@ mPaaS_version_code 63   # This line is maintained by MPaaS plugin automatically.
 # ---------------------------------------------------------------------
 # Uncomment the next line to define a global platform for your project
 platform :ios, '13.0'
+inhibit_all_warnings!
 
 target 'CooNetwork' do
   use_frameworks!
@@ -26,4 +27,13 @@ target 'CooNetwork' do
     pod 'Toast-Swift'
 #    pod 'YYModel'
 #    pod 'MJExtension'
+
+    post_install do |installer|
+      installer.pods_project.targets.each do |target|
+        target.build_configurations.each do |config|
+          config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+        end
+      end
+    end
+
 end

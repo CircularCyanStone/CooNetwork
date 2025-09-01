@@ -10,9 +10,9 @@ import Toast_Swift
 import NtkNetwork
 
 struct CooToastInterceptor: iNtkInterceptor {
-    func intercept(context: NtkRequestContext, next: any NtkRequestHandler) async throws -> any iNtkResponse {
+    func intercept(context: NtkInterceptorContext, next: any NtkRequestHandler) async throws -> any iNtkResponse {
         
-        guard let rpcRequest = context.client.requestWrapper.request as? iRpcRequest else {
+        guard let rpcRequest = context.mutableRequest.originalRequest as? iRpcRequest else {
             return try await next.handle(context: context)
         }
         do {
