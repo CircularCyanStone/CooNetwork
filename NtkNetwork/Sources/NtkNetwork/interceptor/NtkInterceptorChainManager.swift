@@ -14,13 +14,13 @@ struct NtkInterceptorChainManager {
     /// 所有注册的拦截器
     private let interceptors: [iNtkInterceptor]
     /// 链的最终处理者（通常是发起实际网络请求的）
-    private let finalHandler: NtkRequestHandler
+    private let finalHandler: @Sendable (NtkInterceptorContext) async throws -> any iNtkResponse
 
     /// 初始化拦截器链管理器
     /// - Parameters:
     ///   - interceptors: 拦截器数组
     ///   - finalHandler: 最终请求处理器
-    init(interceptors: [iNtkInterceptor], finalHandler: NtkRequestHandler) {
+    init(interceptors: [iNtkInterceptor], finalHandler: @escaping @Sendable (NtkInterceptorContext) async throws -> any iNtkResponse) {
         self.interceptors = interceptors
         self.finalHandler = finalHandler
     }
@@ -30,42 +30,31 @@ struct NtkInterceptorChainManager {
     /// - Returns: 网络响应对象
     /// - Throws: 执行过程中的错误
     func execute(context: NtkInterceptorContext) async throws -> any iNtkResponse {
-        // 核心：构建链。我们从链的末端（finalHandler）开始，逆序地将拦截器层层包裹。
-        // 这使得在执行时，请求会从第一个拦截器开始，依次深入到最终的Handler。
-        var currentHandler: NtkRequestHandler = finalHandler
-
-        // 逆序遍历拦截器列表，因为每个拦截器都需要"包裹"它后面的处理逻辑
-        for interceptor in interceptors.reversed() {
-            // 每一步都创建一个"适配器"，它将当前拦截器和链的剩余部分（currentHandler）连接起来
-            currentHandler = InterceptorHandlerAdapter(interceptor: interceptor, next: currentHandler)
-        }
-        // 启动执行：调用最外层（第一个）拦截器的 handle 方法
-        return try await currentHandler.handle(context: context)
-    }
-}
-
-/// 拦截器处理器适配器
-/// 将拦截器和请求处理器连接起来，形成责任链模式
-fileprivate struct InterceptorHandlerAdapter: NtkRequestHandler {
-    /// 当前拦截器
-    private let interceptor: iNtkInterceptor
-    /// 下一个处理器
-    private let next: NtkRequestHandler
-
-    /// 初始化适配器
-    /// - Parameters:
-    ///   - interceptor: 当前拦截器
-    ///   - next: 下一个处理器
-    init(interceptor: iNtkInterceptor, next: NtkRequestHandler) {
-        self.interceptor = interceptor
-        self.next = next
+        return try await buildChain(index: 0)(context)
     }
     
-    /// 处理请求
-    /// - Parameter context: 请求上下文
-    /// - Returns: 网络响应对象
-    /// - Throws: 处理过程中的错误
-    func handle(context: NtkInterceptorContext) async throws -> any iNtkResponse {
-        return try await interceptor.intercept(context: context, next: self.next)
+    /// 构建拦截器链
+    /// - Parameter index: 当前拦截器索引
+    /// - Returns: 处理函数闭包
+    private func buildChain(index: Int) -> @Sendable (NtkInterceptorContext) async throws -> any iNtkResponse {
+        if index >= interceptors.count { return finalHandler }
+        
+        let currentInterceptor = interceptors[index]
+        let nextHandler = buildChain(index: index + 1)
+        
+        return { context in
+            // 创建一个临时的处理器来适配拦截器接口
+            let tempHandler = TempHandler(handler: nextHandler)
+            return try await currentInterceptor.intercept(context: context, next: tempHandler)
+        }
+    }
+    
+    /// 临时处理器，用于适配闭包到NtkRequestHandler接口
+    private struct TempHandler: NtkRequestHandler {
+        let handler: @Sendable (NtkInterceptorContext) async throws -> any iNtkResponse
+        
+        func handle(context: NtkInterceptorContext) async throws -> any iNtkResponse {
+            return try await handler(context)
+        }
     }
 }

@@ -101,8 +101,10 @@ extension NtkOperation {
         addCoreInterceptor(dataParsingInterceptor)
         let tmpInterceptors =  interceptors + coreInterceptors
         
-        let realApiHandle: NtkDefaultApiRequestHandler<ResponseData> = NtkDefaultApiRequestHandler()
-        let realChainManager = NtkInterceptorChainManager(interceptors: tmpInterceptors, finalHandler: realApiHandle)
+        let realChainManager = NtkInterceptorChainManager(interceptors: tmpInterceptors) { context in
+            let response = try await context.client.execute(context.mutableRequest)
+            return response
+        }
         
         do {
             let response = try await realChainManager.execute(context: context)
@@ -127,12 +129,16 @@ extension NtkOperation {
             fatalError("iNtkResponseValidation must not be nil, you should call method 'func validation(_ validation: iNtkResponseValidation) -> Self' first")
         }
         let context = NtkInterceptorContext(mutableRequest: request, validation: validation, client: client)
-        let realApiHandle: NtkDefaultCacheRequestHandler<ResponseData> = NtkDefaultCacheRequestHandler()
         
         addCoreInterceptor(dataParsingInterceptor)
         let tmpInterceptors = coreInterceptors
         // 缓存直接进行最终读取缓存解析处理
-        let realChainManager = NtkInterceptorChainManager(interceptors: tmpInterceptors, finalHandler: realApiHandle)
+        let realChainManager = NtkInterceptorChainManager(interceptors: tmpInterceptors) { context in
+            if let response = try await context.client.loadCache(context.mutableRequest) {
+                return response
+            }
+            throw NtkError.Cache.noCache
+        }
         do {
             let response = try await realChainManager.execute(context: context)
             if let response = response as? NtkResponse<ResponseData> {
@@ -152,6 +158,19 @@ extension NtkOperation {
     /// 检查是否有缓存数据
     /// - Returns: 如果存在缓存数据返回true，否则返回false
     func hasCacheData() async -> Bool {
-        await client.hasCacheData(request).data
+        guard let validation else {
+            fatalError("iNtkResponseValidation must not be nil, you should call method 'func validation(_ validation: iNtkResponseValidation) -> Self' first")
+        }
+        let context = NtkInterceptorContext(mutableRequest: request, validation: validation, client: client)
+        
+        let realChainManager = NtkInterceptorChainManager(interceptors: interceptors) { context in
+            await context.client.hasCacheData(context.mutableRequest)
+        }
+        do {
+            let response = try await realChainManager.execute(context: context) as? NtkResponse<Bool>
+            return response?.data ?? false
+        }catch {
+            return false
+        }
     }
 }
