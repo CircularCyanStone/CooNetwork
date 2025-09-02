@@ -39,7 +39,9 @@ class Coo<ResponseData: Sendable, Keys: iNtkResponseMapKeys> {
         // 添加loading拦截器
         net = net.addInterceptor(getLoadingInterceptor())
         net = net.addInterceptor(CooToastInterceptor())
-        net = net.addInterceptor(NtkCacheInterceptor())
+        if request.requestConfiguration != nil {
+            net = net.addInterceptor(NtkCacheSaveInterceptor())
+        }
         return net
     }
     
