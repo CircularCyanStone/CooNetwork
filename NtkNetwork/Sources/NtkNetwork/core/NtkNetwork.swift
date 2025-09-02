@@ -7,6 +7,8 @@
 
 import Foundation
 
+typealias NtkBool = NtkNetwork<Bool>
+
 /// 网络请求管理器
 /// 负责管理网络请求的生命周期，包括请求执行、取消、缓存等功能
 /// 支持泛型响应数据类型，提供类型安全的网络请求接口
@@ -109,7 +111,9 @@ extension NtkNetwork {
     public func loadCache(storage: (any iNtkCacheStorage)? = nil) async throws -> NtkResponse<ResponseData>? {
         return try await operation.loadCache(storage)
     }
-    
+}
+
+extension NtkNetwork where ResponseData == Bool {
     /// 判断是否存在缓存数据
     /// - Parameter storage: 网络请求缓存存储工具
     /// - Returns: 如果存在缓存数据返回true，否则返回false
