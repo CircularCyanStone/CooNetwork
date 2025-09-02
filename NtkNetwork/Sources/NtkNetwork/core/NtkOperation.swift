@@ -91,9 +91,12 @@ extension NtkOperation {
     /// 通过拦截器链处理请求，最终调用API请求处理器
     /// - Returns: 类型化的网络响应对象
     /// - Throws: 网络请求过程中的错误
-    func run<ResponseData>() async throws -> NtkResponse<ResponseData> {
+    func run<ResponseData>(_ storage: (any iNtkCacheStorage)? = nil) async throws -> NtkResponse<ResponseData> {
         guard let validation else {
             fatalError("iNtkResponseValidation must not be nil, you should call method 'func validation(_ validation: iNtkResponseValidation) -> Self' first")
+        }
+        if let storage {
+            client.storage = storage
         }
         let context = NtkInterceptorContext(mutableRequest: request, validation: validation, client: client)
         
@@ -124,9 +127,12 @@ extension NtkOperation {
     /// 直接通过缓存请求处理器读取缓存，跳过拦截器链
     /// - Returns: 缓存的响应对象，如果没有缓存则返回nil
     /// - Throws: 缓存加载过程中的错误
-    func loadCache<ResponseData>() async throws -> NtkResponse<ResponseData>? {
+    func loadCache<ResponseData>(_ storage: (any iNtkCacheStorage)? = nil) async throws -> NtkResponse<ResponseData>? {
         guard let validation else {
             fatalError("iNtkResponseValidation must not be nil, you should call method 'func validation(_ validation: iNtkResponseValidation) -> Self' first")
+        }
+        if let storage {
+            client.storage = storage
         }
         let context = NtkInterceptorContext(mutableRequest: request, validation: validation, client: client)
         
@@ -157,9 +163,12 @@ extension NtkOperation {
     
     /// 检查是否有缓存数据
     /// - Returns: 如果存在缓存数据返回true，否则返回false
-    func hasCacheData() async -> Bool {
+    func hasCacheData(_ storage: (any iNtkCacheStorage)? = nil) async -> Bool {
         guard let validation else {
             fatalError("iNtkResponseValidation must not be nil, you should call method 'func validation(_ validation: iNtkResponseValidation) -> Self' first")
+        }
+        if let storage {
+            client.storage = storage
         }
         let context = NtkInterceptorContext(mutableRequest: request, validation: validation, client: client)
         

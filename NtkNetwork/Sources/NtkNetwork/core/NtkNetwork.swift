@@ -71,10 +71,11 @@ extension NtkNetwork {
     
     /// 发送网络请求
     /// 异步执行网络请求并返回响应结果
+    /// - Parameter storage: 网络请求缓存存储工具
     /// - Returns: 网络响应对象
     /// - Throws: 网络请求过程中的错误
-    public func sendRequest() async throws -> NtkResponse<ResponseData> {
-        let response: NtkResponse<ResponseData> = try await operation.run()
+    public func sendRequest(storage: (any iNtkCacheStorage)? = nil) async throws -> NtkResponse<ResponseData> {
+        let response: NtkResponse<ResponseData> = try await operation.run(storage)
         return response
     }
     
@@ -100,16 +101,19 @@ extension NtkNetwork {
 //        }
 //    }
     
+    
     /// 加载缓存数据
+    /// - Parameter storage: 网络请求缓存存储工具
     /// - Returns: 缓存的响应对象，如果没有缓存则返回nil
     /// - Throws: 缓存加载过程中的错误
-    public func loadCache() async throws -> NtkResponse<ResponseData>? {
-        return try await operation.loadCache()
+    public func loadCache(storage: (any iNtkCacheStorage)? = nil) async throws -> NtkResponse<ResponseData>? {
+        return try await operation.loadCache(storage)
     }
     
     /// 判断是否存在缓存数据
+    /// - Parameter storage: 网络请求缓存存储工具
     /// - Returns: 如果存在缓存数据返回true，否则返回false
-    public func hasCacheData() async -> Bool {
-        return await operation.hasCacheData()
+    public func hasCacheData(storage: (any iNtkCacheStorage)? = nil) async -> Bool {
+        return await operation.hasCacheData(storage)
     }
 }
