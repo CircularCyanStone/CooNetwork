@@ -48,78 +48,14 @@ class Coo<ResponseData: Sendable, Keys: iNtkResponseMapKeys> {
 
 extension NtkNetwork {
     
-    private enum ResponseResult {
-        case cache(NtkResponse<ResponseData>?)
-        case network(NtkResponse<ResponseData>)
-    }
-    
     /// 便捷发起RPC请求并加载缓存
     ///
-    /// 此方法会同时发起网络请求和加载缓存，并通过异步序列返回结果。
-    /// 设计原则是优先显示缓存，网络请求返回后再刷新数据，以优化用户体验。
+    /// 此方法是对通用 startWithCache 方法的 RPC 特化封装，
+    /// 使用默认的缓存存储配置，简化 RPC 请求的调用。
     ///
-    /// - Parameters:
-    ///   - validation: 响应验证器，默认为 `RpcDetaultResponseValidation`。
-    ///
-    /// - Throws: 在网络请求或缓存加载过程中可能抛出的任何错误。
+    /// - Returns: 异步序列，按完成顺序返回缓存和网络响应
+    /// - Throws: 在网络请求或缓存加载过程中可能抛出的任何错误
     func startRpcWithCache() -> AsyncThrowingStream<NtkResponse<ResponseData>, Error> {
-        return AsyncThrowingStream { continuation in
-            let task = Task {
-                do {
-                    var networkReturnedFirst = false
-                    try await withThrowingTaskGroup(of: ResponseResult.self) { group in
-                        // 并发加载缓存
-                        group.addTask {
-                            do {
-                                return .cache(try await self.loadCache())
-                            } catch {
-                                print("startRpc 缓存加载失败，但不影响网络请求: \(error)")
-                                return .cache(nil)
-                            }
-                        }
-
-                        // 并发发起网络请求
-                        group.addTask {
-                            return .network(try await self.sendRequest())
-                        }
-
-                        // 按完成顺序处理结果
-                        for try await result in group {
-                            switch result {
-                            case .network(let response):
-                                networkReturnedFirst = true
-                                continuation.yield(response)
-                                // 网络请求成功后，可以取消其他任务并提前结束
-                                group.cancelAll()
-                                
-                            case .cache(let response):
-                                if !networkReturnedFirst, let response = response {
-                                    continuation.yield(response)
-                                }
-                            }
-                        }
-                        continuation.finish()
-                    }
-                } catch {
-                    continuation.finish(throwing: error)
-                }
-            }
-
-            continuation.onTermination = { @Sendable termination in
-                switch termination {
-                case .cancelled:
-                    // 只有在流被取消时才取消底层任务
-                    // 这通常发生在业务层主动取消或者上层作用域被取消
-                    print("AsyncStream 被取消，取消底层任务")
-                    task.cancel()
-                case .finished:
-                    // 流正常结束或因错误结束，不需要取消任务
-                    // 因为任务要么已经完成，要么已经在 catch 块中处理了错误
-                    print("AsyncStream 正常结束，无需取消任务")
-                @unknown default:
-                    fatalError("unknown")
-                }
-            }
-        }
+        return self.requestWithCache()
     }
 }

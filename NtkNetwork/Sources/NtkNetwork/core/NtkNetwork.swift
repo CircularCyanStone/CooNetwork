@@ -76,7 +76,7 @@ extension NtkNetwork {
     /// - Parameter storage: 网络请求缓存存储工具
     /// - Returns: 网络响应对象
     /// - Throws: 网络请求过程中的错误
-    public func sendRequest(storage: (any iNtkCacheStorage)? = nil) async throws -> NtkResponse<ResponseData> {
+    public func request(storage: (any iNtkCacheStorage)? = nil) async throws -> NtkResponse<ResponseData> {
         let response: NtkResponse<ResponseData> = try await operation.run(storage)
         return response
     }
@@ -110,6 +110,81 @@ extension NtkNetwork {
     /// - Throws: 缓存加载过程中的错误
     public func loadCache(storage: (any iNtkCacheStorage)? = nil) async throws -> NtkResponse<ResponseData>? {
         return try await operation.loadCache(storage)
+    }
+    
+    /// 便捷发起网络请求并加载缓存
+    ///
+    /// 此方法会同时发起网络请求和加载缓存，并通过异步序列返回结果。
+    /// 设计原则是优先显示缓存，网络请求返回后再刷新数据，以优化用户体验。
+    ///
+    /// - Parameter storage: 网络请求缓存存储工具
+    /// - Returns: 异步序列，按完成顺序返回缓存和网络响应
+    /// - Throws: 在网络请求或缓存加载过程中可能抛出的任何错误
+    public func requestWithCache(storage: (any iNtkCacheStorage)? = nil) -> AsyncThrowingStream<NtkResponse<ResponseData>, Error> {
+        return AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    var networkReturnedFirst = false
+                    try await withThrowingTaskGroup(of: ResponseResult.self) { group in
+                        // 并发加载缓存
+                        group.addTask {
+                            do {
+                                return .cache(try await self.loadCache(storage: storage))
+                            } catch {
+                                print("startWithCache 缓存加载失败，但不影响网络请求: \(error)")
+                                return .cache(nil)
+                            }
+                        }
+
+                        // 并发发起网络请求
+                        group.addTask {
+                            return .network(try await self.request(storage: storage))
+                        }
+
+                        // 按完成顺序处理结果
+                        for try await result in group {
+                            switch result {
+                            case .network(let response):
+                                networkReturnedFirst = true
+                                continuation.yield(response)
+                                // 网络请求成功后，可以取消其他任务并提前结束
+                                group.cancelAll()
+                                
+                            case .cache(let response):
+                                if !networkReturnedFirst, let response = response {
+                                    continuation.yield(response)
+                                }
+                            }
+                        }
+                        continuation.finish()
+                    }
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+
+            continuation.onTermination = { @Sendable termination in
+                switch termination {
+                case .cancelled:
+                    // 只有在流被取消时才取消底层任务
+                    // 这通常发生在业务层主动取消或者上层作用域被取消
+                    print("AsyncStream 被取消，取消底层任务")
+                    task.cancel()
+                case .finished:
+                    // 流正常结束或因错误结束，不需要取消任务
+                    // 因为任务要么已经完成，要么已经在 catch 块中处理了错误
+                    print("AsyncStream 正常结束，无需取消任务")
+                @unknown default:
+                    fatalError("unknown")
+                }
+            }
+        }
+    }
+    
+    /// 响应结果枚举，用于区分缓存和网络响应
+    private enum ResponseResult {
+        case cache(NtkResponse<ResponseData>?)
+        case network(NtkResponse<ResponseData>)
     }
 }
 

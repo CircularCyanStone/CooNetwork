@@ -55,7 +55,7 @@ struct ExampleSwiftUIView: View {
     private func loadTime() {
         Task {
             do {
-                let response: Int = try await DefaultCoo.with(Login.getTime).sendRequest().data
+                let response: Int = try await DefaultCoo.with(Login.getTime).request().data
                 print("\(response)")
             }catch let error as NtkError {
                 print("\(error)")
@@ -117,7 +117,7 @@ struct ExampleSwiftUIView: View {
                             let cacheData: CodeData? = try await DefaultCoo.with(req).loadCache()?.data
                             
                             
-                            let codeResult: CodeData = try await DefaultCoo.with(req, validation: req).loadingText("加载中...").sendRequest().data
+                            let codeResult: CodeData = try await DefaultCoo.with(req, validation: req).loadingText("加载中...").request().data
                             print("短信发送成功")
                         }catch {
                             print("短信发送失败 \(error)")
