@@ -21,7 +21,7 @@ public enum NtkError: Error {
     
     /// JSON解码错误
     /// 当使用JSONDecoder解码数据为模型时发生错误
-    case decodeInvalid(_ error: Error, _ request: iNtkRequest, _ response: Sendable)
+    case decodeInvalid(_ error: Error, _ response: Sendable, _ request: iNtkRequest? = nil)
     
     /// 服务端数据为空
     /// 当服务端返回的JSON中data字段为空时抛出

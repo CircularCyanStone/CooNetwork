@@ -82,7 +82,7 @@ struct RpcResponseParsingInterceptor<ResponseData: Sendable, Keys: iNtkResponseM
             }
         } catch let error as DecodingError {
             // decoder字段解析报错，避免崩溃
-            throw NtkError.decodeInvalid(error, rpcRequest, sendableResponse)
+            throw NtkError.decodeInvalid(error, sendableResponse, rpcRequest)
         } catch {
             // 重新抛出其他错误
             throw error
