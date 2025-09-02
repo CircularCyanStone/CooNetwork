@@ -74,13 +74,8 @@ extension NtkNetwork {
     /// - Returns: 网络响应对象
     /// - Throws: 网络请求过程中的错误
     public func sendRequest() async throws -> NtkResponse<ResponseData> {
-        let operation = operation
-        let taskManager = NtkTaskManager()
-        return try await taskManager.executeWithDeduplication(
-            request: operation.request
-        ) {
-            try await operation.run()
-        }
+        let response: NtkResponse<ResponseData> = try await operation.run()
+        return response
     }
     
 //    /// 发送网络请求（回调方式）

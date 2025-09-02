@@ -35,7 +35,7 @@ public protocol iNtkClient: Sendable {
     
     /// 检查是否有缓存数据
     /// - Returns: 如果存在缓存数据返回true，否则返回false
-    func hasCacheData(_ request: NtkMutableRequest) async -> Bool
+    func hasCacheData(_ request: NtkMutableRequest) async -> NtkResponse<Bool>
 }
 
 public extension iNtkClient {
@@ -62,10 +62,13 @@ public extension iNtkClient {
     
     /// 默认的缓存检查实现
     /// - Returns: 如果存在缓存数据返回true，否则返回false
-    public func hasCacheData(_ request: NtkMutableRequest) async -> Bool {
+    public func hasCacheData(_ request: NtkMutableRequest) async -> NtkResponse<Bool> {
         let cacheUtil = NtkNetworkCache(request: request, storage: storage)
-        return cacheUtil.hasData()
+        let result = cacheUtil.hasData()
+        let response = NtkResponse(code: .init(200), data: result, msg: nil, response: result, request: request, isCache: true)
+        return response
     }
+
     
     /// 默认的取消实现
     /// 大多数客户端不支持直接取消，应使用Task.cancel()

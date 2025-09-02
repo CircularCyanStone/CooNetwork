@@ -97,8 +97,10 @@ extension NtkOperation {
         }
         let context = NtkInterceptorContext(mutableRequest: request, validation: validation, client: client)
         
-        var tmpInterceptors =  interceptors + coreInterceptors
-        tmpInterceptors.append(dataParsingInterceptor)
+        addCoreInterceptor(NtkDeduplicationInterceptor())
+        addCoreInterceptor(dataParsingInterceptor)
+        let tmpInterceptors =  interceptors + coreInterceptors
+        
         let realApiHandle: NtkDefaultApiRequestHandler<ResponseData> = NtkDefaultApiRequestHandler()
         let realChainManager = NtkInterceptorChainManager(interceptors: tmpInterceptors, finalHandler: realApiHandle)
         
@@ -127,8 +129,8 @@ extension NtkOperation {
         let context = NtkInterceptorContext(mutableRequest: request, validation: validation, client: client)
         let realApiHandle: NtkDefaultCacheRequestHandler<ResponseData> = NtkDefaultCacheRequestHandler()
         
-        var tmpInterceptors = coreInterceptors
-        tmpInterceptors.append(dataParsingInterceptor)
+        addCoreInterceptor(dataParsingInterceptor)
+        let tmpInterceptors = coreInterceptors
         // 缓存直接进行最终读取缓存解析处理
         let realChainManager = NtkInterceptorChainManager(interceptors: tmpInterceptors, finalHandler: realApiHandle)
         do {
@@ -150,6 +152,6 @@ extension NtkOperation {
     /// 检查是否有缓存数据
     /// - Returns: 如果存在缓存数据返回true，否则返回false
     func hasCacheData() async -> Bool {
-        await client.hasCacheData(request)
+        await client.hasCacheData(request).data
     }
 }
