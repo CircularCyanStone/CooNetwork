@@ -31,7 +31,7 @@ public class NtkRequestIdentifierManager {
     ///   - request: 网络请求对象
     ///   - cacheConfig: 缓存配置，用于参数过滤
     /// - Returns: 缓存键字符串
-    public func getCacheKey(request: NtkMutableRequest, cacheConfig: (any iNtkRequestConfiguration)?) -> String {
+    public func getCacheKey(request: NtkMutableRequest, cacheConfig: NtkRequestConfiguration?) -> String {
         let hash = generateHashForCache(request: request, cacheConfig: cacheConfig)
         let key = "cache_\(hash)"
         updateCache(key: key, value: key)
@@ -57,7 +57,7 @@ extension NtkRequestIdentifierManager {
     ///   - request: 网络请求对象
     ///   - cacheConfig: 缓存配置，用于参数过滤
     /// - Returns: 哈希值
-    private func generateHashForCache(request: NtkMutableRequest, cacheConfig: (any iNtkRequestConfiguration)?) -> Int {
+    private func generateHashForCache(request: NtkMutableRequest, cacheConfig: NtkRequestConfiguration?) -> Int {
         var hasher = Hasher()
         
         // HTTP方法

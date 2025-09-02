@@ -18,7 +18,7 @@ public class NtkNetworkCache {
     /// 缓存存储实现
     public let storage: iNtkCacheStorage
     /// 缓存策略配置
-    public let cacheConfig: iNtkRequestConfiguration?
+    public let cacheConfig: NtkRequestConfiguration?
     
     /// 初始化网络缓存管理器
     /// - Parameters:

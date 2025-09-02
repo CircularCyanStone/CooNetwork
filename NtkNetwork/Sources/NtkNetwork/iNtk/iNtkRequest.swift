@@ -65,7 +65,7 @@ public protocol iNtkRequest: Sendable, CustomStringConvertible, CustomDebugStrin
     /// 请求策略配置
     /// - Returns: 请求策略配置，包含缓存和参数过滤设置，如果为nil则不使用缓存和参数过滤
     /// - Note: 该策略用于请求去重时的参数过滤以及缓存键生成
-    var requestConfiguration: (any iNtkRequestConfiguration)? { get }
+    var requestConfiguration: NtkRequestConfiguration? { get }
     
 }
 
@@ -98,9 +98,10 @@ public extension iNtkRequest {
     
     /// 默认请求策略配置为空
     /// 可以通过以下方式自定义策略：
-    /// 1. 直接在iNtkRequest的实现类内部定义内嵌类型
-    /// 2. 使用NtkDefaultRequestConfiguration默认实现
-    public var requestConfiguration: (any iNtkRequestConfiguration)? {
+    /// 1. 使用NtkRequestConfiguration.default()获取默认配置
+    /// 2. 使用NtkRequestConfiguration.custom(duration:)自定义缓存时间
+    /// 3. 使用NtkRequestConfiguration.noCache()禁用缓存
+    public var requestConfiguration: NtkRequestConfiguration? {
         nil
     }
     

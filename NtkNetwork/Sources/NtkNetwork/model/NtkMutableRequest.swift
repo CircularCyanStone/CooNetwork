@@ -56,7 +56,7 @@ public struct NtkMutableRequest: iNtkRequest {
         return originalRequest.timeout
     }
     
-    public var requestConfiguration: (any iNtkRequestConfiguration)? {
+    public var requestConfiguration: NtkRequestConfiguration? {
         return originalRequest.requestConfiguration
     }
     
