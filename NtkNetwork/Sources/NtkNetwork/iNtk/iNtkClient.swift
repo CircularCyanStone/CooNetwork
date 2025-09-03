@@ -44,8 +44,8 @@ public extension iNtkClient {
     /// - Returns: 缓存的响应数据，如果没有缓存则返回nil
     /// - Throws: 缓存加载过程中的错误
     public func loadCache(_ request: NtkMutableRequest) async throws -> NtkClientResponse? {
-        let cacheUtil = NtkNetworkCache(request: request, storage: storage)
-        let response = try await cacheUtil.loadData()
+        let cacheUtil = NtkNetworkCache(storage: storage)
+        let response = try await cacheUtil.loadData(for: request)
         guard let response else {
             return nil
         }
@@ -56,15 +56,15 @@ public extension iNtkClient {
     /// - Parameter response: 后端的响应
     /// - Returns: true成功 false失败
     public func saveCache(_ request: NtkMutableRequest, response: Sendable) async -> Bool {
-        let cacheUtil = NtkNetworkCache(request: request, storage: storage)
-        return await cacheUtil.save(data: response)
+        let cacheUtil = NtkNetworkCache(storage: storage)
+        return await cacheUtil.save(data: response, for: request)
     }
     
     /// 默认的缓存检查实现
     /// - Returns: 如果存在缓存数据返回true，否则返回false
     public func hasCacheData(_ request: NtkMutableRequest) async -> NtkResponse<Bool> {
-        let cacheUtil = NtkNetworkCache(request: request, storage: storage)
-        let result = cacheUtil.hasData()
+        let cacheUtil = NtkNetworkCache(storage: storage)
+        let result = await cacheUtil.hasData(for: request)
         let response = NtkResponse(code: .init(200), data: result, msg: nil, response: result, request: request, isCache: true)
         return response
     }

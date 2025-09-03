@@ -21,7 +21,7 @@ struct MoyaCacheStorage: iNtkCacheStorage {
         nil
     }
     
-    func hasData(key: String) -> Bool {
+    func hasData(key: String) async -> Bool {
         true
     }
     

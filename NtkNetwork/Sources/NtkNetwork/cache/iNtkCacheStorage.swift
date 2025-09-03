@@ -36,5 +36,5 @@ public protocol iNtkCacheStorage: Sendable {
     /// 快速检查指定键的缓存数据是否存在，不读取实际数据
     /// - Parameter key: 缓存键
     /// - Returns: 如果缓存存在返回true，否则返回false
-    func hasData(key: String) -> Bool
+    func hasData(key: String) async -> Bool
 }

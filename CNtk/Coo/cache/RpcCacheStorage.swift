@@ -46,7 +46,7 @@ struct RpcCacheStorage: iNtkCacheStorage {
         }
     }
     
-    func hasData(key: String) -> Bool {
+    func hasData(key: String) async -> Bool {
         guard let request else {
             fatalError("request is nil or not iRpcRequest")
         }

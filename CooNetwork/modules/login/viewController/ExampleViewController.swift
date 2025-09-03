@@ -114,10 +114,10 @@ struct ExampleSwiftUIView: View {
                         do {
                             let req = Login.sendSMS("300343", tmpLogin: false)
                             
-                            let cacheData: CodeData? = try await DefaultCoo.with(req).loadCache()?.data
+                            let cacheData = try await DefaultCoo<CodeData>.with(req).loadCache()?.data
                             
                             
-                            let codeResult: CodeData = try await DefaultCoo.with(req, validation: req).loadingText("加载中...").request().data
+                            let responseData = try await DefaultCoo<CodeData>.with(req, validation: req).loadingText("加载中...").request().data
                             print("短信发送成功")
                         }catch {
                             print("短信发送失败 \(error)")

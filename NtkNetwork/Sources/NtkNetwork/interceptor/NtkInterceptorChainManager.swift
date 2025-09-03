@@ -14,13 +14,13 @@ struct NtkInterceptorChainManager {
     /// 所有注册的拦截器
     private let interceptors: [iNtkInterceptor]
     /// 链的最终处理者（通常是发起实际网络请求的）
-    private let finalHandler: @Sendable (NtkInterceptorContext) async throws -> any iNtkResponse
+    private let finalHandler: @Sendable @NtkActor (NtkInterceptorContext) async throws -> any iNtkResponse
 
     /// 初始化拦截器链管理器
     /// - Parameters:
     ///   - interceptors: 拦截器数组
     ///   - finalHandler: 最终请求处理器
-    init(interceptors: [iNtkInterceptor], finalHandler: @escaping @Sendable (NtkInterceptorContext) async throws -> any iNtkResponse) {
+    init(interceptors: [iNtkInterceptor], finalHandler: @escaping @Sendable @NtkActor (NtkInterceptorContext) async throws -> any iNtkResponse) {
         self.interceptors = interceptors
         self.finalHandler = finalHandler
     }

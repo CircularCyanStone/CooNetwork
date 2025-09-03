@@ -13,13 +13,13 @@ let NtkRequestExtraLoadingTextKey = "loading_text"
 
 extension NtkNetwork {
     public func hud(_ show: Bool) -> Self {
-        operation.request[NtkRequestExtraLoadingKey] = show
+        setRequestValue(show, forKey: NtkRequestExtraLoadingKey)
         return self
     }
     
     public func loadingText(_ text: String) -> Self {
-        operation.request[NtkRequestExtraLoadingKey] = true
-        operation.request[NtkRequestExtraLoadingTextKey] = text
+        setRequestValue(true, forKey: NtkRequestExtraLoadingKey)
+        setRequestValue(text, forKey: NtkRequestExtraLoadingTextKey)
         return self
     }
 }

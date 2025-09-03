@@ -76,9 +76,8 @@ class NtkTaskManager {
     
     /// 取消指定请求
     /// - Parameter request: 要取消的请求
-    static func cancelRequest(request: any iNtkRequest) {
-        let ntkMutableRequest = NtkMutableRequest(request)
-        let requestId = NtkRequestIdentifierManager.shared.getRequestIdentifier(request: ntkMutableRequest)
+    static func cancelRequest(request: NtkMutableRequest) {
+        let requestId = NtkRequestIdentifierManager.shared.getRequestIdentifier(request: request)
         if let task = ongoingRequests[requestId] {
             task.cancel()
             ongoingRequests.removeValue(forKey: requestId)
@@ -102,9 +101,8 @@ class NtkTaskManager {
     /// 检查指定请求是否处于活跃状态
     /// - Parameter request: 要检查的请求
     /// - Returns: 请求是否正在执行中
-    static func isRequestActive(request: any iNtkRequest) -> Bool {
-        let ntkMutableRequest = NtkMutableRequest(request)
-        let requestId = NtkRequestIdentifierManager.shared.getRequestIdentifier(request: ntkMutableRequest)
+    static func isRequestActive(request: NtkMutableRequest) -> Bool {
+        let requestId = NtkRequestIdentifierManager.shared.getRequestIdentifier(request: request)
         return ongoingRequests[requestId] != nil
     }
 }

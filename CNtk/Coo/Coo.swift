@@ -45,7 +45,6 @@ class Coo<ResponseData: Sendable, Keys: iNtkResponseMapKeys> {
         return net
     }
     
-    
 }
 
 extension NtkNetwork {
