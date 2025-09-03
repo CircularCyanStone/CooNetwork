@@ -45,7 +45,7 @@ class RetryTestManager: ObservableObject {
                 
                 addResult("使用指数退避重试策略（最多3次重试）")
                 
-                let _: CodeData = try await DefaultCoo.with(req)
+                let _: CodeData = try await NtkDefault.withRpc(req)
                     .retryExponentialBackoff(
                         maxRetryCount: 3,
                         baseDelay: 1.0,
@@ -82,7 +82,7 @@ class RetryTestManager: ObservableObject {
                 
                 addResult("使用快速重试策略")
                 
-                let _: CodeData = try await DefaultCoo.with(req)
+                let _: CodeData = try await NtkDefault.withRpc(req)
                     .retry(NtkExponentialBackoffRetryPolicy.fast)
                     .request().data
                 
@@ -122,7 +122,7 @@ class RetryTestManager: ObservableObject {
                 
                 addResult("使用自定义重试策略（最多2次重试，基础延迟0.5秒）")
                 
-                let _: CodeData = try await DefaultCoo.with(req)
+                let _: CodeData = try await NtkDefault.withRpc(req)
                     .retry(customRetryPolicy)
                     .request().data
                 
@@ -150,7 +150,7 @@ class RetryTestManager: ObservableObject {
                 
                 addResult("发送无重试策略的请求")
                 
-                let _: CodeData = try await DefaultCoo.with(req)
+                let _: CodeData = try await NtkDefault.withRpc(req)
                     .request().data
                 
                 await MainActor.run {
@@ -174,7 +174,7 @@ class RetryTestManager: ObservableObject {
                 let req = Login.sendSMS("300343", tmpLogin: false)
                 
                 // 先尝试加载缓存
-                let network = await DefaultCoo<CodeData>.with(req)
+                let network = await NtkDefault<CodeData>.withRpc(req)
                     .retry(NtkExponentialBackoffRetryPolicy.standard)
                 
                 if let _: CodeData = try await network.loadCache()?.data {
@@ -206,7 +206,7 @@ class RetryTestManager: ObservableObject {
             let fastStartTime = Date()
             do {
                 let req = Login.sendSMS("perf_test_fast", tmpLogin: false)
-                let _: CodeData = try await DefaultCoo.with(req)
+                let _: CodeData = try await NtkDefault.withRpc(req)
                     .retry(NtkExponentialBackoffRetryPolicy.fast)
                     .request().data
             } catch {
@@ -225,7 +225,7 @@ class RetryTestManager: ObservableObject {
             let standardStartTime = Date()
             do {
                 let req = Login.sendSMS("perf_test_standard", tmpLogin: false)
-                let _: CodeData = try await DefaultCoo.with(req)
+                let _: CodeData = try await NtkDefault.withRpc(req)
                     .retry(NtkExponentialBackoffRetryPolicy.standard)
                     .request().data
             } catch {

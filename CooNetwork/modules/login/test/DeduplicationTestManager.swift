@@ -144,7 +144,7 @@ class DeduplicationTestManager: ObservableObject {
         
         do {
             let req = Login.sendSMS(userId, tmpLogin: false)
-            let _: CodeData = try await DefaultCoo.with(req).request().data
+            let _: CodeData = try await NtkDefault.withRpc(req).request().data
             
             await MainActor.run {
                 addResult("\(testId): 请求成功")
@@ -167,7 +167,7 @@ class DeduplicationTestManager: ObservableObject {
         do {
             let req = Login.sendSMS(userId, tmpLogin: false)
             // 这里需要配置禁用去重，但当前API可能不支持，先保持原样
-            let _: CodeData = try await DefaultCoo.with(req).request().data
+            let _: CodeData = try await NtkDefault.withRpc(req).request().data
             
             await MainActor.run {
                 addResult("\(testId): 请求成功")

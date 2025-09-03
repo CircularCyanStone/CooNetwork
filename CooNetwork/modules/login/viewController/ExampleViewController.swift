@@ -55,7 +55,7 @@ struct ExampleSwiftUIView: View {
     private func loadTime() {
         Task {
             do {
-                let response: Int = try await DefaultCoo.with(Login.getTime).request().data
+                let response: Int = try await NtkDefault.withRpc(Login.getTime).request().data
                 print("\(response)")
             }catch let error as NtkError {
                 print("\(error)")
@@ -114,10 +114,10 @@ struct ExampleSwiftUIView: View {
                         do {
                             let req = Login.sendSMS("300343", tmpLogin: false)
                             
-                            let cacheData = try await DefaultCoo<CodeData>.with(req).loadCache()?.data
+                            let cacheData = try await NtkDefault<CodeData>.withRpc(req).loadCache()?.data
                             
                             
-                            let responseData = try await DefaultCoo<CodeData>.with(req, validation: req).loadingText("加载中...").request().data
+                            let responseData = try await NtkDefault<CodeData>.withRpc(req, validation: req).loadingText("加载中...").request().data
                             print("短信发送成功")
                         }catch {
                             print("短信发送失败 \(error)")
@@ -215,7 +215,7 @@ struct ExampleSwiftUIView: View {
                     Task {
                         do {
                             let req = Login.sendSMS("300343", tmpLogin: false)
-                            let stream: AsyncThrowingStream<NtkResponse<CodeData>, any Error> = await DefaultCoo.with(req, validation: req).startRpcWithCache()
+                            let stream: AsyncThrowingStream<NtkResponse<CodeData>, any Error> = await NtkDefault.withRpc(req, validation: req).startRpcWithCache()
                             for try await response in stream {
                                 let codeResult: CodeData = response.data
                                 if response.isCache {
