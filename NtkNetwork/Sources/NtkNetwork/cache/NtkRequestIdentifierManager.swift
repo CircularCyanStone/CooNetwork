@@ -52,22 +52,22 @@ public class NtkRequestIdentifierManager {
 extension NtkRequestIdentifierManager {
     
     /// 生成缓存哈希值
-    /// 使用Swift Hasher为缓存生成哈希，通过cacheConfig过滤参数
+    /// 使用MD5为缓存生成稳定哈希，确保相同请求内容始终产生相同的缓存key
     /// - Parameters:
     ///   - request: 网络请求对象
     ///   - cacheConfig: 缓存配置，用于参数过滤
-    /// - Returns: 哈希值
-    private func generateHashForCache(request: NtkMutableRequest, cacheConfig: NtkRequestConfiguration?) -> Int {
-        var hasher = Hasher()
+    /// - Returns: 哈希值字符串
+    private func generateHashForCache(request: NtkMutableRequest, cacheConfig: NtkRequestConfiguration?) -> String {
+        var components: [String] = []
         
         // HTTP方法
-        hasher.combine(request.method.rawValue)
+        components.append(request.method.rawValue)
         
         // URL
         if let baseURL = request.baseURL {
-            hasher.combine(baseURL.absoluteString)
+            components.append(baseURL.absoluteString)
         }
-        hasher.combine(request.path)
+        components.append(request.path)
         
         // Headers哈希（通过cacheConfig过滤）
         if let headers = request.headers {
@@ -75,17 +75,17 @@ extension NtkRequestIdentifierManager {
                 let filteredHeaders = config.filterHeaders(headers)
                 let sortedKeys = filteredHeaders.keys.sorted()
                 for key in sortedKeys {
-                    hasher.combine(key)
+                    components.append(key)
                     if let value = filteredHeaders[key] {
-                        hasher.combine("\(value)")
+                        components.append("\(value)")
                     }
                 }
             } else {
                 let sortedKeys = headers.keys.sorted()
                 for key in sortedKeys {
-                    hasher.combine(key)
+                    components.append(key)
                     if let value = headers[key] {
-                        hasher.combine("\(value)")
+                        components.append("\(value)")
                     }
                 }
             }
@@ -97,17 +97,17 @@ extension NtkRequestIdentifierManager {
                 let filteredParams = config.filterParameters(parameters)
                 let sortedKeys = filteredParams.keys.sorted()
                 for key in sortedKeys {
-                    hasher.combine(key)
+                    components.append(key)
                     if let value = filteredParams[key] {
-                        hasher.combine("\(value)")
+                        components.append("\(value)")
                     }
                 }
             } else {
                 let sortedKeys = parameters.keys.sorted()
                 for key in sortedKeys {
-                    hasher.combine(key)
+                    components.append(key)
                     if let value = parameters[key] {
-                        hasher.combine("\(value)")
+                        components.append("\(value)")
                     }
                 }
             }
@@ -115,10 +115,16 @@ extension NtkRequestIdentifierManager {
         
         // 缓存配置
         if let config = cacheConfig {
-            hasher.combine(config.cacheTime)
+            components.append("\(config.cacheTime)")
         }
         
-        return hasher.finalize()
+        // 使用MD5生成稳定哈希
+        let combinedString = components.joined(separator: "|")
+        let data = Data(combinedString.utf8)
+        let digest = Insecure.MD5.hash(data: data)
+        
+        // 将MD5摘要转换为16进制字符串
+        return digest.map { String(format: "%02x", $0) }.joined()
     }
     
     /// 生成去重哈希值
