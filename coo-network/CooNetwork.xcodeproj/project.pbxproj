@@ -21,6 +21,8 @@
 		B531F7A61A1BDD98733E3E1C /* DTFrameworkInterface+CooNetwork.m in Sources */ = {isa = PBXBuildFile; fileRef = 05F82E0272F1E0FE3F95D80F /* DTFrameworkInterface+CooNetwork.m */; };
 		C9CBB425D9D75DCED607DCCF /* MobileRuntime.plist in Resources */ = {isa = PBXBuildFile; fileRef = 1C8A22E0F852684DCABBC6C0 /* MobileRuntime.plist */; };
 		FA5DDB46D4D02AD916163DD4 /* Pods_CooNetwork.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 91160050F613CD806A42B3DA /* Pods_CooNetwork.framework */; };
+		FB4DA0C62E6EBE03004A5DD8 /* NtkNetwork in Frameworks */ = {isa = PBXBuildFile; productRef = FB4DA0C52E6EBE03004A5DD8 /* NtkNetwork */; };
+		FB4DA1BA2E6EC0DF004A5DD8 /* NtkNetwork in Frameworks */ = {isa = PBXBuildFile; productRef = FB4DA1B92E6EC0DF004A5DD8 /* NtkNetwork */; };
 		FB7B15592E17641100335C0F /* yw_1222.jpg in Resources */ = {isa = PBXBuildFile; fileRef = FB7B15582E17641100335C0F /* yw_1222.jpg */; };
 		FB98308D2E4C2ECA007BB12C /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FB98308C2E4C2ECA007BB12C /* Security.framework */; };
 		FB98308F2E4C2ED1007BB12C /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FB98308E2E4C2ED1007BB12C /* AudioToolbox.framework */; };
@@ -195,9 +197,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				FB9830912E4C2ED8007BB12C /* libc++.tbd in Frameworks */,
+				FB4DA1BA2E6EC0DF004A5DD8 /* NtkNetwork in Frameworks */,
 				FB98308F2E4C2ED1007BB12C /* AudioToolbox.framework in Frameworks */,
 				FB98308D2E4C2ECA007BB12C /* Security.framework in Frameworks */,
 				FA5DDB46D4D02AD916163DD4 /* Pods_CooNetwork.framework in Frameworks */,
+				FB4DA0C62E6EBE03004A5DD8 /* NtkNetwork in Frameworks */,
 				FBCEC74D2E3C648600477529 /* NtkNetwork in Frameworks */,
 				B376B469BAF1AD3FBDC6916D /* CoreTelephony.framework in Frameworks */,
 				0EF44F45B3E8F68F14286254 /* SystemConfiguration.framework in Frameworks */,
@@ -439,7 +443,7 @@
 			mainGroup = FB78FC322E01541E008A96E6;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				FBCEC74B2E3C648600477529 /* XCLocalSwiftPackageReference "NtkNetwork" */,
+				FB4DA1B82E6EC0DF004A5DD8 /* XCLocalSwiftPackageReference "../../coo-network" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = FB78FC3C2E01541E008A96E6 /* Products */;
@@ -909,13 +913,21 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		FBCEC74B2E3C648600477529 /* XCLocalSwiftPackageReference "NtkNetwork" */ = {
+		FB4DA1B82E6EC0DF004A5DD8 /* XCLocalSwiftPackageReference "../../coo-network" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = NtkNetwork;
+			relativePath = "../../coo-network";
 		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		FB4DA0C52E6EBE03004A5DD8 /* NtkNetwork */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = NtkNetwork;
+		};
+		FB4DA1B92E6EC0DF004A5DD8 /* NtkNetwork */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = NtkNetwork;
+		};
 		FBCEC74C2E3C648600477529 /* NtkNetwork */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = NtkNetwork;
