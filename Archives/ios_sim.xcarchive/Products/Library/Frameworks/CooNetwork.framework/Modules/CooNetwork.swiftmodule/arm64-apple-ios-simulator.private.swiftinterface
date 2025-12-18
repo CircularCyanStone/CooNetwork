@@ -1,0 +1,598 @@
+// swift-interface-format-version: 1.0
+// swift-compiler-version: Apple Swift version 6.1 effective-5.10 (swiftlang-6.1.0.110.21 clang-1700.0.13.3)
+// swift-module-flags: -target arm64-apple-ios15-simulator -enable-objc-interop -enable-library-evolution -swift-version 5 -enforce-exclusivity=checked -O -enable-experimental-feature DebugDescriptionMacro -enable-bare-slash-regex -module-name CooNetwork
+// swift-module-flags-ignorable: -no-verify-emitted-module-interface -interface-compiler-version 6.1
+import CryptoKit
+import Foundation
+import Swift
+import _Concurrency
+import _StringProcessing
+import _SwiftConcurrencyShims
+import os.log
+import os
+public enum NtkHTTPMethod : Swift.String, Swift.RawRepresentable, Swift.Sendable, Swift.CaseIterable {
+  case connect
+  case delete
+  case get
+  case head
+  case options
+  case patch
+  case post
+  case put
+  case query
+  case trace
+  public init?(rawValue: Swift.String)
+  public typealias AllCases = [CooNetwork.NtkHTTPMethod]
+  public typealias RawValue = Swift.String
+  nonisolated public static var allCases: [CooNetwork.NtkHTTPMethod] {
+    get
+  }
+  public var rawValue: Swift.String {
+    get
+  }
+}
+public protocol iNtkRequest : Swift.CustomDebugStringConvertible, Swift.CustomStringConvertible, Swift.Sendable {
+  var baseURL: Foundation.URL? { get }
+  var path: Swift.String { get }
+  var method: CooNetwork.NtkHTTPMethod { get }
+  var headers: [Swift.String : Swift.String]? { get }
+  var parameters: [Swift.String : any Swift.Sendable]? { get }
+  var timeout: Foundation.TimeInterval { get }
+  var requestConfiguration: CooNetwork.NtkRequestConfiguration? { get }
+}
+extension CooNetwork.iNtkRequest {
+  public var baseURL: Foundation.URL? {
+    get
+  }
+  public var method: CooNetwork.NtkHTTPMethod {
+    get
+  }
+  public var headers: [Swift.String : Swift.String]? {
+    get
+  }
+  public var parameters: [Swift.String : any Swift.Sendable]? {
+    get
+  }
+  public var timeout: Foundation.TimeInterval {
+    get
+  }
+  public var requestConfiguration: CooNetwork.NtkRequestConfiguration? {
+    get
+  }
+  public var description: Swift.String {
+    get
+  }
+  public var debugDescription: Swift.String {
+    get
+  }
+}
+public struct NtkNever : Swift.Decodable, Swift.Sendable {
+  public init()
+  public init(from decoder: any Swift.Decoder) throws
+}
+@_hasMissingDesignatedInitializers @globalActor public actor NtkActor {
+  public static var shared: CooNetwork.NtkActor
+  public typealias ActorType = CooNetwork.NtkActor
+  @objc deinit
+  @available(iOS 13.0, tvOS 13.0, watchOS 6.0, macOS 10.15, *)
+  @_semantics("defaultActor") nonisolated final public var unownedExecutor: _Concurrency.UnownedSerialExecutor {
+    get
+  }
+}
+public struct NtkClientResponse : CooNetwork.iNtkResponse {
+  public typealias ResponseData = Swift.Sendable
+  public var code: CooNetwork.NtkReturnCode {
+    get
+  }
+  public let data: any Swift.Sendable
+  public let msg: Swift.String?
+  public let response: any Swift.Sendable
+  public let request: any CooNetwork.iNtkRequest
+  public let isCache: Swift.Bool
+  public init(data: any Swift.Sendable, msg: Swift.String?, response: any Swift.Sendable, request: any CooNetwork.iNtkRequest, isCache: Swift.Bool)
+  public mutating func updateCode(_ code: CooNetwork.NtkReturnCode)
+}
+@_hasMissingDesignatedInitializers @CooNetwork.NtkActor public class NtkRequestIdentifierManager {
+  @CooNetwork.NtkActor public static let shared: CooNetwork.NtkRequestIdentifierManager
+  @CooNetwork.NtkActor public func getCacheKey(request: CooNetwork.NtkMutableRequest, cacheConfig: CooNetwork.NtkRequestConfiguration?) -> Swift.String
+  @CooNetwork.NtkActor public func getRequestIdentifier(request: CooNetwork.NtkMutableRequest) -> Swift.String
+  @objc deinit
+}
+public enum iNtkInterceptorPriority : Swift.Int {
+  case low
+  case medium
+  case high
+  public init?(rawValue: Swift.Int)
+  public typealias RawValue = Swift.Int
+  public var rawValue: Swift.Int {
+    get
+  }
+}
+extension Swift.Int {
+  public static let low: Swift.Int
+  public static let medium: Swift.Int
+  public static let high: Swift.Int
+}
+@_hasMissingDesignatedInitializers public class NtkInterceptorPriority : Swift.Comparable {
+  public class func priority(_ value: Swift.Int) -> Self
+  public static func < (lhs: CooNetwork.NtkInterceptorPriority, rhs: CooNetwork.NtkInterceptorPriority) -> Swift.Bool
+  public static func == (lhs: CooNetwork.NtkInterceptorPriority, rhs: CooNetwork.NtkInterceptorPriority) -> Swift.Bool
+  @objc deinit
+}
+@CooNetwork.NtkActor public protocol iNtkInterceptor : Swift.Sendable {
+  @CooNetwork.NtkActor var priority: CooNetwork.NtkInterceptorPriority { get }
+  @CooNetwork.NtkActor func intercept(context: CooNetwork.NtkInterceptorContext, next: any CooNetwork.NtkRequestHandler) async throws -> any CooNetwork.iNtkResponse
+}
+extension CooNetwork.iNtkInterceptor {
+  @CooNetwork.NtkActor public var priority: CooNetwork.NtkInterceptorPriority {
+    get
+  }
+}
+public protocol iNtkResponseValidation : Swift.Sendable {
+  func isServiceSuccess(_ response: any CooNetwork.iNtkResponse) -> Swift.Bool
+}
+@CooNetwork.NtkActor public struct NtkExponentialBackoffRetryPolicy : CooNetwork.iNtkRetryPolicy {
+  @CooNetwork.NtkActor public let maxRetryCount: Swift.Int
+  @CooNetwork.NtkActor public let baseDelay: Foundation.TimeInterval
+  @CooNetwork.NtkActor public let multiplier: Swift.Double
+  @CooNetwork.NtkActor public let maxDelay: Foundation.TimeInterval
+  @CooNetwork.NtkActor public let jitterFactor: Swift.Double
+  @CooNetwork.NtkActor public init(maxRetryCount: Swift.Int = 3, baseDelay: Foundation.TimeInterval = 1.0, multiplier: Swift.Double = 2.0, maxDelay: Foundation.TimeInterval = 30.0, jitterFactor: Swift.Double = 0.1)
+  @CooNetwork.NtkActor public func retryDelay(for attemptCount: Swift.Int, error: any Swift.Error) -> Foundation.TimeInterval?
+}
+extension CooNetwork.NtkExponentialBackoffRetryPolicy {
+  @CooNetwork.NtkActor public static var fast: CooNetwork.NtkExponentialBackoffRetryPolicy {
+    get
+  }
+  @CooNetwork.NtkActor public static var standard: CooNetwork.NtkExponentialBackoffRetryPolicy {
+    get
+  }
+  @CooNetwork.NtkActor public static var slow: CooNetwork.NtkExponentialBackoffRetryPolicy {
+    get
+  }
+}
+@objc final public class NtkCacheMeta : ObjectiveC.NSObject, Foundation.NSSecureCoding, Swift.Sendable {
+  @objc public static var supportsSecureCoding: Swift.Bool {
+    @objc get
+  }
+  final public let appVersion: Swift.String
+  final public let creationDate: Foundation.TimeInterval
+  final public let expirationDate: Foundation.TimeInterval
+  final public let data: (any Swift.Sendable)?
+  public init(appVersion: Swift.String, creationDate: Foundation.TimeInterval, expirationDate: Foundation.TimeInterval, data: (any Swift.Sendable)?)
+  @objc required public init?(coder: Foundation.NSCoder)
+  @objc final public func encode(with coder: Foundation.NSCoder)
+  @objc deinit
+}
+@CooNetwork.NtkActor public protocol NtkRequestHandler : Swift.Sendable {
+  @CooNetwork.NtkActor func handle(context: CooNetwork.NtkInterceptorContext) async throws -> any CooNetwork.iNtkResponse
+}
+final public class NtkReturnCode : Swift.Codable, Swift.Sendable {
+  public init(_ value: (any Swift.Sendable)?)
+  public init(from decoder: any Swift.Decoder) throws
+  final public func encode(to encoder: any Swift.Encoder) throws
+  @objc deinit
+}
+extension CooNetwork.NtkReturnCode {
+  final public var string: Swift.String? {
+    get
+  }
+  final public var stringValue: Swift.String {
+    get
+  }
+}
+extension CooNetwork.NtkReturnCode {
+  final public var bool: Swift.Bool? {
+    get
+  }
+  final public var boolValue: Swift.Bool {
+    get
+  }
+}
+extension CooNetwork.NtkReturnCode {
+  final public var int: Swift.Int? {
+    get
+  }
+  final public var intValue: Swift.Int {
+    get
+  }
+}
+extension CooNetwork.NtkReturnCode {
+  final public var double: Foundation.NSNumber? {
+    get
+  }
+  final public var doubleValue: Swift.Double {
+    get
+  }
+}
+extension CooNetwork.NtkNetwork {
+  @CooNetwork.NtkActor public func hud(_ show: Swift.Bool = true) -> Self
+  @CooNetwork.NtkActor public func loadingText(_ text: Swift.String) -> Self
+}
+@CooNetwork.NtkActor public class NtkNetwork<ResponseData> where ResponseData : Swift.Sendable {
+  @CooNetwork.NtkActor public var isCancelled: Swift.Bool {
+    get
+  }
+  @CooNetwork.NtkActor required public init(_ client: any CooNetwork.iNtkClient, request: any CooNetwork.iNtkRequest, dataParsingInterceptor: any CooNetwork.iNtkInterceptor, validation: any CooNetwork.iNtkResponseValidation)
+  @CooNetwork.NtkActor public class func with(_ client: any CooNetwork.iNtkClient, request: any CooNetwork.iNtkRequest, dataParsingInterceptor: any CooNetwork.iNtkInterceptor, validation: any CooNetwork.iNtkResponseValidation) -> Self
+  @objc deinit
+}
+extension CooNetwork.NtkNetwork {
+  @discardableResult
+  @CooNetwork.NtkActor public func addInterceptor(_ i: any CooNetwork.iNtkInterceptor) -> Self
+  @discardableResult
+  @CooNetwork.NtkActor public func validation(_ validation: any CooNetwork.iNtkResponseValidation) -> Self
+  @CooNetwork.NtkActor public func cancel()
+  @CooNetwork.NtkActor public func setRequestValue(_ value: any Swift.Sendable, forKey key: Swift.String)
+  @discardableResult
+  @CooNetwork.NtkActor public func request(storage: (any CooNetwork.iNtkCacheStorage)? = nil) async throws -> CooNetwork.NtkResponse<ResponseData>
+  @CooNetwork.NtkActor public func loadCache(storage: (any CooNetwork.iNtkCacheStorage)? = nil) async throws -> CooNetwork.NtkResponse<ResponseData>?
+  @CooNetwork.NtkActor public func requestWithCache(storage: (any CooNetwork.iNtkCacheStorage)? = nil) -> _Concurrency.AsyncThrowingStream<CooNetwork.NtkResponse<ResponseData>, any Swift.Error>
+}
+extension CooNetwork.NtkNetwork where ResponseData == Swift.Bool {
+  @CooNetwork.NtkActor public func hasCacheData(storage: (any CooNetwork.iNtkCacheStorage)? = nil) async -> Swift.Bool
+}
+public typealias ResponseExtractor = (any CooNetwork.iNtkResponse) -> Any?
+@CooNetwork.NtkActor public struct NtkCacheSaveInterceptor : CooNetwork.iNtkInterceptor {
+  @CooNetwork.NtkActor public var priority: CooNetwork.NtkInterceptorPriority
+  @CooNetwork.NtkActor public init(priority: CooNetwork.NtkInterceptorPriority = .priority(0))
+  @CooNetwork.NtkActor public init(priority: CooNetwork.NtkInterceptorPriority = .priority(0), responseExtractor: @escaping CooNetwork.ResponseExtractor)
+  @CooNetwork.NtkActor public func intercept(context: CooNetwork.NtkInterceptorContext, next: any CooNetwork.NtkRequestHandler) async throws -> any CooNetwork.iNtkResponse
+}
+public struct NtkMutableRequest : CooNetwork.iNtkRequest {
+  public let originalRequest: any CooNetwork.iNtkRequest
+  public var parameters: [Swift.String : any Swift.Sendable]?
+  public var headers: [Swift.String : Swift.String]?
+  public var extraData: [Swift.String : any Swift.Sendable]
+  public init(_ request: any CooNetwork.iNtkRequest)
+  public var baseURL: Foundation.URL? {
+    get
+  }
+  public var path: Swift.String {
+    get
+  }
+  public var method: CooNetwork.NtkHTTPMethod {
+    get
+  }
+  public var timeout: Foundation.TimeInterval {
+    get
+  }
+  public var requestConfiguration: CooNetwork.NtkRequestConfiguration? {
+    get
+  }
+  public mutating func addParameter(key: Swift.String, value: any Swift.Sendable)
+  public mutating func addParameters(_ parameters: [Swift.String : any Swift.Sendable])
+  public mutating func setParameter(_ newParameters: [Swift.String : any Swift.Sendable])
+  public mutating func addHeader(key: Swift.String, value: Swift.String)
+  public mutating func addHeaders(_ newHeaders: [Swift.String : Swift.String])
+  public mutating func removeParameter(key: Swift.String)
+  public mutating func removeHeader(key: Swift.String)
+  public mutating func clearParameters()
+  public mutating func clearHeaders()
+}
+extension CooNetwork.NtkMutableRequest {
+  public subscript(key: Swift.String) -> (any Swift.Sendable)? {
+    get
+    set
+  }
+}
+extension CooNetwork.NtkMutableRequest : Swift.CustomStringConvertible {
+  public var description: Swift.String {
+    get
+  }
+}
+@_hasMissingDesignatedInitializers @CooNetwork.NtkActor final public class Ntk<ResponseData, Keys> where ResponseData : Swift.Sendable, Keys : CooNetwork.iNtkResponseMapKeys {
+  @CooNetwork.NtkActor public static func with(_ client: any CooNetwork.iNtkClient, request: any CooNetwork.iNtkRequest, dataParsingInterceptor: any CooNetwork.iNtkInterceptor, validation: any CooNetwork.iNtkResponseValidation) -> CooNetwork.NtkNetwork<ResponseData>
+  @objc deinit
+}
+public let NtkErrorDomain: Swift.String
+public let NtkCacheErrorDomain: Swift.String
+@objc public enum NtkErrorCode : Swift.Int {
+  case validation = 10001
+  case jsonInvalid = 10002
+  case decodeInvalid = 10003
+  case serviceDataEmpty = 10004
+  case serviceDataTypeInvalid = 10005
+  case typeMismatch = 10006
+  case requestCancelled = 10007
+  case requestTimeout = 10008
+  case other = 10020
+  public init?(rawValue: Swift.Int)
+  public typealias RawValue = Swift.Int
+  public var rawValue: Swift.Int {
+    get
+  }
+}
+@objc public enum NtkCacheErrorCode : Swift.Int {
+  case noCache = 20001
+  public init?(rawValue: Swift.Int)
+  public typealias RawValue = Swift.Int
+  public var rawValue: Swift.Int {
+    get
+  }
+}
+@objc @_inheritsConvenienceInitializers @objcMembers public class NtkErrorBridge : ObjectiveC.NSObject {
+  @objc public static func validationError(request: Any, response: Any) -> Foundation.NSError
+  @objc public static func jsonInvalidError(request: Any, response: Any) -> Foundation.NSError
+  @objc public static func decodeInvalidError(underlyingError: Foundation.NSError, request: Any, response: Any) -> Foundation.NSError
+  @objc public static func serviceDataEmptyError() -> Foundation.NSError
+  @objc public static func serviceDataTypeInvalidError() -> Foundation.NSError
+  @objc public static func typeMismatchError() -> Foundation.NSError
+  @objc public static func requestCancelledError() -> Foundation.NSError
+  @objc public static func requestTimeoutError() -> Foundation.NSError
+  @objc public static func otherError(underlyingError: Foundation.NSError) -> Foundation.NSError
+  @objc public static func noCacheError() -> Foundation.NSError
+  @objc public static func isValidationError(_ error: Foundation.NSError) -> Swift.Bool
+  @objc public static func isJSONInvalidError(_ error: Foundation.NSError) -> Swift.Bool
+  @objc public static func isDecodeInvalidError(_ error: Foundation.NSError) -> Swift.Bool
+  @objc public static func isServiceDataEmptyError(_ error: Foundation.NSError) -> Swift.Bool
+  @objc public static func isServiceDataTypeInvalidError(_ error: Foundation.NSError) -> Swift.Bool
+  @objc public static func isTypeMismatchError(_ error: Foundation.NSError) -> Swift.Bool
+  @objc public static func isRequestCancelledError(_ error: Foundation.NSError) -> Swift.Bool
+  @objc public static func isRequestTimeoutError(_ error: Foundation.NSError) -> Swift.Bool
+  @objc public static func isOtherError(_ error: Foundation.NSError) -> Swift.Bool
+  @objc public static func isCacheError(_ error: Foundation.NSError) -> Swift.Bool
+  @objc override dynamic public init()
+  @objc deinit
+}
+extension CooNetwork.NtkNetwork {
+  @discardableResult
+  @CooNetwork.NtkActor public func retry(_ retryInterceptor: CooNetwork.NtkRetryInterceptor) -> Self
+  @discardableResult
+  @CooNetwork.NtkActor public func retry(_ retryPolicy: any CooNetwork.iNtkRetryPolicy) -> Self
+  @discardableResult
+  @CooNetwork.NtkActor public func retryExponentialBackoff(maxRetryCount: Swift.Int = 3, baseDelay: Foundation.TimeInterval = 1.0, multiplier: Swift.Double = 2.0, maxDelay: Foundation.TimeInterval = 30.0, jitterFactor: Swift.Double = 0.1) -> Self
+  @discardableResult
+  @CooNetwork.NtkActor public func retryFixedInterval(maxRetryCount: Swift.Int = 3, interval: Foundation.TimeInterval = 2.0, jitterFactor: Swift.Double = 0.1) -> Self
+}
+extension CooNetwork.NtkNetwork {
+  @discardableResult
+  @CooNetwork.NtkActor public func retryFast() -> Self
+  @discardableResult
+  @CooNetwork.NtkActor public func retryStandard() -> Self
+  @discardableResult
+  @CooNetwork.NtkActor public func retrySlow() -> Self
+  @discardableResult
+  @CooNetwork.NtkActor public func retryFixedFast() -> Self
+  @discardableResult
+  @CooNetwork.NtkActor public func retryFixedStandard() -> Self
+  @discardableResult
+  @CooNetwork.NtkActor public func retryFixedSlow() -> Self
+}
+@CooNetwork.NtkActor public class NtkNetworkCache {
+  @CooNetwork.NtkActor final public let storage: any CooNetwork.iNtkCacheStorage
+  @CooNetwork.NtkActor public init(storage: any CooNetwork.iNtkCacheStorage)
+  @CooNetwork.NtkActor public func hasData(for request: CooNetwork.NtkMutableRequest) async -> Swift.Bool
+  @CooNetwork.NtkActor public func loadData(for request: CooNetwork.NtkMutableRequest) async throws -> (any Swift.Sendable)?
+  @CooNetwork.NtkActor public func save(data: any Swift.Sendable, for request: CooNetwork.NtkMutableRequest) async -> Swift.Bool
+  @objc deinit
+}
+@CooNetwork.NtkActor public protocol iNtkClient : Swift.Sendable {
+  associatedtype Keys : CooNetwork.iNtkResponseMapKeys
+  @CooNetwork.NtkActor var storage: any CooNetwork.iNtkCacheStorage { get set }
+  @CooNetwork.NtkActor func execute(_ request: CooNetwork.NtkMutableRequest) async throws -> CooNetwork.NtkClientResponse
+  @CooNetwork.NtkActor func cancel()
+  @CooNetwork.NtkActor func loadCache(_ request: CooNetwork.NtkMutableRequest) async throws -> CooNetwork.NtkClientResponse?
+  @CooNetwork.NtkActor func saveCache(_ request: CooNetwork.NtkMutableRequest, response: any Swift.Sendable) async -> Swift.Bool
+  @CooNetwork.NtkActor func hasCacheData(_ request: CooNetwork.NtkMutableRequest) async -> CooNetwork.NtkResponse<Swift.Bool>
+}
+extension CooNetwork.iNtkClient {
+  @CooNetwork.NtkActor public func loadCache(_ request: CooNetwork.NtkMutableRequest) async throws -> CooNetwork.NtkClientResponse?
+  @CooNetwork.NtkActor public func saveCache(_ request: CooNetwork.NtkMutableRequest, response: any Swift.Sendable) async -> Swift.Bool
+  @CooNetwork.NtkActor public func hasCacheData(_ request: CooNetwork.NtkMutableRequest) async -> CooNetwork.NtkResponse<Swift.Bool>
+  @CooNetwork.NtkActor public func cancel()
+}
+public protocol iNtkResponse : Swift.Sendable {
+  associatedtype ResponseData
+  var code: CooNetwork.NtkReturnCode { get }
+  var data: Self.ResponseData { get }
+  var msg: Swift.String? { get }
+  var response: any Swift.Sendable { get }
+  var request: any CooNetwork.iNtkRequest { get }
+  var isCache: Swift.Bool { get }
+}
+@CooNetwork.NtkActor public protocol iNtkRetryPolicy : Swift.Sendable {
+  @CooNetwork.NtkActor var maxRetryCount: Swift.Int { get }
+  @CooNetwork.NtkActor func retryDelay(for attemptCount: Swift.Int, error: any Swift.Error) -> Foundation.TimeInterval?
+  @CooNetwork.NtkActor func shouldRetry(attemptCount: Swift.Int, error: any Swift.Error) -> Swift.Bool
+}
+extension CooNetwork.iNtkRetryPolicy {
+  @CooNetwork.NtkActor public func shouldRetry(attemptCount: Swift.Int, error: any Swift.Error) -> Swift.Bool
+}
+@_hasMissingDesignatedInitializers @CooNetwork.NtkActor public class NtkDeduplicationConfig {
+  @CooNetwork.NtkActor public static let shared: CooNetwork.NtkDeduplicationConfig
+  @CooNetwork.NtkActor public var isGloballyEnabled: Swift.Bool
+  @CooNetwork.NtkActor public func reset()
+  @objc deinit
+}
+@_hasMissingDesignatedInitializers @CooNetwork.NtkActor final public class NtkInterceptorContext : Swift.Sendable {
+  @CooNetwork.NtkActor final public var mutableRequest: CooNetwork.NtkMutableRequest
+  @CooNetwork.NtkActor final public let validation: any CooNetwork.iNtkResponseValidation
+  @CooNetwork.NtkActor final public let client: any CooNetwork.iNtkClient
+  @CooNetwork.NtkActor final public var extraData: [Swift.String : any Swift.Sendable]
+  @objc deinit
+}
+public protocol iNtkResponseMapKeys {
+  static var code: Swift.String { get }
+  static var data: Swift.String { get }
+  static var msg: Swift.String { get }
+}
+public struct NtkCodingKeys : Swift.CodingKey {
+  public let stringValue: Swift.String
+  public let intValue: Swift.Int?
+  public init?(stringValue: Swift.String)
+  public init?(intValue: Swift.Int)
+  public init<Key>(_ base: Key) where Key : Swift.CodingKey
+}
+public struct NtkResponseDecoder<ResponseData, Keys> : Swift.Decodable where ResponseData : Swift.Decodable, Keys : CooNetwork.iNtkResponseMapKeys {
+  public let code: CooNetwork.NtkReturnCode
+  public let data: ResponseData?
+  public let msg: Swift.String?
+  public init(from decoder: any Swift.Decoder) throws
+}
+public struct NtkResponse<ResponseData> : CooNetwork.iNtkResponse, Swift.Sendable where ResponseData : Swift.Sendable {
+  public let code: CooNetwork.NtkReturnCode
+  public let data: ResponseData
+  public let msg: Swift.String?
+  public let response: any Swift.Sendable
+  public let request: any CooNetwork.iNtkRequest
+  public let isCache: Swift.Bool
+  public init(code: CooNetwork.NtkReturnCode, data: ResponseData, msg: Swift.String?, response: any Swift.Sendable, request: any CooNetwork.iNtkRequest, isCache: Swift.Bool)
+}
+@CooNetwork.NtkActor public struct NtkLoadingInterceptor : CooNetwork.iNtkInterceptor, Swift.Sendable {
+  @CooNetwork.NtkActor public var interceptBefore: (@Sendable (_ request: any CooNetwork.iNtkRequest, _ loadingText: Swift.String?) -> Swift.Void)?
+  @CooNetwork.NtkActor public var interceptAfter: (@Sendable (_ request: any CooNetwork.iNtkRequest, _ response: (any CooNetwork.iNtkResponse)?, _ error: (any Swift.Error)?) -> Swift.Void)?
+  @CooNetwork.NtkActor public init(interceptBefore: (@Sendable (any CooNetwork.iNtkRequest, _ loadingText: Swift.String?) -> Swift.Void)? = nil, interceptAfter: (@Sendable (any CooNetwork.iNtkRequest, (any CooNetwork.iNtkResponse)?, (any Swift.Error)?) -> Swift.Void)? = nil)
+  @CooNetwork.NtkActor public func intercept(context: CooNetwork.NtkInterceptorContext, next: any CooNetwork.NtkRequestHandler) async throws -> any CooNetwork.iNtkResponse
+}
+@CooNetwork.NtkActor public struct NtkLogger {
+  public enum Category : Swift.String {
+    case deduplication
+    case retry
+    case cache
+    case network
+    case interceptor
+    case general
+    public init?(rawValue: Swift.String)
+    public typealias RawValue = Swift.String
+    public var rawValue: Swift.String {
+      get
+    }
+  }
+  public enum Level {
+    case debug
+    case info
+    case warning
+    case error
+    case fault
+    public static func == (a: CooNetwork.NtkLogger.Level, b: CooNetwork.NtkLogger.Level) -> Swift.Bool
+    public func hash(into hasher: inout Swift.Hasher)
+    public var hashValue: Swift.Int {
+      get
+    }
+  }
+  @CooNetwork.NtkActor public static var isLoggingEnabled: Swift.Bool
+  @CooNetwork.NtkActor public static var isDebugMode: Swift.Bool
+  @CooNetwork.NtkActor public static func log(_ message: Swift.String, level: CooNetwork.NtkLogger.Level = .info, category: CooNetwork.NtkLogger.Category = .general, file: Swift.String = #file, function: Swift.String = #function, line: Swift.Int = #line)
+  @CooNetwork.NtkActor public static func debug(_ message: Swift.String, category: CooNetwork.NtkLogger.Category = .general, file: Swift.String = #file, function: Swift.String = #function, line: Swift.Int = #line)
+  @CooNetwork.NtkActor public static func info(_ message: Swift.String, category: CooNetwork.NtkLogger.Category = .general, file: Swift.String = #file, function: Swift.String = #function, line: Swift.Int = #line)
+  @CooNetwork.NtkActor public static func warning(_ message: Swift.String, category: CooNetwork.NtkLogger.Category = .general, file: Swift.String = #file, function: Swift.String = #function, line: Swift.Int = #line)
+  @CooNetwork.NtkActor public static func error(_ message: Swift.String, category: CooNetwork.NtkLogger.Category = .general, file: Swift.String = #file, function: Swift.String = #function, line: Swift.Int = #line)
+  @CooNetwork.NtkActor public static func fault(_ message: Swift.String, category: CooNetwork.NtkLogger.Category = .general, file: Swift.String = #file, function: Swift.String = #function, line: Swift.Int = #line)
+}
+public struct NtkDynamicData : Swift.Sendable, Swift.Codable {
+  public init(_ dictionary: [Swift.String : any Swift.Sendable])
+  public init(_ array: [any Swift.Sendable])
+  public init(_ string: Swift.String)
+  public init(_ int: Swift.Int)
+  public init(_ double: Swift.Double)
+  public init(_ bool: Swift.Bool)
+  public init()
+  public init(from decoder: any Swift.Decoder) throws
+  public func encode(to encoder: any Swift.Encoder) throws
+  public static func from(_ value: any Swift.Sendable) -> CooNetwork.NtkDynamicData
+}
+extension CooNetwork.NtkDynamicData {
+  public func getDictionary() -> [Swift.String : any Swift.Sendable]?
+  public func getArray() -> [any Swift.Sendable]?
+  public func getString() -> Swift.String?
+  public func getInt() -> Swift.Int?
+  public func getDouble() -> Swift.Double?
+  public func getBool() -> Swift.Bool?
+  public func isNull() -> Swift.Bool
+  public func getValue<T>(as type: T.Type) throws -> T
+}
+extension CooNetwork.NtkDynamicData {
+  public subscript(key: Swift.String) -> CooNetwork.NtkDynamicData? {
+    get
+  }
+  public subscript(index: Swift.Int) -> CooNetwork.NtkDynamicData? {
+    get
+  }
+  public subscript(dynamicMember keyPath: Swift.String) -> CooNetwork.NtkDynamicData? {
+    get
+  }
+}
+extension CooNetwork.NtkDynamicData {
+  public func getValue(forKeyPath keyPath: Swift.String) -> CooNetwork.NtkDynamicData?
+  public func getValue(forIndexPath indexPath: [Swift.Int]) -> CooNetwork.NtkDynamicData?
+  public func getValue<T>(for key: Swift.String, defaultValue: T) -> T
+  public func getValue<T>(at index: Swift.Int, defaultValue: T) -> T
+}
+@CooNetwork.NtkActor public struct NtkRetryInterceptor : CooNetwork.iNtkInterceptor {
+  @CooNetwork.NtkActor public let priority: CooNetwork.NtkInterceptorPriority
+  @CooNetwork.NtkActor public init(retryPolicy: any CooNetwork.iNtkRetryPolicy, priority: CooNetwork.NtkInterceptorPriority = .priority(.high))
+  @CooNetwork.NtkActor public func intercept(context: CooNetwork.NtkInterceptorContext, next: any CooNetwork.NtkRequestHandler) async throws -> any CooNetwork.iNtkResponse
+}
+public enum NtkError : Swift.Error {
+  case validation(_: any CooNetwork.iNtkRequest, _: any CooNetwork.iNtkResponse)
+  case jsonInvalid(_: any CooNetwork.iNtkRequest, _: any Swift.Sendable)
+  case decodeInvalid(_: any Swift.Error, _: any Swift.Sendable, _: (any CooNetwork.iNtkRequest)? = nil)
+  case serviceDataEmpty
+  case serviceDataTypeInvalid
+  case typeMismatch
+  case requestCancelled
+  case requestTimeout
+  case other(_: any Swift.Error)
+}
+public struct NtkRequestConfiguration : Swift.Sendable {
+  public let cacheTime: Foundation.TimeInterval
+  public let filteredParameterNames: [Swift.String]
+  public let filterHeaders: @Sendable ([Swift.String : Swift.String]) -> [Swift.String : Swift.String]
+  public let filterParameters: @Sendable ([Swift.String : any Swift.Sendable]) -> [Swift.String : any Swift.Sendable]
+  public let shouldCache: @Sendable (any CooNetwork.iNtkResponse) -> Swift.Bool
+  public init(cacheTime: Foundation.TimeInterval, filteredParameterNames: [Swift.String] = ["token"], filterHeaders: (@Sendable ([Swift.String : Swift.String]) -> [Swift.String : Swift.String])? = nil, filterParameters: (@Sendable ([Swift.String : any Swift.Sendable]) -> [Swift.String : any Swift.Sendable])? = nil, shouldCache: @escaping @Sendable (any CooNetwork.iNtkResponse) -> Swift.Bool = { _ in true })
+}
+extension CooNetwork.NtkRequestConfiguration {
+  public static func `default`() -> CooNetwork.NtkRequestConfiguration
+  public static func custom(duration: Foundation.TimeInterval) -> CooNetwork.NtkRequestConfiguration
+  public static func custom(filteredParams: [Swift.String]) -> CooNetwork.NtkRequestConfiguration
+  public static func custom(duration: Foundation.TimeInterval, filteredParams: [Swift.String]) -> CooNetwork.NtkRequestConfiguration
+}
+@CooNetwork.NtkActor public struct NtkFixedIntervalRetryPolicy : CooNetwork.iNtkRetryPolicy {
+  @CooNetwork.NtkActor public let maxRetryCount: Swift.Int
+  @CooNetwork.NtkActor public let interval: Foundation.TimeInterval
+  @CooNetwork.NtkActor public let jitterFactor: Swift.Double
+  @CooNetwork.NtkActor public init(maxRetryCount: Swift.Int = 3, interval: Foundation.TimeInterval = 2.0, jitterFactor: Swift.Double = 0.1)
+  @CooNetwork.NtkActor public func retryDelay(for attemptCount: Swift.Int, error: any Swift.Error) -> Foundation.TimeInterval?
+}
+extension CooNetwork.NtkFixedIntervalRetryPolicy {
+  @CooNetwork.NtkActor public static var fast: CooNetwork.NtkFixedIntervalRetryPolicy {
+    get
+  }
+  @CooNetwork.NtkActor public static var standard: CooNetwork.NtkFixedIntervalRetryPolicy {
+    get
+  }
+  @CooNetwork.NtkActor public static var slow: CooNetwork.NtkFixedIntervalRetryPolicy {
+    get
+  }
+  @CooNetwork.NtkActor public static func precise(maxRetryCount: Swift.Int = 3, interval: Foundation.TimeInterval = 2.0) -> CooNetwork.NtkFixedIntervalRetryPolicy
+}
+@CooNetwork.NtkActor public protocol iNtkCacheStorage : Swift.Sendable {
+  @CooNetwork.NtkActor func setData(metaData: CooNetwork.NtkCacheMeta, key: Swift.String, for request: CooNetwork.NtkMutableRequest) async -> Swift.Bool
+  @CooNetwork.NtkActor func getData(key: Swift.String, for request: CooNetwork.NtkMutableRequest) async -> CooNetwork.NtkCacheMeta?
+  @CooNetwork.NtkActor func hasData(key: Swift.String, for request: CooNetwork.NtkMutableRequest) async -> Swift.Bool
+}
+extension CooNetwork.NtkHTTPMethod : Swift.Equatable {}
+extension CooNetwork.NtkHTTPMethod : Swift.Hashable {}
+extension CooNetwork.NtkActor : _Concurrency.GlobalActor {}
+extension CooNetwork.NtkRequestIdentifierManager : Swift.Sendable {}
+extension CooNetwork.iNtkInterceptorPriority : Swift.Equatable {}
+extension CooNetwork.iNtkInterceptorPriority : Swift.Hashable {}
+extension CooNetwork.iNtkInterceptorPriority : Swift.RawRepresentable {}
+extension CooNetwork.NtkNetwork : Swift.Sendable {}
+extension CooNetwork.Ntk : Swift.Sendable {}
+extension CooNetwork.NtkErrorCode : Swift.Equatable {}
+extension CooNetwork.NtkErrorCode : Swift.Hashable {}
+extension CooNetwork.NtkErrorCode : Swift.RawRepresentable {}
+extension CooNetwork.NtkCacheErrorCode : Swift.Equatable {}
+extension CooNetwork.NtkCacheErrorCode : Swift.Hashable {}
+extension CooNetwork.NtkCacheErrorCode : Swift.RawRepresentable {}
+extension CooNetwork.NtkNetworkCache : Swift.Sendable {}
+extension CooNetwork.NtkDeduplicationConfig : Swift.Sendable {}
+extension CooNetwork.NtkLogger : Swift.Sendable {}
+extension CooNetwork.NtkLogger.Category : Swift.Equatable {}
+extension CooNetwork.NtkLogger.Category : Swift.Hashable {}
+extension CooNetwork.NtkLogger.Category : Swift.RawRepresentable {}
+extension CooNetwork.NtkLogger.Level : Swift.Equatable {}
+extension CooNetwork.NtkLogger.Level : Swift.Hashable {}
