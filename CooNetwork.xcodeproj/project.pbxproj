@@ -7,34 +7,19 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		FBD1785B2EF38D8200C9CDB2 /* CooNetwork.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = CooNetwork.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		FBD1792D2EF3903400C9CDB2 /* RunCommonPackFramework.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = RunCommonPackFramework.sh; sourceTree = "<group>"; };
+		FB3A3D622F0CF93D00CAE4FB /* CooNetwork.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = CooNetwork.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		FBD178712EF38DE100C9CDB2 /* Exceptions for "CooNetwork" folder in "CooNetwork" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Package.swift,
-				Tests/CooNetworkTests/CooNetworkTests.swift,
-			);
-			target = FBD1785A2EF38D8200C9CDB2 /* CooNetwork */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		FBD1785D2EF38D8200C9CDB2 /* CooNetwork */ = {
+		FB3A3D712F0CF9BF00CAE4FB /* Sources */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				FBD178712EF38DE100C9CDB2 /* Exceptions for "CooNetwork" folder in "CooNetwork" target */,
-			);
-			path = CooNetwork;
+			path = Sources;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		FBD178582EF38D8200C9CDB2 /* Frameworks */ = {
+		FB3A3D5F2F0CF93D00CAE4FB /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -44,19 +29,18 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		FBD178512EF38D8200C9CDB2 = {
+		FB3A3D582F0CF93D00CAE4FB = {
 			isa = PBXGroup;
 			children = (
-				FBD1792D2EF3903400C9CDB2 /* RunCommonPackFramework.sh */,
-				FBD1785D2EF38D8200C9CDB2 /* CooNetwork */,
-				FBD1785C2EF38D8200C9CDB2 /* Products */,
+				FB3A3D712F0CF9BF00CAE4FB /* Sources */,
+				FB3A3D632F0CF93D00CAE4FB /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		FBD1785C2EF38D8200C9CDB2 /* Products */ = {
+		FB3A3D632F0CF93D00CAE4FB /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				FBD1785B2EF38D8200C9CDB2 /* CooNetwork.framework */,
+				FB3A3D622F0CF93D00CAE4FB /* CooNetwork.framework */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -64,7 +48,7 @@
 /* End PBXGroup section */
 
 /* Begin PBXHeadersBuildPhase section */
-		FBD178562EF38D8200C9CDB2 /* Headers */ = {
+		FB3A3D5D2F0CF93D00CAE4FB /* Headers */ = {
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -74,65 +58,65 @@
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
-		FBD1785A2EF38D8200C9CDB2 /* CooNetwork */ = {
+		FB3A3D612F0CF93D00CAE4FB /* CooNetwork */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = FBD178642EF38D8200C9CDB2 /* Build configuration list for PBXNativeTarget "CooNetwork" */;
+			buildConfigurationList = FB3A3D6B2F0CF93D00CAE4FB /* Build configuration list for PBXNativeTarget "CooNetwork" */;
 			buildPhases = (
-				FBD178562EF38D8200C9CDB2 /* Headers */,
-				FBD178572EF38D8200C9CDB2 /* Sources */,
-				FBD178582EF38D8200C9CDB2 /* Frameworks */,
-				FBD178592EF38D8200C9CDB2 /* Resources */,
+				FB3A3D5D2F0CF93D00CAE4FB /* Headers */,
+				FB3A3D5E2F0CF93D00CAE4FB /* Sources */,
+				FB3A3D5F2F0CF93D00CAE4FB /* Frameworks */,
+				FB3A3D602F0CF93D00CAE4FB /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				FBD1785D2EF38D8200C9CDB2 /* CooNetwork */,
+				FB3A3D712F0CF9BF00CAE4FB /* Sources */,
 			);
 			name = CooNetwork;
 			packageProductDependencies = (
 			);
 			productName = CooNetwork;
-			productReference = FBD1785B2EF38D8200C9CDB2 /* CooNetwork.framework */;
+			productReference = FB3A3D622F0CF93D00CAE4FB /* CooNetwork.framework */;
 			productType = "com.apple.product-type.framework";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		FBD178522EF38D8200C9CDB2 /* Project object */ = {
+		FB3A3D592F0CF93D00CAE4FB /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1630;
 				LastUpgradeCheck = 1630;
 				TargetAttributes = {
-					FBD1785A2EF38D8200C9CDB2 = {
+					FB3A3D612F0CF93D00CAE4FB = {
 						CreatedOnToolsVersion = 16.3;
 					};
 				};
 			};
-			buildConfigurationList = FBD178552EF38D8200C9CDB2 /* Build configuration list for PBXProject "CooNetwork" */;
+			buildConfigurationList = FB3A3D5C2F0CF93D00CAE4FB /* Build configuration list for PBXProject "CooNetwork" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
 				Base,
 			);
-			mainGroup = FBD178512EF38D8200C9CDB2;
+			mainGroup = FB3A3D582F0CF93D00CAE4FB;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
-			productRefGroup = FBD1785C2EF38D8200C9CDB2 /* Products */;
+			productRefGroup = FB3A3D632F0CF93D00CAE4FB /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				FBD1785A2EF38D8200C9CDB2 /* CooNetwork */,
+				FB3A3D612F0CF93D00CAE4FB /* CooNetwork */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		FBD178592EF38D8200C9CDB2 /* Resources */ = {
+		FB3A3D602F0CF93D00CAE4FB /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -142,7 +126,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		FBD178572EF38D8200C9CDB2 /* Sources */ = {
+		FB3A3D5E2F0CF93D00CAE4FB /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -152,7 +136,7 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		FBD178622EF38D8200C9CDB2 /* Debug */ = {
+		FB3A3D692F0CF93D00CAE4FB /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -219,7 +203,7 @@
 			};
 			name = Debug;
 		};
-		FBD178632EF38D8200C9CDB2 /* Release */ = {
+		FB3A3D6A2F0CF93D00CAE4FB /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -279,7 +263,7 @@
 			};
 			name = Release;
 		};
-		FBD178652EF38D8200C9CDB2 /* Debug */ = {
+		FB3A3D6C2F0CF93D00CAE4FB /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUILD_LIBRARY_FOR_DISTRIBUTION = YES;
@@ -294,13 +278,12 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				IPHONEOS_DEPLOYMENT_TARGET = 15;
+				IPHONEOS_DEPLOYMENT_TARGET = 13;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				MACH_O_TYPE = staticlib;
 				MARKETING_VERSION = 1.0;
 				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
 				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
@@ -315,7 +298,7 @@
 			};
 			name = Debug;
 		};
-		FBD178662EF38D8200C9CDB2 /* Release */ = {
+		FB3A3D6D2F0CF93D00CAE4FB /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUILD_LIBRARY_FOR_DISTRIBUTION = YES;
@@ -330,13 +313,12 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				IPHONEOS_DEPLOYMENT_TARGET = 15;
+				IPHONEOS_DEPLOYMENT_TARGET = 13;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				MACH_O_TYPE = staticlib;
 				MARKETING_VERSION = 1.0;
 				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
 				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
@@ -354,25 +336,25 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		FBD178552EF38D8200C9CDB2 /* Build configuration list for PBXProject "CooNetwork" */ = {
+		FB3A3D5C2F0CF93D00CAE4FB /* Build configuration list for PBXProject "CooNetwork" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				FBD178622EF38D8200C9CDB2 /* Debug */,
-				FBD178632EF38D8200C9CDB2 /* Release */,
+				FB3A3D692F0CF93D00CAE4FB /* Debug */,
+				FB3A3D6A2F0CF93D00CAE4FB /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		FBD178642EF38D8200C9CDB2 /* Build configuration list for PBXNativeTarget "CooNetwork" */ = {
+		FB3A3D6B2F0CF93D00CAE4FB /* Build configuration list for PBXNativeTarget "CooNetwork" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				FBD178652EF38D8200C9CDB2 /* Debug */,
-				FBD178662EF38D8200C9CDB2 /* Release */,
+				FB3A3D6C2F0CF93D00CAE4FB /* Debug */,
+				FB3A3D6D2F0CF93D00CAE4FB /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
-	rootObject = FBD178522EF38D8200C9CDB2 /* Project object */;
+	rootObject = FB3A3D592F0CF93D00CAE4FB /* Project object */;
 }

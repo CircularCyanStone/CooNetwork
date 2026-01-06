@@ -1,4 +1,0 @@
-framework module CooNetwork {
-  header "CooNetwork-Swift.h"
-  requires objc
-}
