@@ -6,14 +6,52 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		FBDEDB752F0DED8400CB49F5 /* CooNetwork.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FB3A3D622F0CF93D00CAE4FB /* CooNetwork.framework */; };
+		FBDEDB762F0DED8400CB49F5 /* CooNetwork.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = FB3A3D622F0CF93D00CAE4FB /* CooNetwork.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		FBDEDB772F0DED8400CB49F5 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				FBDEDB762F0DED8400CB49F5 /* CooNetwork.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		FB3A3D622F0CF93D00CAE4FB /* CooNetwork.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = CooNetwork.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		FB92DABF2F0DEAD6009A2AA9 /* OCExample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OCExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		FB92DAD72F0DEAD8009A2AA9 /* Exceptions for "OCExample" folder in "OCExample" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = FB92DABE2F0DEAD6009A2AA9 /* OCExample */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		FB3A3D712F0CF9BF00CAE4FB /* Sources */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Sources;
+			sourceTree = "<group>";
+		};
+		FB92DAC02F0DEAD6009A2AA9 /* OCExample */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				FB92DAD72F0DEAD8009A2AA9 /* Exceptions for "OCExample" folder in "OCExample" target */,
+			);
+			path = OCExample;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -26,6 +64,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		FB92DABC2F0DEAD6009A2AA9 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FBDEDB752F0DED8400CB49F5 /* CooNetwork.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -33,6 +79,8 @@
 			isa = PBXGroup;
 			children = (
 				FB3A3D712F0CF9BF00CAE4FB /* Sources */,
+				FB92DAC02F0DEAD6009A2AA9 /* OCExample */,
+				FB92DAFA2F0DEB22009A2AA9 /* Frameworks */,
 				FB3A3D632F0CF93D00CAE4FB /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,8 +89,16 @@
 			isa = PBXGroup;
 			children = (
 				FB3A3D622F0CF93D00CAE4FB /* CooNetwork.framework */,
+				FB92DABF2F0DEAD6009A2AA9 /* OCExample.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		FB92DAFA2F0DEB22009A2AA9 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -81,6 +137,29 @@
 			productReference = FB3A3D622F0CF93D00CAE4FB /* CooNetwork.framework */;
 			productType = "com.apple.product-type.framework";
 		};
+		FB92DABE2F0DEAD6009A2AA9 /* OCExample */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FB92DAD82F0DEAD8009A2AA9 /* Build configuration list for PBXNativeTarget "OCExample" */;
+			buildPhases = (
+				FB92DABB2F0DEAD6009A2AA9 /* Sources */,
+				FB92DABC2F0DEAD6009A2AA9 /* Frameworks */,
+				FB92DABD2F0DEAD6009A2AA9 /* Resources */,
+				FBDEDB772F0DED8400CB49F5 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				FB92DAC02F0DEAD6009A2AA9 /* OCExample */,
+			);
+			name = OCExample;
+			packageProductDependencies = (
+			);
+			productName = OCExample;
+			productReference = FB92DABF2F0DEAD6009A2AA9 /* OCExample.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -93,6 +172,10 @@
 				TargetAttributes = {
 					FB3A3D612F0CF93D00CAE4FB = {
 						CreatedOnToolsVersion = 16.3;
+					};
+					FB92DABE2F0DEAD6009A2AA9 = {
+						CreatedOnToolsVersion = 16.3;
+						LastSwiftMigration = 1630;
 					};
 				};
 			};
@@ -111,6 +194,7 @@
 			projectRoot = "";
 			targets = (
 				FB3A3D612F0CF93D00CAE4FB /* CooNetwork */,
+				FB92DABE2F0DEAD6009A2AA9 /* OCExample */,
 			);
 		};
 /* End PBXProject section */
@@ -123,10 +207,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		FB92DABD2F0DEAD6009A2AA9 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		FB3A3D5E2F0CF93D00CAE4FB /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FB92DABB2F0DEAD6009A2AA9 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -333,6 +431,69 @@
 			};
 			name = Release;
 		};
+		FB92DAD52F0DEAD8009A2AA9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = UQ35W3765Z;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = OCExample/Info.plist;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UIMainStoryboardFile = Main;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 13;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.coo.OCExample;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "OCExample/apis/OCExample-Bridging-Header.h";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		FB92DAD62F0DEAD8009A2AA9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = UQ35W3765Z;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = OCExample/Info.plist;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UIMainStoryboardFile = Main;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 13;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.coo.OCExample;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "OCExample/apis/OCExample-Bridging-Header.h";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -350,6 +511,15 @@
 			buildConfigurations = (
 				FB3A3D6C2F0CF93D00CAE4FB /* Debug */,
 				FB3A3D6D2F0CF93D00CAE4FB /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		FB92DAD82F0DEAD8009A2AA9 /* Build configuration list for PBXNativeTarget "OCExample" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FB92DAD52F0DEAD8009A2AA9 /* Debug */,
+				FB92DAD62F0DEAD8009A2AA9 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
