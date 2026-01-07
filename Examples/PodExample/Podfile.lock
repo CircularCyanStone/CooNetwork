@@ -1,0 +1,16 @@
+PODS:
+  - CooNetwork (0.0.1)
+
+DEPENDENCIES:
+  - CooNetwork (from `../../`)
+
+EXTERNAL SOURCES:
+  CooNetwork:
+    :path: "../../"
+
+SPEC CHECKSUMS:
+  CooNetwork: cc95f4415b2db90bbefbf35d99cea050a2cef521
+
+PODFILE CHECKSUM: f4c99db5728e6ce2500f6289a5f9fdc9d4f99af7
+
+COCOAPODS: 1.16.2
