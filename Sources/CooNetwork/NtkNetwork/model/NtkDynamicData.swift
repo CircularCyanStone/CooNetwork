@@ -10,7 +10,8 @@ import Foundation
 /// NtkDynamicData - 支持多种数据类型的动态数据结构
 /// 用于处理网络响应中的动态数据，支持 Dictionary<String, any Sendable>、Int、Bool、String 等多种类型
 /// 提供类型安全的访问接口和便利的下标语法支持
-public struct NtkDynamicData: Sendable, Codable {
+@objcMembers
+public final class NtkDynamicData: NSObject, Sendable, Codable {
     
     /// 内部存储的原始值
     private let rawValue: any Sendable
@@ -32,45 +33,52 @@ public struct NtkDynamicData: Sendable, Codable {
     // MARK: - 初始化方法
     
     /// 从字典初始化
-    public init(_ dictionary: [String: any Sendable]) {
+    public init(dictionary: [String: any Sendable]) {
         self.rawValue = dictionary
         self.valueType = .dictionary
+        super.init()
     }
     
     /// 从数组初始化
-    public init(_ array: [any Sendable]) {
+    public init(array: [any Sendable]) {
         self.rawValue = array
         self.valueType = .array
+        super.init()
     }
     
     /// 从字符串初始化
-    public init(_ string: String) {
+    public init(string: String) {
         self.rawValue = string
         self.valueType = .string
+        super.init()
     }
     
     /// 从整数初始化
-    public init(_ int: Int) {
+    public init(int: Int) {
         self.rawValue = int
         self.valueType = .int
+        super.init()
     }
     
     /// 从双精度浮点数初始化
-    public init(_ double: Double) {
+    public init(double: Double) {
         self.rawValue = double
         self.valueType = .double
+        super.init()
     }
     
     /// 从布尔值初始化
-    public init(_ bool: Bool) {
+    public init(bool: Bool) {
         self.rawValue = bool
         self.valueType = .bool
+        super.init()
     }
     
     /// 空值初始化
-    public init() {
+    public override init() {
         self.rawValue = NSNull()
         self.valueType = .null
+        super.init()
     }
     
     // MARK: - Codable实现
@@ -194,22 +202,22 @@ public struct NtkDynamicData: Sendable, Codable {
     public static func from(_ value: any Sendable) -> NtkDynamicData {
         switch value {
         case let dict as [String: any Sendable]:
-            return NtkDynamicData(dict)
+            return NtkDynamicData(dictionary: dict)
         case let array as [any Sendable]:
-            return NtkDynamicData(array)
+            return NtkDynamicData(array: array)
         case let string as String:
-            return NtkDynamicData(string)
+            return NtkDynamicData(string: string)
         case let int as Int:
-            return NtkDynamicData(int)
+            return NtkDynamicData(int: int)
         case let double as Double:
-            return NtkDynamicData(double)
+            return NtkDynamicData(double: double)
         case let bool as Bool:
-            return NtkDynamicData(bool)
+            return NtkDynamicData(bool: bool)
         case is NSNull:
             return NtkDynamicData()
         default:
             // 对于其他类型，尝试转换为字符串
-            return NtkDynamicData(String(describing: value))
+            return NtkDynamicData(string: String(describing: value))
         }
     }
 }
@@ -388,6 +396,7 @@ extension NtkDynamicData {
     /// 例如: data["user"]["name"] 或 data["items"][0]
     /// - Parameter keyPath: 键路径（字符串或整数）
     /// - Returns: 对应的NtkDynamicData值或nil
+    @nonobjc
     public subscript(dynamicMember keyPath: String) -> NtkDynamicData? {
         return self[keyPath]
     }
