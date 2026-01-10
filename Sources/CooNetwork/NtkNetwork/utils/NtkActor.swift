@@ -14,5 +14,5 @@ import Foundation
 @globalActor
 public actor NtkActor {
     /// 共享的Actor实例
-    public static var shared = NtkActor()
+    public static let shared = NtkActor()
 }

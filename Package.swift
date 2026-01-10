@@ -9,18 +9,29 @@ let package = Package(
         .iOS(.v13)
     ],
     products: [
-        // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
             name: "CooNetwork",
             type: .dynamic,
             targets: ["CooNetwork"]
         ),
+        .library(name: "AlamofireClient", targets: ["AlamofireClient"])
+    ],
+    dependencies: [
+        // 1. 在这里添加 Alamofire 的远程仓库地址
+        .package(url: "https://github.com/Alamofire/Alamofire.git", .upToNextMajor(from: "5.10.0"))
     ],
     targets: [
-        // Targets are the basic building blocks of a package, defining a module or a test suite.
-        // Targets can depend on other targets in this package and products from dependencies.
         .target(
-            name: "CooNetwork"),
+            name: "CooNetwork"
+        ),
+        .target(
+            name: "AlamofireClient",
+            dependencies: [
+                .target(name: "CooNetwork"),
+                // 2. 在这里将 Alamofire 库绑定到你的 target 上
+                .product(name: "Alamofire", package: "Alamofire")
+            ]
+        ),
         .testTarget(
             name: "CooNetworkTests",
             dependencies: ["CooNetwork"]
