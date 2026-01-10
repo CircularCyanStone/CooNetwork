@@ -20,58 +20,26 @@ public typealias NtkAFBool = Ntk<Bool, AFResponseMapKeys>
 public extension Ntk {
     
     /// 创建AF网络请求
-    /// 自动配置AF客户端、Loading拦截器和Toast拦截器
+    /// 自动配置AF客户端
     /// - Parameters:
     ///   - request: AF请求对象
     ///   - validation: 响应校验器，默认为 nil (使用默认校验逻辑)
-    ///   - loadingHandler: Loading 显示/隐藏回调，如果为 nil 则不显示 Loading
-    ///   - toastHandler: Toast 显示回调，如果为 nil 则不显示 Toast
+    ///   - cacheStorage: 缓存存储策略，默认为不缓存 (AFNoCacheStorage)
     /// - Returns: 配置好的网络请求管理器
     static func withAF(
         _ request: iAFRequest,
         validation: iNtkResponseValidation? = nil,
-        loadingHandler: (@Sendable (Bool, String?) -> Void)? = nil,
-        toastHandler: (@Sendable (String) -> Void)? = nil
+        cacheStorage: iNtkCacheStorage = AFNoCacheStorage()
     ) async -> NtkNetwork<ResponseData> where ResponseData: Decodable {
-        // 创建无缓存的 AFClient
-        let client = AFClient<Keys>()
+        // 创建 AFClient，注入缓存策略
+        let client = AFClient<Keys>(storage: cacheStorage)
         
         // 使用传入的 validation 或默认的 AFDetaultResponseValidation
         let responseValidation = validation ?? AFDetaultResponseValidation()
         
-        var net = with(client, request: request, dataParsingInterceptor: AFDataParsingInterceptor<ResponseData, Keys>(), validation: responseValidation)
-        
-        // 添加 Loading 拦截器
-        if let loadingHandler = loadingHandler {
-            net = net.addInterceptor(getLoadingInterceptor(handler: loadingHandler))
-        }
-        
-        // 添加 Toast 拦截器
-        if let toastHandler = toastHandler {
-            let toastInterceptor = AFToastInterceptor(toastHandler: toastHandler)
-            net = net.addInterceptor(toastInterceptor)
-        }
+        let net = with(client, request: request, dataParsingInterceptor: AFDataParsingInterceptor<ResponseData, Keys>(), validation: responseValidation)
         
         return net
-    }
-}
-
-// MARK: - Helper
-
-extension Ntk {
-    
-    /// 构建基于计数的loading拦截器
-    /// - Parameter handler: Loading 状态回调 (isLoading, text)
-    /// - Returns: 基于计数的拦截器实例
-    private static func getLoadingInterceptor(handler: @escaping @Sendable (Bool, String?) -> Void) -> NtkLoadingInterceptor {
-        let interceptor = NtkLoadingInterceptor { request, loadingText  in
-            // 请求前显示 Loading
-            handler(true, loadingText)
-        } interceptAfter: { request, response, error in
-            // 请求后隐藏 Loading
-            handler(false, nil)
-        }
-        return interceptor
     }
 }
 

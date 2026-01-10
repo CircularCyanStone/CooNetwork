@@ -9,23 +9,6 @@ import Foundation
 import CooNetwork
 @preconcurrency import Alamofire
 
-// MARK: - 辅助类型
-
-/// 原始数据编码器，用于直接发送Data类型的body数据
-private struct RawDataEncoding: ParameterEncoding, Sendable {
-    let data: Data
-    
-    init(data: Data) {
-        self.data = data
-    }
-    
-    func encode(_ urlRequest: URLRequestConvertible, with parameters: Parameters?) throws -> URLRequest {
-        var request = try urlRequest.asURLRequest()
-        request.httpBody = data
-        return request
-    }
-}
-
 /// AF 客户端请求执行实现
 /// 负责执行基于Alamofire的网络请求，支持泛型响应键映射
 /// 去除了缓存功能，Toast使用闭包回调
@@ -38,10 +21,12 @@ public class AFClient<Keys: iNtkResponseMapKeys>: iNtkClient {
     private let session: Session
     
     /// 初始化
-    /// - Parameter session: Alamofire Session，默认为 .default
-    public init(session: Session = .default) {
+    /// - Parameters:
+    ///   - session: Alamofire Session，默认为 .default
+    ///   - storage: 缓存存储实现，默认为不缓存
+    public init(session: Session = .default, storage: iNtkCacheStorage = AFNoCacheStorage()) {
         self.session = session
-        self.storage = AFNoCacheStorage()
+        self.storage = storage
     }
     
     /// 执行网络请求
@@ -151,16 +136,18 @@ public class AFClient<Keys: iNtkResponseMapKeys>: iNtkClient {
 }
 
 /// 内部使用的无缓存存储实现
-fileprivate struct AFNoCacheStorage: iNtkCacheStorage {
-    func setData(metaData: NtkCacheMeta, key: String, for request: NtkMutableRequest) async -> Bool {
+public struct AFNoCacheStorage: iNtkCacheStorage {
+    public init() {}
+    
+    public func setData(metaData: NtkCacheMeta, key: String, for request: NtkMutableRequest) async -> Bool {
         return false
     }
     
-    func getData(key: String, for request: NtkMutableRequest) async -> NtkCacheMeta? {
+    public func getData(key: String, for request: NtkMutableRequest) async -> NtkCacheMeta? {
         return nil
     }
     
-    func hasData(key: String, for request: NtkMutableRequest) async -> Bool {
+    public func hasData(key: String, for request: NtkMutableRequest) async -> Bool {
         return false
     }
 }
