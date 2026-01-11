@@ -154,21 +154,12 @@ extension NtkNetwork {
     }
     
     /// 取消当前请求
-    public func cancel() {
-        // 1. 本地标记取消
+    public func cancel() async {
         lock.withLock {
             _isCancelled = true
         }
-        
-        // 2. 异步通知 TaskManager 取消实际任务
-        // 必须拷贝 request 以避免并发访问
-        // 注意：这里我们假设 cancelRequest 只需要 request 中的标识符信息，而这些信息在请求构建初期已确定
-        // NtkRequestIdentifierManager 已改为线程安全，可以同步调用
         let requestToCancel = mutableRequest
-        
-        Task {
-            await NtkTaskManager.cancelRequest(request: requestToCancel)
-        }
+        await NtkTaskManager.cancelRequest(request: requestToCancel)
     }
     
     
