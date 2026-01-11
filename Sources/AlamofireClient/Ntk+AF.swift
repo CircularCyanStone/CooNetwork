@@ -30,15 +30,12 @@ public extension Ntk {
         _ request: iAFRequest,
         validation: iNtkResponseValidation? = nil,
         cacheStorage: iNtkCacheStorage = AFNoCacheStorage()
-    ) async -> NtkNetwork<ResponseData> where ResponseData: Decodable {
+    ) -> NtkNetwork<ResponseData> where ResponseData: Decodable {
         // 创建 AFClient，注入缓存策略
         let client = AFClient<Keys>(storage: cacheStorage)
-        
         // 使用传入的 validation 或默认的 AFDetaultResponseValidation
         let responseValidation = validation ?? AFDetaultResponseValidation()
-        
         let net = with(client, request: request, dataParsingInterceptor: AFDataParsingInterceptor<ResponseData, Keys>(), validation: responseValidation)
-        
         return net
     }
 }

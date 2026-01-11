@@ -14,7 +14,7 @@ let package = Package(
             type: .dynamic,
             targets: ["CooNetwork"]
         ),
-        .library(name: "AlamofireClient", targets: ["AlamofireClient"])
+        .library(name: "CooNetworkAFClient", targets: ["CooNetworkAFClient"])
     ],
     dependencies: [
         // 1. 在这里添加 Alamofire 的远程仓库地址
@@ -25,12 +25,13 @@ let package = Package(
             name: "CooNetwork"
         ),
         .target(
-            name: "AlamofireClient",
+            name: "CooNetworkAFClient",
             dependencies: [
                 .target(name: "CooNetwork"),
                 // 2. 在这里将 Alamofire 库绑定到你的 target 上
                 .product(name: "Alamofire", package: "Alamofire")
-            ]
+            ],
+            path: "Sources/AlamofireClient"
         ),
         .testTarget(
             name: "CooNetworkTests",

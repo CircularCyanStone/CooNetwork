@@ -31,11 +31,9 @@ public struct AFToastInterceptor: iNtkInterceptor {
     }
     
     public func intercept(context: NtkInterceptorContext, next: any NtkRequestHandler) async throws -> any iNtkResponse {
-        
         guard let afRequest = context.mutableRequest.originalRequest as? iAFRequest else {
             return try await next.handle(context: context)
         }
-        
         do {
             let response = try await next.handle(context: context)
             return response
