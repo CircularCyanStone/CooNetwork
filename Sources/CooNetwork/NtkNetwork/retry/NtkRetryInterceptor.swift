@@ -28,7 +28,6 @@ public struct NtkRetryInterceptor: iNtkInterceptor {
         self.priority = priority
     }
     
-    @NtkActor
     public func intercept(context: NtkInterceptorContext, next: NtkRequestHandler) async throws -> any iNtkResponse {
         var attemptCount = 0
         var lastError: Error?

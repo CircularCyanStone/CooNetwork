@@ -10,7 +10,7 @@
 import Foundation
 
 /// 响应提取器闭包类型，用于从不同类型的响应中提取数据
-public typealias ResponseExtractor = @Sendable (any iNtkResponse) -> Sendable?
+public typealias ResponseExtractor = (any iNtkResponse) -> Sendable?
 
 /// 默认缓存拦截器实现
 /// 提供基础的响应缓存功能，支持自定义缓存策略
@@ -40,7 +40,7 @@ public struct NtkCacheSaveInterceptor: iNtkInterceptor {
     /// 默认的响应提取器实现，保持原有的response.response转换逻辑
     /// - Parameter response: 响应对象
     /// - Returns: 提取的响应数据，如果无法提取则返回nil
-    private static func defaultResponseExtractor(_ response: any iNtkResponse) -> Sendable? {
+    private static func defaultResponseExtractor(_ response: any iNtkResponse) -> Any? {
         return response.response
     }
     /// 拦截并处理缓存

@@ -26,14 +26,13 @@ public extension Ntk {
     ///   - validation: 响应校验器，默认为 nil (使用默认校验逻辑)
     ///   - cacheStorage: 缓存存储策略，默认为不缓存 (AFNoCacheStorage)
     /// - Returns: 配置好的网络请求管理器
-    nonisolated
     static func withAF(
         _ request: iAFRequest,
         validation: iNtkResponseValidation? = nil,
-        storage: iNtkCacheStorage = AFNoCacheStorage()
+        cacheStorage: iNtkCacheStorage = AFNoCacheStorage()
     ) -> NtkNetwork<ResponseData> where ResponseData: Decodable {
         // 创建 AFClient，注入缓存策略
-        let client = AFClient<Keys>(storage: storage)
+        let client = AFClient<Keys>(storage: cacheStorage)
         // 使用传入的 validation 或默认的 AFDetaultResponseValidation
         let responseValidation = validation ?? AFDetaultResponseValidation()
         let net = with(client, request: request, dataParsingInterceptor: AFDataParsingInterceptor<ResponseData, Keys>(), validation: responseValidation)

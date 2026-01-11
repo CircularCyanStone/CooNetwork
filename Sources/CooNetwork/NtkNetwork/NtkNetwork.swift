@@ -10,14 +10,8 @@ import Foundation
 /// 网络请求管理器
 /// 负责管理网络请求的生命周期，包括请求执行、取消、缓存等功能
 /// 支持泛型响应数据类型，提供类型安全的网络请求接口
-///
-/// **设计说明**：
-/// NtkNetwork 作为一个 Configurator/Builder，负责收集请求配置。
-/// 所有的配置方法（如 addInterceptor）都是非隔离的，支持同步链式调用。
-/// 实际的请求执行委托给内部的 NtkNetworkExecutor (Actor) 处理。
-/// 使用 @unchecked Sendable 是因为我们使用内部锁来保护可变状态，
-/// 并且设计意图是作为单线程配置器使用。
-public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
+@NtkActor
+public class NtkNetwork<ResponseData: Sendable> {
     
     /// 响应结果枚举，用于区分缓存和网络响应
     private enum ResponseResult {
@@ -38,54 +32,31 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
     
     /// 存储所有注册的自定义拦截器
     private var _interceptors: [iNtkInterceptor] = []
-    
-    // 注意：由于是 Sendable 类且有可变属性，理论上需要锁保护。
-    // 但作为 Builder，通常在单线程构建。
-    // 这里为了严格符合 Swift 6，我们使用 @unchecked Sendable 并添加内部锁，
-    // 或者，鉴于我们现在是在主线程或其他线程构建，而 client/request 是值类型或不可变的，
-    // 我们暂时依靠使用者的单线程构建习惯。
-    // 但为了绝对安全，我们在这里使用简单的锁保护配置状态。
-    private let lock = NtkUnfairLock()
-    
     /// 按优先级排序的自定义拦截器列表
     private var interceptors: [iNtkInterceptor] {
         get {
-            return lock.withLock {
-                _interceptors.sorted { $0.priority > $1.priority }
-            }
+            return _interceptors.sorted { $0.priority > $1.priority }
         }
         set {
-            lock.withLock {
-                _interceptors = newValue
-            }
+            _interceptors = newValue
         }
     }
     
     /// 存储所有核心拦截器
     private var _coreInterceptors: [iNtkInterceptor] = []
-    
-    /// 本地记录的取消状态（用于同步返回）
-    private var _isCancelled: Bool = false
-    
     /// 按优先级排序的核心拦截器列表
     private var coreInterceptors: [iNtkInterceptor] {
         get {
-            return lock.withLock {
-                _coreInterceptors.sorted { $0.priority > $1.priority }
-            }
+            return _coreInterceptors.sorted { $0.priority > $1.priority }
         }
         set {
-            lock.withLock {
-                _coreInterceptors = newValue
-            }
+            _coreInterceptors = newValue
         }
     }
     
     /// 检查当前请求是否已被取消
     public var isCancelled: Bool {
-        return lock.withLock {
-            _isCancelled
-        }
+        return !NtkTaskManager.isRequestActive(request: mutableRequest)
     }
     
     
@@ -95,13 +66,11 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
     ///   - request: 网络请求对象
     ///   - dataParsingInterceptor: 响应解析插件
     ///   - validation: 响应验证器
-    ///   - interceptors: 初始拦截器列表
-    public required init(_ client: any iNtkClient, request: iNtkRequest, dataParsingInterceptor: iNtkInterceptor, validation: iNtkResponseValidation, interceptors: [iNtkInterceptor] = []) {
+    public required init(_ client: any iNtkClient, request: iNtkRequest, dataParsingInterceptor: iNtkInterceptor, validation: iNtkResponseValidation) {
         self.client = client
         self.mutableRequest = NtkMutableRequest(request)
         self.dataParsingInterceptor = dataParsingInterceptor
         self.validation = validation
-        self._interceptors = interceptors
     }
     
     /// 创建网络请求管理器的便捷方法
@@ -110,10 +79,9 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
     ///   - request: 网络请求对象
     ///   - dataParsingInterceptor: 响应解析插件
     ///   - validation: 响应验证器
-    ///   - interceptors: 初始拦截器列表
     /// - Returns: 配置好的网络请求管理器实例
-    public class func with(_ client: any iNtkClient, request: iNtkRequest, dataParsingInterceptor: iNtkInterceptor, validation: iNtkResponseValidation, interceptors: [iNtkInterceptor] = []) -> Self {
-        let net = self.init(client, request: request, dataParsingInterceptor: dataParsingInterceptor, validation: validation, interceptors: interceptors)
+    public class func with(_ client: any iNtkClient, request: iNtkRequest, dataParsingInterceptor: iNtkInterceptor, validation: iNtkResponseValidation) -> Self {
+        let net = self.init(client, request: request, dataParsingInterceptor: dataParsingInterceptor, validation: validation)
         return net
     }
     
@@ -122,9 +90,7 @@ private extension NtkNetwork {
     /// 添加核心拦截器
     /// - Parameter i: 拦截器实现
     func addCoreInterceptor(_ i: iNtkInterceptor) {
-        lock.withLock {
-            _coreInterceptors.append(i)
-        }
+        _coreInterceptors.append(i)
     }
     
 }
@@ -136,9 +102,7 @@ extension NtkNetwork {
     /// - Returns: 当前实例，支持链式调用
     @discardableResult
     public func addInterceptor(_ i: iNtkInterceptor) -> Self {
-        lock.withLock {
-            _interceptors.append(i)
-        }
+        _interceptors.append(i)
         return self
     }
     
@@ -147,87 +111,97 @@ extension NtkNetwork {
     /// - Returns: 当前实例，支持链式调用
     @discardableResult
     public func validation(_ validation: iNtkResponseValidation) -> Self {
-        lock.withLock {
-            self.validation = validation
-        }
+        self.validation = validation
         return self
     }
     
     /// 取消当前请求
     public func cancel() {
-        // 1. 本地标记取消
-        lock.withLock {
-            _isCancelled = true
-        }
-        
-        // 2. 异步通知 TaskManager 取消实际任务
-        // 必须拷贝 request 以避免并发访问
-        // 注意：这里我们假设 cancelRequest 只需要 request 中的标识符信息，而这些信息在请求构建初期已确定
-        // NtkRequestIdentifierManager 已改为线程安全，可以同步调用
-        let requestToCancel = mutableRequest
-        
-        Task {
-            await NtkTaskManager.cancelRequest(request: requestToCancel)
-        }
+        NtkTaskManager.cancelRequest(request: mutableRequest)
     }
     
     
     
     public func setRequestValue(_ value: Sendable, forKey key: String) {
-        lock.withLock {
-            mutableRequest[key] = value
-        }
+        mutableRequest[key] = value
     }
     
     /// 发送网络请求
     /// 异步执行网络请求并返回响应结果
+    /// - Parameter storage: 网络请求缓存存储工具
     /// - Returns: 网络响应对象
     /// - Throws: 网络请求过程中的错误
     @discardableResult
-    public func request() async throws -> NtkResponse<ResponseData> {
+    public func request(storage: (any iNtkCacheStorage)? = nil) async throws -> NtkResponse<ResponseData> {
         guard let validation else {
             fatalError("iNtkResponseValidation must not be nil, you should call method 'func validation(_ validation: iNtkResponseValidation) -> Self' first")
         }
-
-        // 1. 创建 Executor 并传递配置快照
-        // 注意：这里传递的是值类型(NtkMutableRequest)的拷贝和引用类型的引用(Client, Interceptors)
-        // Client 和 Interceptors 必须是 Sendable 的
-        let executor = lock.withLock {
-            NtkNetworkExecutor<ResponseData>(
-                client: client,
-                request: mutableRequest,
-                interceptors: _interceptors,
-                coreInterceptors: _coreInterceptors,
-                validation: validation,
-                dataParsingInterceptor: dataParsingInterceptor
-            )
+        if let storage {
+            client.storage = storage
+        }
+        let context = NtkInterceptorContext(mutableRequest: mutableRequest, validation: validation, client: client)
+        
+        addCoreInterceptor(NtkDeduplicationInterceptor())
+        addCoreInterceptor(dataParsingInterceptor)
+        let tmpInterceptors =  interceptors + coreInterceptors
+        
+        let realChainManager = NtkInterceptorChainManager(interceptors: tmpInterceptors) { [weak self] context in
+            self?.mutableRequest = context.mutableRequest
+            let response = try await context.client.execute(context.mutableRequest)
+            return response
         }
         
-        // 2. 委托执行
-        return try await executor.execute()
+        do {
+            let response = try await realChainManager.execute(context: context)
+            if let response = response as? NtkResponse<ResponseData> {
+                return response
+            }else {
+                throw NtkError.serviceDataTypeInvalid
+            }
+        }catch let error as NtkError {
+            throw error
+        }catch {
+            throw error
+        }
     }
     
     /// 加载缓存数据
     /// 直接通过缓存请求处理器读取缓存，跳过拦截器链
     /// - Returns: 缓存的响应对象，如果没有缓存则返回nil
     /// - Throws: 缓存加载过程中的错误
-    public func loadCache() async throws -> NtkResponse<ResponseData>? {
+    public func loadCache(storage: (any iNtkCacheStorage)? = nil) async throws -> NtkResponse<ResponseData>? {
         guard let validation else {
             fatalError("iNtkResponseValidation must not be nil, you should call method 'func validation(_ validation: iNtkResponseValidation) -> Self' first")
         }
-
-        let executor = lock.withLock {
-            NtkNetworkExecutor<ResponseData>(
-                client: client,
-                request: mutableRequest,
-                interceptors: _interceptors,
-                coreInterceptors: _coreInterceptors,
-                validation: validation,
-                dataParsingInterceptor: dataParsingInterceptor
-            )
+        if let storage {
+            client.storage = storage
         }
+        let context = NtkInterceptorContext(mutableRequest: mutableRequest, validation: validation, client: client)
         
-        return try await executor.loadCache()
+        addCoreInterceptor(dataParsingInterceptor)
+        let tmpInterceptors = coreInterceptors
+        // 缓存直接进行最终读取缓存解析处理
+        let realChainManager = NtkInterceptorChainManager(interceptors: tmpInterceptors) { [weak self] context in
+            self?.mutableRequest = context.mutableRequest
+            if let response = try await context.client.loadCache(context.mutableRequest) {
+                return response
+            }
+            throw NtkError.Cache.noCache
+        }
+        do {
+            let response = try await realChainManager.execute(context: context)
+            if let response = response as? NtkResponse<ResponseData> {
+                return response
+            }else {
+                throw NtkError.serviceDataTypeInvalid
+            }
+        }catch NtkError.Cache.noCache {
+            return nil
+        }catch let error as NtkError {
+            throw error
+        }catch {
+            throw error
+        }
     }
     
     /// 便捷发起网络请求并加载缓存
@@ -235,9 +209,10 @@ extension NtkNetwork {
     /// 此方法会同时发起网络请求和加载缓存，并通过异步序列返回结果。
     /// 设计原则是优先显示缓存，网络请求返回后再刷新数据，以优化用户体验。
     ///
+    /// - Parameter storage: 网络请求缓存存储工具
     /// - Returns: 异步序列，按完成顺序返回缓存和网络响应
     /// - Throws: 在网络请求或缓存加载过程中可能抛出的任何错误
-    public func requestWithCache() -> AsyncThrowingStream<NtkResponse<ResponseData>, Error> {
+    public func requestWithCache(storage: (any iNtkCacheStorage)? = nil) -> AsyncThrowingStream<NtkResponse<ResponseData>, Error> {
         return AsyncThrowingStream { continuation in
             let task = Task {
                 do {
@@ -246,7 +221,7 @@ extension NtkNetwork {
                         // 并发加载缓存
                         group.addTask {
                             do {
-                                return .cache(try await self.loadCache())
+                                return .cache(try await self.loadCache(storage: storage))
                             } catch {
                                 print("startWithCache 缓存加载失败，但不影响网络请求: \(error)")
                                 return .cache(nil)
@@ -255,7 +230,7 @@ extension NtkNetwork {
 
                         // 并发发起网络请求
                         group.addTask {
-                            return .network(try await self.request())
+                            return .network(try await self.request(storage: storage))
                         }
 
                         // 按完成顺序处理结果
@@ -302,23 +277,26 @@ extension NtkNetwork {
 
 extension NtkNetwork where ResponseData == Bool {
     /// 判断是否存在缓存数据
+    /// - Parameter storage: 网络请求缓存存储工具
     /// - Returns: 如果存在缓存数据返回true，否则返回false
-    public func hasCacheData() async -> Bool {
+    public func hasCacheData(storage: (any iNtkCacheStorage)? = nil) async -> Bool {
         guard let validation else {
             fatalError("iNtkResponseValidation must not be nil, you should call method 'func validation(_ validation: iNtkResponseValidation) -> Self' first")
         }
-
-        let executor = lock.withLock {
-            NtkNetworkExecutor<Bool>(
-                client: client,
-                request: mutableRequest,
-                interceptors: _interceptors,
-                coreInterceptors: _coreInterceptors,
-                validation: validation,
-                dataParsingInterceptor: dataParsingInterceptor
-            )
+        if let storage {
+            client.storage = storage
         }
+        let context = NtkInterceptorContext(mutableRequest: mutableRequest, validation: validation, client: client)
         
-        return await executor.hasCacheData()
+        let realChainManager = NtkInterceptorChainManager(interceptors: interceptors) { [weak self] context in
+            self?.mutableRequest = context.mutableRequest
+            return await context.client.hasCacheData(context.mutableRequest)
+        }
+        do {
+            let response = try await realChainManager.execute(context: context) as? NtkResponse<Bool>
+            return response?.data ?? false
+        }catch {
+            return false
+        }
     }
 }

@@ -12,9 +12,8 @@ import CryptoKit
 /// 请求标识符管理器
 /// 负责为网络请求生成唯一的缓存键和去重标识符
 /// 使用Swift Hasher确保高性能的哈希计算
-public class NtkRequestIdentifierManager: @unchecked Sendable {
-    
-    private let lock = NtkUnfairLock()
+@NtkActor
+public class NtkRequestIdentifierManager {
     
     /// 内存缓存映射
     /// 使用LRU策略管理缓存条目，避免内存无限增长
@@ -197,14 +196,12 @@ extension NtkRequestIdentifierManager {
     ///   - key: 缓存键
     ///   - value: 缓存值
     private func updateCache(key: String, value: String) {
-        lock.withLock {
-            if cacheMap.count >= 100 {
-                // 删除最旧条目（简化的LRU实现）
-                if let firstKey = cacheMap.keys.first {
-                    cacheMap.removeValue(forKey: firstKey)
-                }
+        if cacheMap.count >= 100 {
+            // 删除最旧条目（简化的LRU实现）
+            if let firstKey = cacheMap.keys.first {
+                cacheMap.removeValue(forKey: firstKey)
             }
-            cacheMap[key] = value
         }
+        cacheMap[key] = value
     }
 }

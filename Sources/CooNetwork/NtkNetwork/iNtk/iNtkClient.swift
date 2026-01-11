@@ -9,18 +9,18 @@ import Foundation
 
 /// 网络客户端协议
 /// 定义了网络请求执行的核心接口，支持不同的网络实现（如RPC、HTTP等）
+@NtkActor
 public protocol iNtkClient: Sendable {
     /// 响应数据映射键的关联类型
     associatedtype Keys: iNtkResponseMapKeys
     
     /// 缓存存储器
     /// - Returns: 用于缓存网络响应的存储实现
-    var storage: iNtkCacheStorage { get }
+    var storage: iNtkCacheStorage { get set }
     
     /// 执行网络请求
     /// - Returns: 原始的网络响应数据
     /// - Throws: 网络请求过程中的错误
-    @NtkActor
     func execute(_ request: NtkMutableRequest) async throws -> NtkClientResponse
     
     /// 取消当前请求
@@ -29,15 +29,12 @@ public protocol iNtkClient: Sendable {
     /// 加载缓存数据
     /// - Returns: 缓存的响应数据，如果没有缓存则返回nil
     /// - Throws: 缓存加载过程中的错误
-    @NtkActor
     func loadCache(_ request: NtkMutableRequest) async throws -> NtkClientResponse?
     
-    @NtkActor
     func saveCache(_ request: NtkMutableRequest, response: Sendable) async -> Bool
     
     /// 检查是否有缓存数据
     /// - Returns: 如果存在缓存数据返回true，否则返回false
-    @NtkActor
     func hasCacheData(_ request: NtkMutableRequest) async -> NtkResponse<Bool>
 }
 
@@ -46,7 +43,6 @@ public extension iNtkClient {
     /// 默认的缓存加载实现
     /// - Returns: 缓存的响应数据，如果没有缓存则返回nil
     /// - Throws: 缓存加载过程中的错误
-    @NtkActor
     func loadCache(_ request: NtkMutableRequest) async throws -> NtkClientResponse? {
         let cacheUtil = NtkNetworkCache(storage: storage)
         let response = try await cacheUtil.loadData(for: request)
@@ -59,7 +55,6 @@ public extension iNtkClient {
     /// 缓存响应结果到本地
     /// - Parameter response: 后端的响应
     /// - Returns: true成功 false失败
-    @NtkActor
     func saveCache(_ request: NtkMutableRequest, response: Sendable) async -> Bool {
         let cacheUtil = NtkNetworkCache(storage: storage)
         return await cacheUtil.save(data: response, for: request)
@@ -67,7 +62,6 @@ public extension iNtkClient {
     
     /// 默认的缓存检查实现
     /// - Returns: 如果存在缓存数据返回true，否则返回false
-    @NtkActor
     func hasCacheData(_ request: NtkMutableRequest) async -> NtkResponse<Bool> {
         let cacheUtil = NtkNetworkCache(storage: storage)
         let result = await cacheUtil.hasData(for: request)
