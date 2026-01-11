@@ -8,7 +8,7 @@
 import CooNetwork
 import Foundation
 
-protocol AFResponseParsingCustomHander {
+protocol AFResponseParsingCustomHander: Sendable {
     func handle(
         _ sendableResponse: [String: any Sendable],
         response: inout NtkClientResponse,

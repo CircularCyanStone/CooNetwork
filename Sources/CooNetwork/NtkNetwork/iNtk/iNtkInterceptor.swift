@@ -33,26 +33,25 @@ extension Int {
 /// 用于管理和比较拦截器的执行优先级，支持自定义优先级数值
 /// - Note: 对于请求流：值越大执行越早
 ///         对于响应流：值越小执行越早
-public class NtkInterceptorPriority: Comparable {
+public struct NtkInterceptorPriority: Comparable, Sendable {
     /// 优先级数值，默认为中等优先级（750）
     private(set) var value: Int = .medium
     
     /// 必需的初始化方法
     /// 创建默认中等优先级的实例
-    required
-    init() {
+    public init() {
         
     }
     
     /// 创建指定优先级的实例
     /// - Parameter value: 优先级数值，会被限制在最高优先级（1000）以内
     /// - Returns: 新的优先级实例
-    public class func priority(_ value: Int) -> Self {
+    public static func priority(_ value: Int) -> Self {
         var pValue: Int = value
         if pValue > .high {
             pValue = .high
         }
-        let p = self.init()
+        var p = self.init()
         p.value = pValue
         return p
     }
@@ -81,7 +80,6 @@ public class NtkInterceptorPriority: Comparable {
 /// 定义了网络请求拦截器的基本行为，支持请求和响应的拦截处理
 /// 使用责任链模式，允许多个拦截器按优先级顺序处理请求
 /// 因为iNtkInterceptor里面的方法是在网络组件中被调用，添加NtkActor避免隔离域的跳转。
-@NtkActor
 public protocol iNtkInterceptor: Sendable {
     
     /// 拦截器优先级
@@ -98,6 +96,7 @@ public protocol iNtkInterceptor: Sendable {
     ///   - next: 下一个请求处理器，用于继续执行责任链
     /// - Returns: 处理后的响应对象
     /// - Throws: 拦截过程中的错误
+    @NtkActor
     func intercept(context: NtkInterceptorContext, next: NtkRequestHandler) async throws -> any iNtkResponse
 }
 

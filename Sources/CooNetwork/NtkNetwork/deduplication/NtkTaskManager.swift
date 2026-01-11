@@ -25,7 +25,7 @@ class NtkTaskManager {
     ///   - request: 网络请求对象
     ///   - execution: 实际的请求执行闭包
     /// - Returns: 请求结果
-    func executeWithDeduplication<T: Sendable>(
+     func executeWithDeduplication<T: Sendable>(
         request: NtkMutableRequest,
         execution: @escaping @Sendable () async throws -> T
     ) async throws -> T {

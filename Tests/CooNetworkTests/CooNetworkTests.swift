@@ -64,8 +64,8 @@ struct CooNetworkTests {
         
         do {
             // 使用 NtkAF<T> 别名，T 为期望的 Response Model
-            // 注意：withAF 是 async 的，需要 await
-            let network = await NtkAF<UserInfo>.withAF(request)
+            // 注意：withAF 现已优化为 nonisolated，无需 await
+            let network = NtkAF<UserInfo>.withAF(request)
             
             // 发起请求
             let response = try await network.request()
@@ -88,7 +88,7 @@ struct CooNetworkTests {
         do {
             // 如果接口只返回成功/失败，没有具体 data 结构，可以使用 NtkAFBool
             // NtkAFBool 是 Ntk<Bool, AFResponseMapKeys> 的别名
-            let network = await NtkAFBool.withAF(request)
+            let network = NtkAFBool.withAF(request)
             
             let response = try await network.request()
             
@@ -105,7 +105,7 @@ struct CooNetworkTests {
         
         do {
             // 如果不需要关心 data，使用 NtkNever
-            let network = await NtkAF<NtkNever>.withAF(request)
+            let network = NtkAF<NtkNever>.withAF(request)
             
             let response = try await network.request()
             
@@ -132,9 +132,9 @@ struct CooNetworkTests {
         
         do {
             // 传入自定义的缓存策略
-            let network = await NtkAF<UserInfo>.withAF(
+            let network = NtkAF<UserInfo>.withAF(
                 request,
-                cacheStorage: MemoryCache()
+                storage: MemoryCache()
             )
             
             _ = try await network.request()
