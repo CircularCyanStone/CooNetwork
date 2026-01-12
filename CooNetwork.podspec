@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'CooNetwork'
-  s.version          = '0.0.2'
+  s.version          = '0.0.4'
   s.summary          = '统一的网络工具，支持接入不同的网络组件，提供统一的API与业务层对接。'
   s.description      = <<-DESC
                        CooNetwork 是一个统一的网络工具库，旨在为不同的网络组件提供统一的接入方式，
