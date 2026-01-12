@@ -1,5 +1,5 @@
 PODS:
-  - CooNetwork (0.0.1)
+  - CooNetwork (0.0.2)
 
 DEPENDENCIES:
   - CooNetwork (from `../../`)
@@ -9,7 +9,7 @@ EXTERNAL SOURCES:
     :path: "../../"
 
 SPEC CHECKSUMS:
-  CooNetwork: cc95f4415b2db90bbefbf35d99cea050a2cef521
+  CooNetwork: 21638d990e964849936e4609c215303b15ed63c0
 
 PODFILE CHECKSUM: f4c99db5728e6ce2500f6289a5f9fdc9d4f99af7
 

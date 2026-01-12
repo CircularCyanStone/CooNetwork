@@ -38,10 +38,9 @@ public struct NtkCacheSaveInterceptor: iNtkInterceptor {
     }
     
     /// 默认的响应提取器实现，保持原有的response.response转换逻辑
-    /// - Parameter response: 响应对象
-    /// - Returns: 提取的响应数据，如果无法提取则返回nil
-    private static func defaultResponseExtractor(_ response: any iNtkResponse) -> Sendable? {
-        return response.response
+    /// 以闭包常量的形式声明，确保其为 @Sendable 类型，避免隐式转换产生的数据竞争警告
+    private static let defaultResponseExtractor: ResponseExtractor = { response in
+        response.response
     }
     /// 拦截并处理缓存
     /// - Parameters:
