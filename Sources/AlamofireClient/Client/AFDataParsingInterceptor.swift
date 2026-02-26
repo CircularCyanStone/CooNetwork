@@ -5,6 +5,8 @@
 //  Created by CooNetwork on 2026/01/10.
 //
 
+// 用于解析网络工具返回的直接就是 Data类型的 数据解析工具。
+
 #if !COCOAPODS
 import CooNetwork
 #endif

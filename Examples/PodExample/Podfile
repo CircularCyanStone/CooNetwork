@@ -6,5 +6,6 @@ target 'PodExample' do
   use_frameworks!
 
   pod 'CooNetwork', :path => '../../'
+  pod 'CooNetwork/Alamofire', :path => '../../'
 
 end
