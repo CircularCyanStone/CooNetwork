@@ -5,7 +5,9 @@
 //  Created by CooNetwork on 2026/01/10.
 //
 
+#if !COCOAPODS
 import CooNetwork
+#endif
 import Foundation
 
 protocol AFResponseParsingCustomHander: Sendable {

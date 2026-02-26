@@ -6,7 +6,9 @@
 //
 
 import Foundation
+#if !COCOAPODS
 import CooNetwork
+#endif
 
 /// AF请求默认的Toast处理逻辑。
 public struct AFToastInterceptor: iNtkInterceptor {

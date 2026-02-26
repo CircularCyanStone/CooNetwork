@@ -6,7 +6,9 @@
 //
 
 import Foundation
+#if !COCOAPODS
 import CooNetwork
+#endif
 @preconcurrency import Alamofire
 
 /// AF 客户端请求执行实现

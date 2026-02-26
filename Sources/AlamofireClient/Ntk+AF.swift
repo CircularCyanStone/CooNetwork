@@ -6,7 +6,9 @@
 //
 
 import Foundation
+#if !COCOAPODS
 import CooNetwork
+#endif
 import Alamofire
 
 /// 类型别名，便捷用于后端返回值JSON key的映射模式为AFResponseMapKeys。

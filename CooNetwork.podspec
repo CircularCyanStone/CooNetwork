@@ -15,5 +15,15 @@ Pod::Spec.new do |s|
   s.ios.deployment_target = '13.0'
   s.swift_version = '5.7'
 
-  s.source_files = 'Sources/CooNetwork/**/*'
+  s.default_subspec = 'Core'
+
+  s.subspec 'Core' do |core|
+    core.source_files = 'Sources/CooNetwork/**/*'
+  end
+
+  s.subspec 'Alamofire' do |af|
+    af.source_files = 'Sources/AlamofireClient/**/*'
+    af.dependency 'CooNetwork/Core'
+    af.dependency 'Alamofire', '~> 5.10'
+  end
 end

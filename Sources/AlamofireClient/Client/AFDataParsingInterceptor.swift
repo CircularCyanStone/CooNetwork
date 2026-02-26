@@ -5,7 +5,9 @@
 //  Created by CooNetwork on 2026/01/10.
 //
 
+#if !COCOAPODS
 import CooNetwork
+#endif
 import Foundation
 
 /// 基于原始 Data 的响应解析拦截器
