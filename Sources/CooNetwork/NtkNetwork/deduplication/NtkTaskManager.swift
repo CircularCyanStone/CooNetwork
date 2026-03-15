@@ -187,6 +187,8 @@ extension NtkTaskManager {
             }
             throw error
         } catch {
+            // 移除缓存（包括取消等非 NtkError 情况）
+            Self.ongoingRequests.removeValue(forKey: requestId)
             NtkLogger.shared.error("请求执行失败: \(requestId), 错误: \(error)", category: .deduplication)
             throw error
         }
