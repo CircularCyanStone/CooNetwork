@@ -79,7 +79,7 @@ public struct NtkRetryInterceptor: iNtkInterceptor {
         }
         
         // 重试次数用完，抛出最后的错误
-        let finalError = lastError ?? NtkError.other("Network timeout" as! Error)
+        let finalError = lastError ?? NtkError.requestTimeout
         await recordRetryFailure(attemptCount: retryPolicy.maxRetryCount, finalError: finalError)
         throw finalError
     }

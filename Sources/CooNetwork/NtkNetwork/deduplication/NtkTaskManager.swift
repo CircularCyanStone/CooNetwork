@@ -60,9 +60,9 @@ class NtkTaskManager {
                     return try await executeNewRequestWithTimeout(requestId: requestId, request: request, execution: execution)
                 }
             } catch {
-                // 正在进行的请求失败，移除缓存并重新执行
+                // 正在进行的请求失败，移除缓存并透传错误给当前调用方
                 Self.ongoingRequests.removeValue(forKey: requestId)
-                NtkLogger.shared.warning("现有请求失败，重新执行: \(requestId), 错误: \(error)", category: .deduplication)
+                NtkLogger.shared.warning("现有请求失败，透传错误: \(requestId), 错误: \(error)", category: .deduplication)
                 throw error
             }
         } else {

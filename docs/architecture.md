@@ -8,11 +8,10 @@ CooNetwork 的核心设计目标是为不同的网络组件提供统一的接入
 
 ### 双层设计
 
-1. **配置层 (NtkNetwork)**` - 非 Actor 的 Builder 模式类
+1. **配置层 (NtkNetwork)** - 非 Actor 的 Builder 模式类
    - 负责收集请求配置和拦截器
    - 支持同步链式调用
    - 使用 `@unchecked Sendable` 配合内部锁保护可变状态
-
 2. **执行层 (NtkNetworkExecutor)** - Actor 类
    - 处理实际的请求执行
    - 管理拦截器链调用
@@ -27,6 +26,7 @@ CooNetwork 的核心设计目标是为不同的网络组件提供统一的接入
 - 执行器和上下文是 `@NtkActor` 隔离的
 
 这种设计允许：
+
 - 配置层支持同步链式调用（非隔离）
 - 执行层保持线程安全和并发隔离（Actor 隔离）
 
@@ -47,7 +47,7 @@ Sources/CooNetwork/
 │   └── lock/           # 并发锁
 ```
 
-### CooNetworkAFClient (Alamofire 实现)
+### AlamofireClient (Alamofire 实现)
 
 ```
 Sources/AlamofireClient/
@@ -64,7 +64,8 @@ Sources/AlamofireClient/
 
 ### 为什么使用 @NtkActor 而不是全局 Actor？
 
-全局 Actor 会导致所有方法调用跨隔离域，性能损耗大。`@NtkActor` 允许在内部保持隔离，减少跨域传递。
+这里的“不是全局 Actor”指的不是 Swift 语法层面的 `@globalActor` 定义方式，而是避免直接依赖默认全局并发上下文。  
+`@NtkActor` 本身是一个自定义 `@globalActor`，用于把网络相关执行收敛到统一隔离域，同时将隔离范围限制在网络模块内部，减少不必要的跨域传递。
 
 ### 拦截器优先级设计
 
@@ -81,6 +82,7 @@ Sources/AlamofireClient/
 ### iNtk/ (接口层)
 
 定义所有核心协议：
+
 - `iNtkClient` - 网络客户端抽象
 - `iNtkRequest` - 请求定义
 - `iNtkResponse` - 响应抽象
@@ -90,6 +92,7 @@ Sources/AlamofireClient/
 ### model/ (数据层)
 
 定义可变的数据结构：
+
 - `NtkMutableRequest` - 可修改的请求对象
 - `NtkClientResponse` - 客户端原始响应
 - `NtkResponse<T>` - 类型安全的响应包装
@@ -97,6 +100,7 @@ Sources/AlamofireClient/
 ### interceptor/ (拦截器基础设施)
 
 提供拦截器链的基础设施：
+
 - `NtkInterceptorChainManager` - 责任链管理
 - `NtkInterceptorContext` - 请求上下文
 - `NtkRequestHandler` - 请求处理器接口
@@ -104,6 +108,7 @@ Sources/AlamofireClient/
 ### cache/ (缓存系统)
 
 完整的缓存解决方案：
+
 - `iNtkCacheStorage` - 存储抽象
 - `NtkNetworkCache` - 缓存管理
 - `NtkCacheMeta` - 缓存元数据
@@ -118,3 +123,7 @@ Sources/AlamofireClient/
 3. 实现 `iNtkResponseMapKeys` 响应映射
 
 Alamofire 实现是官方提供的参考实现。
+
+## 相关策略
+
+- [fatalError 使用策略](./fatal-error-policy.md)

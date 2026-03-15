@@ -6,7 +6,8 @@ import PackageDescription
 let package = Package(
     name: "CooNetwork",
     platforms: [
-        .iOS(.v13)
+        .iOS(.v13),
+        .macOS(.v10_15)
     ],
     products: [
         .library(
@@ -35,7 +36,7 @@ let package = Package(
         ),
         .testTarget(
             name: "CooNetworkTests",
-            dependencies: ["CooNetwork"]
+            dependencies: ["CooNetwork", "AlamofireClient"]
         ),
     ]
 )
