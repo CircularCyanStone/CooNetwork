@@ -71,10 +71,10 @@ public struct AFToastInterceptor: iNtkInterceptor {
     private func handleAFError(_ error: NtkError.AF) {
         var msg: String?
         switch error {
-        case .responseEmpty:
-            msg = "接口响应数据为空"
         case .responseTypeError:
             msg = "接口数据类型异常"
+        case let .afError(error, _, _):
+            msg = error.errorDescription ?? error.localizedDescription
         case .unknown(let message):
             msg = message
         }

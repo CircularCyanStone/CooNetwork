@@ -23,6 +23,9 @@ public enum NtkError: Error {
     /// 当使用JSONDecoder解码数据为模型时发生错误
     case decodeInvalid(_ error: Error, _ response: Sendable, _ request: iNtkRequest? = nil)
     
+    /// 网络层 响应体为空
+    case responseBodyEmpty(_ request: iNtkRequest, _ response: any iNtkResponse)
+    
     /// 服务端数据为空
     /// 当服务端返回的JSON中data字段为空时抛出
     case serviceDataEmpty

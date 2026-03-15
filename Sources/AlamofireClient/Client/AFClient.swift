@@ -103,15 +103,19 @@ public final class AFClient<Keys: iNtkResponseMapKeys>: iNtkClient {
             )
         case .failure(let error):
             // 5. 错误处理
-            if let urlError = error.underlyingError as? URLError {
-                 if urlError.code == .timedOut {
-                     throw NtkError.requestTimeout
-                 } else {
-                     throw NtkError.other(urlError)
-                 }
-            } else {
-                throw NtkError.other(error)
+            
+            if let urlError = error.underlyingError as? URLError, urlError.code == .timedOut {
+                throw NtkError.requestTimeout
             }
+            let fixResponse = NtkResponse<Data?>(
+                code: NtkReturnCode(response.response?.statusCode ?? 0),
+                data: nil,
+                msg: "",
+                response: response,
+                request: mRequest,
+                isCache: false
+            )
+            throw NtkError.AF.afError(error, mRequest, fixResponse)
         }
     }
     

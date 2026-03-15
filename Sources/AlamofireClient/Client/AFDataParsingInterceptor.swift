@@ -7,6 +7,7 @@
 
 import CooNetwork
 import Foundation
+import Alamofire
 
 /// 基于原始 Data 的响应解析拦截器
 /// 结合 TFNDataParsingInterceptor 的直解优点与 AF 响应校验/键映射能力
@@ -62,6 +63,11 @@ public struct AFDataParsingInterceptor<ResponseData: Sendable & Decodable, Keys:
 #endif // DEBUG
 
         do {
+            if rawData.isEmpty {
+                /// http response 响应体就是个空的.
+                throw NtkError.responseBodyEmpty(afRequest, clientResponse)
+            }
+            
             // 直接使用 JSONDecoder 从原始 Data 解码为标准 {code, data, msg} 结构
             let decoderResponse = try JSONDecoder().decode(
                 NtkResponseDecoder<ResponseData?, Keys>.self,
