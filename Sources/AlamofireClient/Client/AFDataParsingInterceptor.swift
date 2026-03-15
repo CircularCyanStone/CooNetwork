@@ -47,10 +47,9 @@ public struct AFDataParsingInterceptor<ResponseData: Sendable & Decodable, Keys:
             throw NtkError.typeMismatch
         }
 
-        #if DEBUG
             do {
                 let jsonObject = try JSONSerialization.jsonObject(with: rawData)
-                print(
+                NtkLogger.shared.debug(
                     """
                     ---------------------AF response start-------------------------
                     \(afRequest)
@@ -59,12 +58,12 @@ public struct AFDataParsingInterceptor<ResponseData: Sendable & Decodable, Keys:
                     参数：\(afRequest.parameters as [String: any Sendable]? ?? [:])
                     响应：\(jsonObject)
                     ---------------------AF response end-------------------------
-                    """
+                    """,
+                    category: .network
                 )
             } catch {
-                print("DEBUG [AF] response json error \(error)")
+                NtkLogger.shared.error("response json error \(error)", category: .network)
             }
-#endif // DEBUG
 
         do {
             if rawData.isEmpty {

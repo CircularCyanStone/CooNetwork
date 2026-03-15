@@ -35,22 +35,22 @@ public protocol iAFRequest: iNtkRequest, iAFRequestToast {
     /// 拆包返回值retData
     /// - Parameter retData: 后端的retData
     /// - Returns: 拆包后的数据
-    func unwrapRetureData(_ retData: Sendable) -> Sendable
+    func unwrapReturnData(_ retData: Sendable) -> Sendable
     
     /// 是否启用自定义响应数据解码
     /// 当设置为true时，将使用customResponseDataDecode方法进行手动解码
     /// 当设置为false时，将使用默认的JSONDecoder自动解码
     /// 当 开发者设置retData的类型是String、 Bool、Int、[String: Sendable]类型时，默认为true
-    var enableCustomRetureDataDecode: Bool { get }
+    var enableCustomReturnDataDecode: Bool { get }
     
     /// 自定义AF响应数据解码器
     /// 用于处理无法使用Decodable协议统一解析的场景，如：
     /// 1. 返回值是基础类型而非模型对象
     /// 2. 需要特殊的数据转换逻辑
     /// 提供开发者最大的控制权限进行数据解析
-    /// - Parameter retData: 接口返回的retData数据
+    /// - Parameter retData: 接口返回的retDataData
     /// - Returns: 解析后的数据
-    func customRetureDataDecode(_ retData: Sendable) throws -> Sendable
+    func customReturnDataDecode(_ retData: Sendable) throws -> Sendable
     
     // MARK: - Alamofire特定配置
     
@@ -93,17 +93,17 @@ extension iAFRequest  {
         true
     }
     
-    public func unwrapRetureData(_ retData: Sendable) -> Sendable {
+    public func unwrapReturnData(_ retData: Sendable) -> Sendable {
         retData
     }
     
     /// 默认不启用自定义响应数据解码，使用JSONDecoder自动解码
-    public var enableCustomRetureDataDecode: Bool {
+    public var enableCustomReturnDataDecode: Bool {
         false
     }
     
     /// 默认的自定义解码实现，直接返回原始数据
-    public func customRetureDataDecode(_ retData: Sendable) throws -> Sendable {
+    public func customReturnDataDecode(_ retData: Sendable) throws -> Sendable {
         return retData
     }
     

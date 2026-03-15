@@ -86,9 +86,7 @@ extension AFJsonObjectParsingInterceptor {
         validation: iNtkResponseValidation
     ) throws -> NtkResponse<ResponseData> {
 
-        // 使用 NtkLogger (如果可用) 或标准的 debugPrint，避免生产环境污染
-        #if DEBUG
-        print(
+        NtkLogger.shared.debug(
             """
             ---------------------AF response start-------------------------
             \(request)
@@ -97,9 +95,9 @@ extension AFJsonObjectParsingInterceptor {
             参数：\(request.parameters as [String: any Sendable]? ?? [:])
             响应：\(sendableResponse)
             ---------------------AF response end-------------------------
-            """
+            """,
+            category: .network
         )
-#endif // DEBUG
 
         let code = sendableResponse[Keys.code]
         let retCode = NtkReturnCode(code)
@@ -138,11 +136,11 @@ extension AFJsonObjectParsingInterceptor {
         guard var data = sendableResponse[Keys.data] else {
             throw NtkError.serviceDataEmpty
         }
-        data = request.unwrapRetureData(data)
+        data = request.unwrapReturnData(data)
 
         do {
             // 检查是否启用自定义响应数据解码
-            var enableCustomResponseDataDecode: Bool = request.enableCustomRetureDataDecode
+            var enableCustomResponseDataDecode: Bool = request.enableCustomReturnDataDecode
             
             // 基础类型默认开启自定义解码
             if !enableCustomResponseDataDecode {
@@ -157,7 +155,7 @@ extension AFJsonObjectParsingInterceptor {
 
             if enableCustomResponseDataDecode {
                 // 使用自定义解码器
-                if let retData = try request.customRetureDataDecode(data) as? ResponseData {
+                if let retData = try request.customReturnDataDecode(data) as? ResponseData {
                     let response = NtkResponse(
                         code: retCode,
                         data: retData,

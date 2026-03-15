@@ -239,7 +239,7 @@ extension NtkNetwork {
                             do {
                                 return .cache(try await self.loadCache())
                             } catch {
-                                print("startWithCache 缓存加载失败，但不影响网络请求: \(error)")
+                                NtkLogger.shared.debug("startWithCache 缓存加载失败，但不影响网络请求: \(error)", category: .cache)
                                 return .cache(nil)
                             }
                         }
@@ -276,12 +276,12 @@ extension NtkNetwork {
                 case .cancelled:
                     // 只有在流被取消时才取消底层任务
                     // 这通常发生在业务层主动取消或者上层作用域被取消
-                    print("AsyncStream 被取消，取消底层任务")
+                    NtkLogger.shared.debug("AsyncStream 被取消，取消底层任务", category: .network)
                     task.cancel()
                 case .finished:
                     // 流正常结束或因错误结束，不需要取消任务
                     // 因为任务要么已经完成，要么已经在 catch 块中处理了错误
-                    print("AsyncStream 正常结束，无需取消任务")
+                    NtkLogger.shared.debug("AsyncStream 正常结束，无需取消任务", category: .network)
                 @unknown default:
                     fatalError("unknown")
                 }

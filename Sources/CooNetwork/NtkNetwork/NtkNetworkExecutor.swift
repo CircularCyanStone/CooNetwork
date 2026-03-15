@@ -12,7 +12,7 @@ import Foundation
 /// 这是一个内部 Actor，确保执行逻辑的线程安全和隔离
 @NtkActor
 final class NtkNetworkExecutor<ResponseData: Sendable> {
-    
+
     /// 响应结果枚举，用于区分缓存和网络响应
     private enum ResponseResult {
         case cache(NtkResponse<ResponseData>?)

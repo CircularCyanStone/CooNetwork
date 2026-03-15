@@ -11,12 +11,12 @@ import os.log
 /// 网络组件统一日志工具
 /// 基于OSLog实现，兼容iOS 10+
 
-let logger = NtkLogger.shared
+public let logger = NtkLogger.shared
 
-struct NtkLogger: Sendable {
+public struct NtkLogger: Sendable {
     
     /// 全局共享实例
-    static let shared: NtkLogger = {
+    public static let shared: NtkLogger = {
         let logEnable = NtkConfiguration.shared.isLoggingEnabled
         let logger = NtkLogger(isLoggingEnabled: logEnable)
         return logger
@@ -41,7 +41,7 @@ struct NtkLogger: Sendable {
     }
     
     /// 日志类别
-    enum Category: String, Sendable {
+    public enum Category: String, Sendable {
         case deduplication = "Deduplication"
         case retry = "Retry"
         case cache = "Cache"
@@ -51,14 +51,14 @@ struct NtkLogger: Sendable {
     }
     
     /// 日志级别
-    enum Level: Int, Sendable, Comparable {
+    public enum Level: Int, Sendable, Comparable {
         case debug = 0
         case info = 1
         case warning = 2
         case error = 3
         case fault = 4
-        
-        static func < (lhs: Level, rhs: Level) -> Bool {
+
+        public static func < (lhs: Level, rhs: Level) -> Bool {
             return lhs.rawValue < rhs.rawValue
         }
         
@@ -140,7 +140,7 @@ struct NtkLogger: Sendable {
     }
     
     /// 便捷方法：输出debug日志
-    func debug(
+    public func debug(
         _ message: String,
         category: Category = .general,
         file: String = #file,
@@ -149,9 +149,9 @@ struct NtkLogger: Sendable {
     ) {
         log(message, level: .debug, category: category, file: file, function: function, line: line)
     }
-    
+
     /// 便捷方法：输出info日志
-    func info(
+    public func info(
         _ message: String,
         category: Category = .general,
         file: String = #file,
@@ -160,9 +160,9 @@ struct NtkLogger: Sendable {
     ) {
         log(message, level: .info, category: category, file: file, function: function, line: line)
     }
-    
+
     /// 便捷方法：输出warning日志
-    func warning(
+    public func warning(
         _ message: String,
         category: Category = .general,
         file: String = #file,
@@ -171,9 +171,9 @@ struct NtkLogger: Sendable {
     ) {
         log(message, level: .warning, category: category, file: file, function: function, line: line)
     }
-    
+
     /// 便捷方法：输出error日志
-    func error(
+    public func error(
         _ message: String,
         category: Category = .general,
         file: String = #file,
@@ -182,9 +182,9 @@ struct NtkLogger: Sendable {
     ) {
         log(message, level: .error, category: category, file: file, function: function, line: line)
     }
-    
+
     /// 便捷方法：输出fault日志
-    func fault(
+    public func fault(
         _ message: String,
         category: Category = .general,
         file: String = #file,
