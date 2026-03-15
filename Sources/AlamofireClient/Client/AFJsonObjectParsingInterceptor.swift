@@ -4,8 +4,10 @@
 //
 //  Created by CooNetwork on 2026/01/10.
 //
-
+// 这是旧版本，用于解析网络工具返回的数据是字典形式的数据 的解析工具
+#if !COCOAPODS
 import CooNetwork
+#endif
 import Foundation
 
 protocol AFJsonObjectParsingCustomHander: Sendable {

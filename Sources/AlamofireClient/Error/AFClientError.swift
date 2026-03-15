@@ -6,7 +6,9 @@
 //
 
 import Foundation
+#if !COCOAPODS
 import CooNetwork
+#endif
 import Alamofire
 
 extension NtkError {

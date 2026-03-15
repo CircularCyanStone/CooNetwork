@@ -15,6 +15,11 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				MPRpc/iRpcRequest.swift,
+				MPRpc/MPRpcClient.swift,
+				MPRpc/MPRpcDetaultResponseValidation.swift,
+				MPRpc/MPRpcResponseMapKeys.swift,
+				MPRpc/RpcResponseParsingInterceptor.swift,
 			);
 			target = FB92DAE12F0DEAF8009A2AA9 /* SPMExample */;
 		};

@@ -6,7 +6,9 @@
 //
 
 import Foundation
+#if !COCOAPODS
 import CooNetwork
+#endif
 import Alamofire
 
 /// AF请求的toast管理协议，用于定制不同接口在 后端/系统 错误信息时的默认处理方案。

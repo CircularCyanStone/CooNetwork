@@ -31,6 +31,20 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		FB082B902F4FE88900410F1A /* Exceptions for "Sources" folder in "CooNetwork" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AlamofireClient/Client/AFClient.swift,
+				AlamofireClient/Client/AFDataParsingInterceptor.swift,
+				AlamofireClient/Client/AFRequest.swift,
+				AlamofireClient/Client/AFResponseMapKeys.swift,
+				AlamofireClient/Client/AFResponseParsingInterceptor.swift,
+				AlamofireClient/Error/AFClientError.swift,
+				AlamofireClient/Interceptor/AFToastInterceptor.swift,
+				"AlamofireClient/Ntk+AF.swift",
+			);
+			target = FB3A3D612F0CF93D00CAE4FB /* CooNetwork */;
+		};
 		FB92DAD72F0DEAD8009A2AA9 /* Exceptions for "OCExample" folder in "OCExample" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -43,6 +57,9 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		FB3A3D712F0CF9BF00CAE4FB /* Sources */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				FB082B902F4FE88900410F1A /* Exceptions for "Sources" folder in "CooNetwork" target */,
+			);
 			path = Sources;
 			sourceTree = "<group>";
 		};

@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'CooNetwork'
-  s.version          = '0.0.2'
+  s.version          = '0.0.7'
   s.summary          = '统一的网络工具，支持接入不同的网络组件，提供统一的API与业务层对接。'
   s.description      = <<-DESC
                        CooNetwork 是一个统一的网络工具库，旨在为不同的网络组件提供统一的接入方式，
@@ -15,5 +15,15 @@ Pod::Spec.new do |s|
   s.ios.deployment_target = '13.0'
   s.swift_version = '5.7'
 
-  s.source_files = 'Sources/CooNetwork/**/*'
+  s.default_subspec = 'Core'
+
+  s.subspec 'Core' do |core|
+    core.source_files = 'Sources/CooNetwork/**/*.{swift, h, m}'
+  end
+
+  s.subspec 'Alamofire' do |af|
+    af.source_files = 'Sources/AlamofireClient/**/*.{swift, h, m}'
+    af.dependency 'CooNetwork/Core'
+    af.dependency 'Alamofire', '~> 5.10'
+  end
 end
