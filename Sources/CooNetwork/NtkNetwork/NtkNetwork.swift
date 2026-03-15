@@ -159,7 +159,7 @@ extension NtkNetwork {
             _isCancelled = true
         }
         let requestToCancel = mutableRequest
-        await NtkTaskManager.cancelRequest(request: requestToCancel)
+        await NtkTaskManager.shared.cancelRequest(request: requestToCancel)
     }
     
     
