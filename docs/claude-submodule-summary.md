@@ -31,7 +31,7 @@
 | **utils** | 提供通用工具函数和扩展 | - |
 | **error** | 定义网络请求和缓存的错误类型 | NtkError |
 | **AlamofireClient** | 提供 Alamofire 集成 | AFClient<Keys>, NtkAF<T>, NtkAFBool |
-| **Client (AF)** | 实现 iNtkClient 协议 | AFClient<Keys>, iAFRequest, AFResponseMapKeys, AFDataParsingInterceptor, AFResponseParsingInterceptor |
+| **Client (AF)** | 实现 iNtkClient 协议 | AFClient<Keys>, iAFRequest, AFResponseMapKeys, AFDataParsingInterceptor, AFJsonObjectParsingInterceptor |
 | **Interceptor (AF)** | 提供与 Alamofire 集成的拦截器 | AFToastInterceptor |
 | **Error (AF)** | 处理 Alamofire 错误 | AFClientError |
 

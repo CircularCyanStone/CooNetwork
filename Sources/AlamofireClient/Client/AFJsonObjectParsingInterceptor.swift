@@ -1,5 +1,5 @@
 //
-//  AFResponseParsingInterceptor.swift
+//  AFJsonObjectParsingInterceptor.swift
 //  CooNetwork
 //
 //  Created by CooNetwork on 2026/01/10.
@@ -8,7 +8,7 @@
 import CooNetwork
 import Foundation
 
-protocol AFResponseParsingCustomHander: Sendable {
+protocol AFJsonObjectParsingCustomHander: Sendable {
     func handle(
         _ sendableResponse: [String: any Sendable],
         response: inout NtkClientResponse,
@@ -18,17 +18,17 @@ protocol AFResponseParsingCustomHander: Sendable {
 }
 
 /// AF接口返回值的处理拦截器，用于服务器json数据的解析。
-public struct AFResponseParsingInterceptor<
+public struct AFJsonObjectParsingInterceptor<
     ResponseData: Sendable,
     Keys: iNtkResponseMapKeys
 >: iNtkInterceptor {
     
-    /// AFResponseParsingInterceptor默认只处理标准的{code, data, msg}格式的json。
+    /// AFJsonObjectParsingInterceptor默认只处理标准的{code, data, msg}格式的json。
     /// 对于非标准的json，该属性用于自定义的前置处理。
     /// 统一为标准json格式后，方可继续使用handleNormal方法处理。
-    let customHandler: AFResponseParsingCustomHander?
+    let customHandler: AFJsonObjectParsingCustomHander?
     
-    init(customHandler: AFResponseParsingCustomHander? = nil) {
+    init(customHandler: AFJsonObjectParsingCustomHander? = nil) {
         self.customHandler = customHandler
     }
     
@@ -75,7 +75,7 @@ public struct AFResponseParsingInterceptor<
     }
 }
 
-extension AFResponseParsingInterceptor {
+extension AFJsonObjectParsingInterceptor {
 
     public func handleNormal(
         _ sendableResponse: [String: Sendable],
