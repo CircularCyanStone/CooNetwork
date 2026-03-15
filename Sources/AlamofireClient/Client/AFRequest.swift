@@ -63,6 +63,14 @@ public protocol iAFRequest: iNtkRequest, iAFRequestToast {
     /// 请求修饰器
     /// 在发送前对URLRequest进行最后修改
     var requestModifier: Session.RequestModifier? { get }
+
+    // MARK: - 响应序列化配置
+
+    /// 配置响应序列化
+    /// 允许自定义序列化行为，如 emptyResponseCodes、emptyRequestMethods 等
+    /// - Parameter request: 已配置的 DataRequest 对象
+    /// - Returns: 可序列化的任务对象
+    func configureSerialization(for request: DataRequest) -> DataTask<Data>
 }
 
 extension iAFRequest  {
@@ -112,5 +120,12 @@ extension iAFRequest  {
     /// 默认无请求修饰
     public var requestModifier: Session.RequestModifier? {
         return nil
+    }
+
+    // MARK: - 响应序列化默认实现
+
+    /// 默认序列化配置，使用 Alamofire 默认值
+    public func configureSerialization(for request: DataRequest) -> DataTask<Data> {
+        request.serializingData()
     }
 }

@@ -85,11 +85,11 @@ public final class AFClient<Keys: iNtkResponseMapKeys>: iNtkClient {
         
         // 配置验证策略
         let configuredRequest = applyValidation(requestTask, request: mRequest)
-        
+
         // 执行请求并序列化响应
-        // 使用 serializingData().response 获取完整的响应对象（包含 Data, URLResponse, Error 等）
-        // 这种方式既利用了 Swift Concurrency (async/await)，又保留了处理底层响应的自由度
-        let response = await configuredRequest.serializingData().response
+        // 使用 iAFRequest 配置的序列化方式，支持自定义 emptyResponseCodes 等参数
+        let serializationTask = mRequest.configureSerialization(for: configuredRequest)
+        let response = await serializationTask.response
         
         switch response.result {
         case .success(let data):
