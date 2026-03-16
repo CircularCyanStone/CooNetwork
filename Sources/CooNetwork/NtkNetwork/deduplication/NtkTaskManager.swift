@@ -41,15 +41,30 @@ final class NtkTaskManager {
     private init() {}
 
     /// 执行请求（统一入口）
-     func executeWithDeduplication<T: Sendable>(
+    func executeWithDeduplication<T: Sendable>(
         request: NtkMutableRequest,
         execution: @escaping @Sendable () async throws -> T
     ) async throws -> T {
         let baseRequestId = requestIdentifier(for: request)
 
         if isDeduplicationEnabled(for: request) {
-            let runtimeKey = dedupRuntimeKey(baseRequestId: baseRequestId)
-            logger.debug("请求标识符: \(baseRequestId)", category: .deduplication)
+            // NtkNetwork 会在初始化时注入 responseType
+            // 如果缺失，说明框架内部逻辑异常（例如未通过 NtkNetwork 初始化而直接调用了 TaskManager）
+            guard let responseType = request.responseType else {
+                assertionFailure(
+                    "Missing responseType in request. This should be injected by NtkNetwork.")
+                logger.error("去重失败：请求缺少 responseType，将回退到非去重模式", category: .deduplication)
+                // 回退到非去重模式
+                return try await executeNonDedupRequest(
+                    baseRequestId: baseRequestId,
+                    request: request,
+                    execution: execution
+                )
+            }
+
+            let runtimeKey = dedupRuntimeKey(
+                baseRequestId: baseRequestId, responseType: responseType)
+            logger.debug("请求标识符: \(baseRequestId), 类型: \(responseType)", category: .deduplication)
 
             /// 等待进行的请求的结果
             if let result: T = try await awaitOngoingResultIfAvailable(
@@ -66,10 +81,26 @@ final class NtkTaskManager {
                 execution: execution
             )
         }
-        
-        logger.debug("Request deduplication is disabled, executing with timeout only", category: .deduplication)
+
+        return try await executeNonDedupRequest(
+            baseRequestId: baseRequestId,
+            request: request,
+            execution: execution
+        )
+    }
+
+    /// 执行非去重请求
+    private func executeNonDedupRequest<T: Sendable>(
+        baseRequestId: String,
+        request: NtkMutableRequest,
+        execution: @escaping @Sendable () async throws -> T
+    ) async throws -> T {
+        logger.debug(
+            "Request deduplication is disabled, executing with timeout only",
+            category: .deduplication)
         let requestInstanceId = request.instanceIdentifier
-        let runtimeKey = nonDedupRuntimeKey(baseRequestId: baseRequestId, requestInstanceId: requestInstanceId)
+        let runtimeKey = nonDedupRuntimeKey(
+            baseRequestId: baseRequestId, requestInstanceId: requestInstanceId)
         return try await executeNewRequestWithTimeout(
             requestKey: runtimeKey,
             request: request,
@@ -80,13 +111,20 @@ final class NtkTaskManager {
     /// 取消指定请求
     func cancelRequest(request: NtkMutableRequest) {
         let baseRequestId = requestIdentifier(for: request)
-        
+
         let runtimeKey: RuntimeKey
         if isDeduplicationEnabled(for: request) {
-            runtimeKey = dedupRuntimeKey(baseRequestId: baseRequestId)
+            if let responseType = request.responseType {
+                runtimeKey = dedupRuntimeKey(
+                    baseRequestId: baseRequestId, responseType: responseType)
+            } else {
+                logger.warning("取消请求失败：缺少 ntk_response_type 信息，无法构造去重键", category: .deduplication)
+                return
+            }
         } else {
             let requestInstanceId = request.instanceIdentifier
-            runtimeKey = nonDedupRuntimeKey(baseRequestId: baseRequestId, requestInstanceId: requestInstanceId)
+            runtimeKey = nonDedupRuntimeKey(
+                baseRequestId: baseRequestId, requestInstanceId: requestInstanceId)
         }
         cancelTask(with: runtimeKey)
     }
@@ -110,13 +148,14 @@ final class NtkTaskManager {
     /// - Returns: 请求是否正在执行中
     func isRequestActive(request: NtkMutableRequest) -> Bool {
         let baseRequestId = requestIdentifier(for: request)
-        return hasActiveTask(forBaseRequestId: baseRequestId)
+        let responseType = request.responseType
+        return hasActiveTask(forBaseRequestId: baseRequestId, responseType: responseType)
     }
 }
 
 // MARK: - Private Methods
 extension NtkTaskManager {
-    
+
     private func awaitOngoingResultIfAvailable<T: Sendable>(
         runtimeKey: RuntimeKey,
         baseRequestId: String
@@ -148,6 +187,19 @@ extension NtkTaskManager {
         timeout: TimeInterval,
         execution: @escaping @Sendable () async throws -> T
     ) async throws -> T {
+        // 校验超时参数有效性，无效时使用默认值 60 秒
+        let validTimeout: TimeInterval
+        if timeout > 0 && timeout.isFinite {
+            // 夹取超时值，防止 UInt64 溢出（上限设为 100 年）
+            validTimeout = min(timeout, 3_153_600_000)
+        } else {
+            logger.warning(
+                "无效的超时时间: \(timeout)，使用默认值 60 秒",
+                category: .deduplication
+            )
+            validTimeout = 60.0
+        }
+
         return try await withThrowingTaskGroup(of: T.self) { group in
             // 确保退出时取消剩余任务（无论是正常返回还是抛出错误）
             defer { group.cancelAll() }
@@ -159,7 +211,9 @@ extension NtkTaskManager {
 
             // 添加超时任务
             group.addTask {
-                try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                try await Task.sleep(
+                    nanoseconds: UInt64(validTimeout * 1_000_000_000)
+                )
                 throw NtkError.requestTimeout
             }
 
@@ -196,9 +250,11 @@ extension NtkTaskManager {
     ) async throws -> T {
         let timeout = request.timeout
 
-        let entry = RequestTaskEntry(token: UUID(), task: Task<Sendable, Error> {
-            return try await executeWithTimeout(timeout: timeout, execution: execution)
-        })
+        let entry = RequestTaskEntry(
+            token: UUID(),
+            task: Task<Sendable, Error> {
+                return try await executeWithTimeout(timeout: timeout, execution: execution)
+            })
 
         ongoingRequests[requestKey] = entry
 
@@ -231,8 +287,8 @@ extension NtkTaskManager {
     ///
     /// 输入：baseRequestId（由请求内容计算的稳定标识）。
     /// 输出：dedup 前缀键；相同输入得到相同输出，用于去重命中。
-    private func dedupRuntimeKey(baseRequestId: String) -> RuntimeKey {
-        "dedup|\(baseRequestId)"
+    private func dedupRuntimeKey(baseRequestId: String, responseType: String) -> RuntimeKey {
+        "dedup|\(baseRequestId)|\(responseType)"
     }
 
     /// 构造“不可复用”运行时键。
@@ -255,14 +311,23 @@ extension NtkTaskManager {
     ///
     /// 产出作用：
     /// - 对外提供与策略无关的“请求是否活跃”统一语义。
-    private func hasActiveTask(forBaseRequestId baseRequestId: String) -> Bool {
-        let dedupKey = dedupRuntimeKey(baseRequestId: baseRequestId)
-        
-        // 1. 优先检查去重任务（O(1) 查找）
-        if ongoingRequests[dedupKey] != nil {
-            return true
+    private func hasActiveTask(forBaseRequestId baseRequestId: String, responseType: String? = nil)
+        -> Bool
+    {
+        // 1. 优先检查去重任务
+        // 由于 Key 包含类型信息，这里只能通过前缀匹配
+        if let type = responseType {
+            // 精确匹配
+            let dedupKey = dedupRuntimeKey(baseRequestId: baseRequestId, responseType: type)
+            if ongoingRequests[dedupKey] != nil { return true }
+        } else {
+            // 模糊匹配
+            let dedupPrefix = "dedup|\(baseRequestId)|"
+            if ongoingRequests.keys.contains(where: { $0.hasPrefix(dedupPrefix) }) {
+                return true
+            }
         }
-        
+
         // 2. 再遍历检查非去重任务（O(N) 遍历）
         let prefix = nonDedupKeyPrefix(baseRequestId: baseRequestId)
         return ongoingRequests.keys.contains { $0.hasPrefix(prefix) }
@@ -275,7 +340,7 @@ extension NtkTaskManager {
         entry.task.cancel()
         removeEntryIfTokenMatches(requestKey: key, token: entry.token)
     }
-    
+
     private func removeEntryIfTokenMatches(requestKey: RuntimeKey, token: UUID) {
         guard let current = ongoingRequests[requestKey], current.token == token else {
             return

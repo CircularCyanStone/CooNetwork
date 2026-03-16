@@ -45,7 +45,7 @@ public enum NtkError: Error {
     /// 请求超时
     /// 当请求执行时间超过设定的超时时间时抛出
     case requestTimeout
-    
+
     /// 其他类型错误（包括系统URLError）
     /// 包装其他未分类的错误
     case other(_ error: Error)

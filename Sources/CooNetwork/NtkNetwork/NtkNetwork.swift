@@ -18,27 +18,27 @@ import Foundation
 /// 使用 @unchecked Sendable 是因为我们使用内部锁来保护可变状态，
 /// 并且设计意图是作为单线程配置器使用。
 public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
-    
+
     /// 响应结果枚举，用于区分缓存和网络响应
     private enum ResponseResult {
         case cache(NtkResponse<ResponseData>?)
         case network(NtkResponse<ResponseData>)
     }
-    
+
     /// 网络客户端实现
     private var client: any iNtkClient
-    
+
     /// 数据解析插件
     private var dataParsingInterceptor: iNtkInterceptor
 
     private var mutableRequest: NtkMutableRequest
-    
+
     /// 响应验证器
     private var validation: iNtkResponseValidation?
-    
+
     /// 存储所有注册的自定义拦截器
     private var _interceptors: [iNtkInterceptor] = []
-    
+
     // 注意：由于是 Sendable 类且有可变属性，理论上需要锁保护。
     // 但作为 Builder，通常在单线程构建。
     // 这里为了严格符合 Swift 6，我们使用 @unchecked Sendable 并添加内部锁，
@@ -46,7 +46,7 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
     // 我们暂时依靠使用者的单线程构建习惯。
     // 但为了绝对安全，我们在这里使用简单的锁保护配置状态。
     private let lock = NtkUnfairLock()
-    
+
     /// 按优先级排序的自定义拦截器列表
     private var interceptors: [iNtkInterceptor] {
         get {
@@ -60,17 +60,17 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
             }
         }
     }
-    
+
     /// 存储所有核心拦截器
     private var _coreInterceptors: [iNtkInterceptor] = []
-    
+
     /// 本地记录的取消状态（用于同步返回）
     private var _isCancelled: Bool = false
-    
+
     /// 单次使用保护位
     /// 用于阻止同一个 NtkNetwork 实例重复发起 request()
     private var _hasRequested: Bool = false
-    
+
     /// 按优先级排序的核心拦截器列表
     private var coreInterceptors: [iNtkInterceptor] {
         get {
@@ -84,15 +84,14 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
             }
         }
     }
-    
+
     /// 检查当前请求是否已被取消
     public var isCancelled: Bool {
         return lock.withLock {
             _isCancelled
         }
     }
-    
-    
+
     /// 初始化网络请求管理器
     /// - Parameters:
     ///   - client: 网络客户端实现
@@ -100,14 +99,19 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
     ///   - dataParsingInterceptor: 响应解析插件
     ///   - validation: 响应验证器
     ///   - interceptors: 初始拦截器列表
-    public required init(_ client: any iNtkClient, request: iNtkRequest, dataParsingInterceptor: iNtkInterceptor, validation: iNtkResponseValidation, interceptors: [iNtkInterceptor] = []) {
+    public required init(
+        _ client: any iNtkClient, request: iNtkRequest, dataParsingInterceptor: iNtkInterceptor,
+        validation: iNtkResponseValidation, interceptors: [iNtkInterceptor] = []
+    ) {
         self.client = client
         self.mutableRequest = NtkMutableRequest(request)
+        // 注入响应类型信息，用于去重键生成
+        self.mutableRequest.responseType = String(describing: ResponseData.self)
         self.dataParsingInterceptor = dataParsingInterceptor
         self.validation = validation
         self._interceptors = interceptors
     }
-    
+
     /// 创建网络请求管理器的便捷方法
     /// - Parameters:
     ///   - client: 网络客户端实现
@@ -116,25 +120,30 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
     ///   - validation: 响应验证器
     ///   - interceptors: 初始拦截器列表
     /// - Returns: 配置好的网络请求管理器实例
-    public class func with(_ client: any iNtkClient, request: iNtkRequest, dataParsingInterceptor: iNtkInterceptor, validation: iNtkResponseValidation, interceptors: [iNtkInterceptor] = []) -> Self {
-        let net = self.init(client, request: request, dataParsingInterceptor: dataParsingInterceptor, validation: validation, interceptors: interceptors)
+    public class func with(
+        _ client: any iNtkClient, request: iNtkRequest, dataParsingInterceptor: iNtkInterceptor,
+        validation: iNtkResponseValidation, interceptors: [iNtkInterceptor] = []
+    ) -> Self {
+        let net = self.init(
+            client, request: request, dataParsingInterceptor: dataParsingInterceptor,
+            validation: validation, interceptors: interceptors)
         return net
     }
-    
+
 }
-private extension NtkNetwork {
+extension NtkNetwork {
     /// 添加核心拦截器
     /// - Parameter i: 拦截器实现
-    func addCoreInterceptor(_ i: iNtkInterceptor) {
+    fileprivate func addCoreInterceptor(_ i: iNtkInterceptor) {
         lock.withLock {
             _coreInterceptors.append(i)
         }
     }
-    
+
 }
 
 extension NtkNetwork {
-    
+
     /// 标记 request() 已消费，若重复调用则抛错并在开发期强提醒
     private func markRequestConsumedOrThrow() throws {
         let canProceed = lock.withLock { () -> Bool in
@@ -145,13 +154,14 @@ extension NtkNetwork {
             return true
         }
         guard canProceed else {
-#if DEBUG
-            let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
-                || ProcessInfo.processInfo.arguments.contains { $0.contains("xctest") }
-            if !isRunningTests {
-                fatalError("NtkNetwork 实例仅支持单次 request() 调用。请为每次请求创建新的 NtkNetwork 实例。")
-            }
-#endif
+            #if DEBUG
+                let isRunningTests =
+                    ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+                    || ProcessInfo.processInfo.arguments.contains { $0.contains("xctest") }
+                if !isRunningTests {
+                    fatalError("NtkNetwork 实例仅支持单次 request() 调用。请为每次请求创建新的 NtkNetwork 实例。")
+                }
+            #endif
             logger.warning(
                 "NtkNetwork 实例仅支持单次 request() 调用。请为每次请求创建新的 NtkNetwork 实例。",
                 category: .network
@@ -159,7 +169,7 @@ extension NtkNetwork {
             throw NtkError.requestCancelled
         }
     }
-    
+
     /// 添加拦截器
     /// - Parameter i: 拦截器实现
     /// - Returns: 当前实例，支持链式调用
@@ -170,7 +180,7 @@ extension NtkNetwork {
         }
         return self
     }
-    
+
     /// 设置响应验证器
     /// - Parameter validation: 响应验证实现
     /// - Returns: 当前实例，支持链式调用
@@ -181,7 +191,7 @@ extension NtkNetwork {
         }
         return self
     }
-    
+
     /// 取消当前请求
     public func cancel() async {
         lock.withLock {
@@ -190,15 +200,13 @@ extension NtkNetwork {
         let requestToCancel = mutableRequest
         await NtkTaskManager.shared.cancelRequest(request: requestToCancel)
     }
-    
-    
-    
+
     public func setRequestValue(_ value: Sendable, forKey key: String) {
         lock.withLock {
             mutableRequest[key] = value
         }
     }
-    
+
     /// 发送网络请求
     /// 异步执行网络请求并返回响应结果
     /// - Returns: 网络响应对象
@@ -206,9 +214,11 @@ extension NtkNetwork {
     @discardableResult
     public func request() async throws -> NtkResponse<ResponseData> {
         try markRequestConsumedOrThrow()
-        
+
         guard let validation else {
-            fatalError("iNtkResponseValidation must not be nil, you should call method 'func validation(_ validation: iNtkResponseValidation) -> Self' first")
+            fatalError(
+                "iNtkResponseValidation must not be nil, you should call method 'func validation(_ validation: iNtkResponseValidation) -> Self' first"
+            )
         }
 
         // 1. 创建 Executor 并传递配置快照
@@ -224,18 +234,20 @@ extension NtkNetwork {
                 dataParsingInterceptor: dataParsingInterceptor
             )
         }
-        
+
         // 2. 委托执行
         return try await executor.execute()
     }
-    
+
     /// 加载缓存数据
     /// 直接通过缓存请求处理器读取缓存，跳过拦截器链
     /// - Returns: 缓存的响应对象，如果没有缓存则返回nil
     /// - Throws: 缓存加载过程中的错误
     public func loadCache() async throws -> NtkResponse<ResponseData>? {
         guard let validation else {
-            fatalError("iNtkResponseValidation must not be nil, you should call method 'func validation(_ validation: iNtkResponseValidation) -> Self' first")
+            fatalError(
+                "iNtkResponseValidation must not be nil, you should call method 'func validation(_ validation: iNtkResponseValidation) -> Self' first"
+            )
         }
 
         let executor = lock.withLock {
@@ -248,10 +260,10 @@ extension NtkNetwork {
                 dataParsingInterceptor: dataParsingInterceptor
             )
         }
-        
+
         return try await executor.loadCache()
     }
-    
+
     /// 便捷发起网络请求并加载缓存
     ///
     /// 此方法会同时发起网络请求和加载缓存，并通过异步序列返回结果。
@@ -270,7 +282,8 @@ extension NtkNetwork {
                             do {
                                 return .cache(try await self.loadCache())
                             } catch {
-                                logger.debug("startWithCache 缓存加载失败，但不影响网络请求: \(error)", category: .cache)
+                                logger.debug(
+                                    "startWithCache 缓存加载失败，但不影响网络请求: \(error)", category: .cache)
                                 return .cache(nil)
                             }
                         }
@@ -288,7 +301,7 @@ extension NtkNetwork {
                                 continuation.yield(response)
                                 // 网络请求成功后，可以取消其他任务并提前结束
                                 group.cancelAll()
-                                
+
                             case .cache(let response):
                                 if !networkReturnedFirst, let response = response {
                                     continuation.yield(response)
@@ -319,7 +332,7 @@ extension NtkNetwork {
             }
         }
     }
-    
+
 }
 
 extension NtkNetwork where ResponseData == Bool {
@@ -327,7 +340,9 @@ extension NtkNetwork where ResponseData == Bool {
     /// - Returns: 如果存在缓存数据返回true，否则返回false
     public func hasCacheData() async -> Bool {
         guard let validation else {
-            fatalError("iNtkResponseValidation must not be nil, you should call method 'func validation(_ validation: iNtkResponseValidation) -> Self' first")
+            fatalError(
+                "iNtkResponseValidation must not be nil, you should call method 'func validation(_ validation: iNtkResponseValidation) -> Self' first"
+            )
         }
 
         let executor = lock.withLock {
@@ -340,7 +355,7 @@ extension NtkNetwork where ResponseData == Bool {
                 dataParsingInterceptor: dataParsingInterceptor
             )
         }
-        
+
         return await executor.hasCacheData()
     }
 }
