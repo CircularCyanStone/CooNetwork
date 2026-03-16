@@ -160,12 +160,11 @@ extension NtkNetwork {
         #endif
         logger.warning(singleUseErrorMessage, category: .network)
     }
-#if DEBUG
     /// 单次使用错误消息（使用 var 而非 let 以支持泛型类）
     private static var singleUseErrorMessage: String {
         "NtkNetwork 实例仅支持单次 request() 调用。请为每次请求创建新的 NtkNetwork 实例。"
     }
-
+#if DEBUG
     /// 检查是否在测试环境中运行
     private static func isRunningInTests() -> Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
