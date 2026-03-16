@@ -8,7 +8,9 @@
       "Bash(curl:*)",
       "Bash(swiftc:*)",
       "Bash(xcrun llvm-profdata:*)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(xcodebuild:*)",
+      "Bash(xcrun simctl:*)"
     ]
   }
 }

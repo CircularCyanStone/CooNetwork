@@ -50,7 +50,6 @@ class ViewController: UIViewController {
 
     private lazy var fullTestButton: UIButton = {
         let button = UIButton(type: .system)
-)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.setTitle("📊 全面测试", for: .normal)
         button.backgroundColor = .systemGreen
@@ -208,7 +207,7 @@ class ViewController: UIViewController {
     @objc private func clearResults() {
         cancelCurrentTest()
         resultTextView.text = ""
-        NtkConfiguration.shared.clearCache()
+        // NtkConfiguration.shared.clearCache()
     }
 
     private func cancelCurrentTest() {
@@ -230,9 +229,9 @@ class ViewController: UIViewController {
             }
             resultTextView.text = output
 
-            // 生成完整报告
-            let report = testRunner.generateReport()
-            print("\n完整测试报告：\n\(report)")
+            // 生成完整报告（暂时禁用 actor-isolated 方法调用）
+            // let report = testRunner.generateReport()
+            // print("\n完整测试报告：\n\(report)")
         }
     }
 
@@ -295,21 +294,21 @@ struct IPv6ParsingInterceptor: iNtkInterceptor {
         }
 
         guard let string = String(data: rawData, encoding: .utf8) else {
-            throw NtkError.decodeInvalid(DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Invalid UTF8 Data")), rawData, context: .none)
+            throw NtkError.decodeInvalid(DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Invalid UTF8 Data")), rawData)
         }
 
         guard let firstBrace = string.firstIndex(of: "{"),
               let lastBrace = string.lastIndex(of: "}") else {
-            throw NtkError.decodeInvalid(DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Invalid JSONP format")), rawData, context: .none)
+            throw NtkError.decodeInvalid(DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Invalid JSONP format")), rawData)
         }
 
         let jsonString = String(string[firstBrace...lastBrace])
-        guard let jsonData = jsonString.data(using: .utf8) else {
-             throw NtkError.decodeInvalid(DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Invalid JSON string")), rawData, context: .none)
+        guard let jsonBytes = jsonString.data(using: .utf8) else {
+             throw NtkError.decodeInvalid(DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Invalid JSON string")), rawData)
         }
 
         let decoder = JSONDecoder()
-        let model = try decoder.decode(IPv6Response.self, from: jsonData)
+        let model = try decoder.decode(IPv6Response.self, from: jsonBytes)
 
         return NtkResponse(
             code: NtkReturnCode(0),

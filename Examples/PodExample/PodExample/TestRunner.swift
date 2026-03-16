@@ -80,7 +80,6 @@ actor TestRunner {
 
         report += "## 详细结果\n\n"
         for result in results {
- {
             report += "### \(result.status.emoji) \(result.name) (\(String(format: "%.2f", result.duration))s)\n"
             report += "**状态**: \(result.status.displayName)\n"
             report += "**详情**: \(result.details)\n"
@@ -98,22 +97,22 @@ actor TestRunner {
 
 class NtkLoggerTestMonitor {
     private var capturedLogs: [String] = []
-    private var originalLogLevel: NtkLogLevel = .info
+    // private var originalLogLevel: NtkLogLevel = .info
 
     func attach() {
         capturedLogs.removeAll()
 
         // 保存当前日志级别
-        originalLogLevel = NtkConfiguration.shared.logLevel
+        // originalLogLevel = NtkConfiguration.shared.logLevel
 
         // 确保日志开启
-        NtkConfiguration.shared.isLoggingEnabled = true
-        NtkConfiguration.shared.logLevel = .debug
+        // NtkConfiguration.shared.isLoggingEnabled = true
+        // NtkConfiguration.shared.logLevel = .debug
     }
 
     func detach() {
         // 恢复原始日志级别
-        NtkConfiguration.shared.logLevel = originalLogLevel
+        // NtkConfiguration.shared.logLevel = originalLogLevel
     }
 
     func captureLog(_ message: String) {
@@ -191,7 +190,7 @@ class MemoryMonitor {
             let mb = Double(delta) / 1024 / 1024
             return increased
                 ? "内存增加 \(String(format: "%.2f", mb)) MB (\(String(format: "%.2f", percentage))%)"
-                : "内存减少 \(String(format: "%.2f", abs(delta))) MB"
+                : "内存减少 \(String(format: "%.2f", abs(Double(delta)))) MB"
         }
     }
 }
