@@ -19,6 +19,9 @@ public struct NtkMutableRequest: iNtkRequest {
     /// 请求实例标识，用于区分同语义下的不同请求实例
     public let instanceIdentifier: UUID
 
+    /// 取消状态（引用类型，用于跨组件共享状态）
+    public var isCancelledRef: NtkCancellableState?
+
     // MARK: - 可变属性（直接存储，与iNtkRequest使用习惯一致）
 
     /// 请求参数，可直接修改

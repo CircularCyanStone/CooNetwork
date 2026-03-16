@@ -64,9 +64,6 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
     /// 存储所有核心拦截器
     private var _coreInterceptors: [iNtkInterceptor] = []
 
-    /// 本地记录的取消状态（用于同步返回）
-    private var _isCancelled: Bool = false
-
     /// 单次使用保护位
     /// 用于阻止同一个 NtkNetwork 实例重复发起 request()
     private var _hasRequested: Bool = false
@@ -86,9 +83,11 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
     }
 
     /// 检查当前请求是否已被取消
+    ///
+    /// 注意：这是异步检查，因为取消状态存储在 Actor 中。
     public var isCancelled: Bool {
-        return lock.withLock {
-            _isCancelled
+        get async {
+            await mutableRequest.isCancelledRef?.isCancelled ?? false
         }
     }
 
@@ -107,6 +106,8 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
         self.mutableRequest = NtkMutableRequest(request)
         // 注入响应类型信息，用于去重键生成
         self.mutableRequest.responseType = String(describing: ResponseData.self)
+        // 创建取消状态引用
+        self.mutableRequest.isCancelledRef = NtkCancellableState()
         self.dataParsingInterceptor = dataParsingInterceptor
         self.validation = validation
         self._interceptors = interceptors
@@ -194,10 +195,9 @@ extension NtkNetwork {
 
     /// 取消当前请求
     public func cancel() async {
-        lock.withLock {
-            _isCancelled = true
-        }
         let requestToCancel = mutableRequest
+        // 取消通过引用类型状态
+        await requestToCancel.isCancelledRef?.cancel()
         await NtkTaskManager.shared.cancelRequest(request: requestToCancel)
     }
 
