@@ -9,8 +9,7 @@ import Foundation
 
 /// 请求去重全局配置
 /// 提供去重功能的全局配置选项
-@NtkActor
-public class NtkDeduplicationConfig {
+public struct NtkDeduplicationConfig: Sendable {
     
     /// 单例实例
     public static let shared = NtkDeduplicationConfig()
@@ -21,7 +20,7 @@ public class NtkDeduplicationConfig {
     
     /// 重置去重配置
     /// 清空所有配置状态，恢复到初始状态
-    public func reset() {
+    public mutating func reset() {
         isGloballyEnabled = true
         // 清理其他可能的状态
     }

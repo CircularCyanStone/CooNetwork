@@ -34,14 +34,28 @@
 		FB082B902F4FE88900410F1A /* Exceptions for "Sources" folder in "CooNetwork" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				AlamofireClient/CLAUDE.md,
 				AlamofireClient/Client/AFClient.swift,
 				AlamofireClient/Client/AFDataParsingInterceptor.swift,
 				AlamofireClient/Client/AFRequest.swift,
 				AlamofireClient/Client/AFResponseMapKeys.swift,
-				AlamofireClient/Client/AFResponseParsingInterceptor.swift,
+				AlamofireClient/Client/CLAUDE.md,
 				AlamofireClient/Error/AFClientError.swift,
+				AlamofireClient/Error/CLAUDE.md,
 				AlamofireClient/Interceptor/AFToastInterceptor.swift,
+				AlamofireClient/Interceptor/CLAUDE.md,
 				"AlamofireClient/Ntk+AF.swift",
+				CooNetwork/NtkNetwork/cache/CLAUDE.md,
+				CooNetwork/NtkNetwork/CLAUDE.md,
+				CooNetwork/NtkNetwork/deduplication/CLAUDE.md,
+				CooNetwork/NtkNetwork/error/CLAUDE.md,
+				CooNetwork/NtkNetwork/interceptor/CLAUDE.md,
+				CooNetwork/NtkNetwork/iNtk/CLAUDE.md,
+				CooNetwork/NtkNetwork/lock/CLAUDE.md,
+				CooNetwork/NtkNetwork/model/CLAUDE.md,
+				CooNetwork/NtkNetwork/retry/CLAUDE.md,
+				CooNetwork/NtkNetwork/UI/CLAUDE.md,
+				CooNetwork/NtkNetwork/utils/CLAUDE.md,
 			);
 			target = FB3A3D612F0CF93D00CAE4FB /* CooNetwork */;
 		};

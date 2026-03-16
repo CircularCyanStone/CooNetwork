@@ -64,7 +64,7 @@
 - `Sources/CooNetwork/NtkNetwork/NtkNetwork.swift`
 
 **修复方案：**
-- 替换所有 `print()` 为 `NtkLogger.shared.debug/info/warning/error`
+- 替换所有 `print()` 为 `logger.debug/info/warning/error`
 - 移除 `#if DEBUG` 条件编译，使用运行时开关 `NtkConfiguration.shared.isLoggingEnabled`
 - 添加正确的日志分类（.network, .interceptor, .retry, .cache）
 - 将 NtkLogger API 改为 public，供 AlamofireClient 模块访问

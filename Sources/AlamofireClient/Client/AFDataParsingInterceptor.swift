@@ -49,7 +49,7 @@ public struct AFDataParsingInterceptor<ResponseData: Sendable & Decodable, Keys:
 
             do {
                 let jsonObject = try JSONSerialization.jsonObject(with: rawData)
-                NtkLogger.shared.debug(
+                logger.debug(
                     """
                     ---------------------AF response start-------------------------
                     \(afRequest)
@@ -62,7 +62,7 @@ public struct AFDataParsingInterceptor<ResponseData: Sendable & Decodable, Keys:
                     category: .network
                 )
             } catch {
-                NtkLogger.shared.error("response json error \(error)", category: .network)
+                logger.error("response json error \(error)", category: .network)
             }
 
         do {

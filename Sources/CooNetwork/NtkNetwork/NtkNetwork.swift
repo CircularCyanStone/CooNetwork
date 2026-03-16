@@ -67,6 +67,10 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
     /// 本地记录的取消状态（用于同步返回）
     private var _isCancelled: Bool = false
     
+    /// 单次使用保护位
+    /// 用于阻止同一个 NtkNetwork 实例重复发起 request()
+    private var _hasRequested: Bool = false
+    
     /// 按优先级排序的核心拦截器列表
     private var coreInterceptors: [iNtkInterceptor] {
         get {
@@ -131,6 +135,31 @@ private extension NtkNetwork {
 
 extension NtkNetwork {
     
+    /// 标记 request() 已消费，若重复调用则抛错并在开发期强提醒
+    private func markRequestConsumedOrThrow() throws {
+        let canProceed = lock.withLock { () -> Bool in
+            if _hasRequested {
+                return false
+            }
+            _hasRequested = true
+            return true
+        }
+        guard canProceed else {
+#if DEBUG
+            let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+                || ProcessInfo.processInfo.arguments.contains { $0.contains("xctest") }
+            if !isRunningTests {
+                fatalError("NtkNetwork 实例仅支持单次 request() 调用。请为每次请求创建新的 NtkNetwork 实例。")
+            }
+#endif
+            logger.warning(
+                "NtkNetwork 实例仅支持单次 request() 调用。请为每次请求创建新的 NtkNetwork 实例。",
+                category: .network
+            )
+            throw NtkError.requestCancelled
+        }
+    }
+    
     /// 添加拦截器
     /// - Parameter i: 拦截器实现
     /// - Returns: 当前实例，支持链式调用
@@ -176,6 +205,8 @@ extension NtkNetwork {
     /// - Throws: 网络请求过程中的错误
     @discardableResult
     public func request() async throws -> NtkResponse<ResponseData> {
+        try markRequestConsumedOrThrow()
+        
         guard let validation else {
             fatalError("iNtkResponseValidation must not be nil, you should call method 'func validation(_ validation: iNtkResponseValidation) -> Self' first")
         }
@@ -239,7 +270,7 @@ extension NtkNetwork {
                             do {
                                 return .cache(try await self.loadCache())
                             } catch {
-                                NtkLogger.shared.debug("startWithCache 缓存加载失败，但不影响网络请求: \(error)", category: .cache)
+                                logger.debug("startWithCache 缓存加载失败，但不影响网络请求: \(error)", category: .cache)
                                 return .cache(nil)
                             }
                         }
@@ -276,12 +307,12 @@ extension NtkNetwork {
                 case .cancelled:
                     // 只有在流被取消时才取消底层任务
                     // 这通常发生在业务层主动取消或者上层作用域被取消
-                    NtkLogger.shared.debug("AsyncStream 被取消，取消底层任务", category: .network)
+                    logger.debug("AsyncStream 被取消，取消底层任务", category: .network)
                     task.cancel()
                 case .finished:
                     // 流正常结束或因错误结束，不需要取消任务
                     // 因为任务要么已经完成，要么已经在 catch 块中处理了错误
-                    NtkLogger.shared.debug("AsyncStream 正常结束，无需取消任务", category: .network)
+                    logger.debug("AsyncStream 正常结束，无需取消任务", category: .network)
                 @unknown default:
                     fatalError("unknown")
                 }
