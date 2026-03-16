@@ -16,6 +16,9 @@ public struct NtkMutableRequest: iNtkRequest {
     /// 原始请求对象
     public let originalRequest: iNtkRequest
 
+    /// 请求实例标识，用于区分同语义下的不同请求实例
+    public let instanceIdentifier: UUID
+
     // MARK: - 可变属性（直接存储，与iNtkRequest使用习惯一致）
 
     /// 请求参数，可直接修改
@@ -33,6 +36,7 @@ public struct NtkMutableRequest: iNtkRequest {
     /// - Parameter request: 原始请求对象
     public init(_ request: iNtkRequest) {
         self.originalRequest = request
+        self.instanceIdentifier = UUID()
         // 复制原始请求的参数和头部到可变属性中
         self.parameters = request.parameters
         self.headers = request.headers
