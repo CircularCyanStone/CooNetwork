@@ -205,7 +205,7 @@ struct NtkTaskManagerTests {
 
     @Test
     @NtkActor
-    func testDedupFollowerCancelOnlyCancelsOwnWaiting() async throws {
+    func testDedupFollowerCancelDoesNotAffectSharedWaiting() async throws {
         let gate = TaskExecutionGate()
         let ownerRequest = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/test/dedup-follower-cancel"))
         let followerRequest = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/test/dedup-follower-cancel"))
@@ -224,16 +224,11 @@ struct NtkTaskManagerTests {
 
         await gate.waitUntilFirstStarted()
 
-        let cancelledFollowerTask = Task {
-            do {
-                let value: String = try await NtkTaskManager.shared.executeWithDeduplication(request: followerRequest) {
-                    await counter.increment()
-                    return "should-not-run"
-                }
-                return Result<String, Error>.success(value)
-            } catch {
-                return Result<String, Error>.failure(error)
-            }
+        let followerTask = Task {
+            try await NtkTaskManager.shared.executeWithDeduplication(request: followerRequest) {
+                await counter.increment()
+                return "should-not-run"
+            } as String
         }
 
         await Task.yield()
@@ -249,16 +244,12 @@ struct NtkTaskManagerTests {
         try await Task.sleep(nanoseconds: 50_000_000)
         await gate.releaseFirst()
 
-        let cancelledFollowerResult = await cancelledFollowerTask.value
-        if case .success = cancelledFollowerResult {
-            Issue.record("去重 follower 取消后应立即返回取消错误")
-        } else if case .failure(let error) = cancelledFollowerResult {
-            #expect(isCancellationError(error) == true)
-        }
+        let followerValue = try await followerTask.value
         let ownerValue = try await ownerTask.value
         let normalFollowerValue = try await normalFollowerTask.value
         let executionCount = await counter.value()
 
+        #expect(followerValue == "shared")
         #expect(ownerValue == "shared")
         #expect(normalFollowerValue == "shared")
         #expect(executionCount == 1)

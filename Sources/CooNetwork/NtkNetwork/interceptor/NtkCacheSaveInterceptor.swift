@@ -56,7 +56,7 @@ public struct NtkCacheSaveInterceptor: iNtkInterceptor {
             // 根据缓存时间和自定义策略保存响应到缓存
             if let extractedResponse = responseExtractor(response) {
                 let result = await context.client.saveCache(context.mutableRequest, response: extractedResponse)
-                NtkLogger.shared.debug("NTK请求缓存\(result ? "成功" : "失败")")
+                logger.debug("NTK请求缓存\(result ? "成功" : "失败")")
             }
         }
         return response

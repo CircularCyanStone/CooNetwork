@@ -93,7 +93,7 @@ private extension NtkRetryInterceptor {
         delay: TimeInterval,
         error: Error
     ) async {
-        NtkLogger.shared.debug("[NtkRetry] Attempt \(attemptCount) failed, retrying in \(delay)s. Error: \(error)", category: .retry)
+        logger.debug("[NtkRetry] Attempt \(attemptCount) failed, retrying in \(delay)s. Error: \(error)", category: .retry)
 
         // 这里可以添加更详细的统计信息收集
         // 例如发送到分析服务或本地存储
@@ -103,7 +103,7 @@ private extension NtkRetryInterceptor {
     func recordRetrySuccess(
         attemptCount: Int
     ) async {
-        NtkLogger.shared.debug("[NtkRetry] Request succeeded after \(attemptCount) retries", category: .retry)
+        logger.debug("[NtkRetry] Request succeeded after \(attemptCount) retries", category: .retry)
 
         // 记录成功的重试统计
     }
@@ -113,7 +113,7 @@ private extension NtkRetryInterceptor {
         attemptCount: Int,
         finalError: Error
     ) async {
-        NtkLogger.shared.error("[NtkRetry] Request failed after \(attemptCount) retries. Final error: \(finalError)", category: .retry)
+        logger.error("[NtkRetry] Request failed after \(attemptCount) retries. Final error: \(finalError)", category: .retry)
 
         // 记录失败的重试统计
     }

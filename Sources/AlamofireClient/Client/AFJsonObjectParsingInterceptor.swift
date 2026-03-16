@@ -86,7 +86,7 @@ extension AFJsonObjectParsingInterceptor {
         validation: iNtkResponseValidation
     ) throws -> NtkResponse<ResponseData> {
 
-        NtkLogger.shared.debug(
+        logger.debug(
             """
             ---------------------AF response start-------------------------
             \(request)
