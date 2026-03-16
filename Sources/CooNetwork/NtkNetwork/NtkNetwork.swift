@@ -83,12 +83,8 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
     }
 
     /// 检查当前请求是否已被取消
-    ///
-    /// 注意：这是异步检查，因为取消状态存储在 Actor 中。
     public var isCancelled: Bool {
-        get async {
-            await mutableRequest.isCancelledRef?.isCancelled ?? false
-        }
+        mutableRequest.isCancelledRef?.isCancelled ?? false
     }
 
     /// 初始化网络请求管理器
@@ -140,36 +136,48 @@ extension NtkNetwork {
             _coreInterceptors.append(i)
         }
     }
+    
+    /// 标记 request() 已消费，若重复调用则抛错并在开发期强提醒
+    private func markRequestConsumedOrThrow() throws {
+        let allowed = lock.withLock {
+            guard !_hasRequested else { return false }
+            _hasRequested = true
+            return true
+        }
+
+        guard allowed else {
+            Self.reportDuplicateRequestUsage()
+            throw NtkError.requestCancelled
+        }
+    }
+
+    /// 报告重复请求使用
+    private static func reportDuplicateRequestUsage() {
+        #if DEBUG
+        guard isRunningInTests() else {
+            fatalError(singleUseErrorMessage)
+        }
+        #endif
+        logger.warning(singleUseErrorMessage, category: .network)
+    }
+#if DEBUG
+    /// 单次使用错误消息（使用 var 而非 let 以支持泛型类）
+    private static var singleUseErrorMessage: String {
+        "NtkNetwork 实例仅支持单次 request() 调用。请为每次请求创建新的 NtkNetwork 实例。"
+    }
+
+    /// 检查是否在测试环境中运行
+    private static func isRunningInTests() -> Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            || ProcessInfo.processInfo.arguments.contains { $0.contains("xctest") }
+    }
+#endif
 
 }
 
 extension NtkNetwork {
 
-    /// 标记 request() 已消费，若重复调用则抛错并在开发期强提醒
-    private func markRequestConsumedOrThrow() throws {
-        let canProceed = lock.withLock { () -> Bool in
-            if _hasRequested {
-                return false
-            }
-            _hasRequested = true
-            return true
-        }
-        guard canProceed else {
-            #if DEBUG
-                let isRunningTests =
-                    ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
-                    || ProcessInfo.processInfo.arguments.contains { $0.contains("xctest") }
-                if !isRunningTests {
-                    fatalError("NtkNetwork 实例仅支持单次 request() 调用。请为每次请求创建新的 NtkNetwork 实例。")
-                }
-            #endif
-            logger.warning(
-                "NtkNetwork 实例仅支持单次 request() 调用。请为每次请求创建新的 NtkNetwork 实例。",
-                category: .network
-            )
-            throw NtkError.requestCancelled
-        }
-    }
+
 
     /// 添加拦截器
     /// - Parameter i: 拦截器实现
@@ -197,7 +205,7 @@ extension NtkNetwork {
     public func cancel() async {
         let requestToCancel = mutableRequest
         // 取消通过引用类型状态
-        await requestToCancel.isCancelledRef?.cancel()
+        requestToCancel.isCancelledRef?.cancel()
         await NtkTaskManager.shared.cancelRequest(request: requestToCancel)
     }
 

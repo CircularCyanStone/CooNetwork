@@ -46,7 +46,7 @@ final class NtkTaskManager {
         execution: @escaping @Sendable () async throws -> T
     ) async throws -> T {
         // 检查取消状态（解决先取消后执行的可重入问题）
-        if let cancelledRef = request.isCancelledRef, await cancelledRef.isCancelled {
+        if let cancelledRef = request.isCancelledRef, cancelledRef.isCancelled {
             logger.warning("请求已取消，终止执行", category: .deduplication)
             throw NtkError.requestCancelled
         }
