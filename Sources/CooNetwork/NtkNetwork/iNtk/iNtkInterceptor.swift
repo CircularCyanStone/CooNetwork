@@ -101,7 +101,7 @@ public protocol iNtkInterceptor: Sendable {
     /// - Returns: 处理后的响应对象
     /// - Throws: 拦截过程中的错误
     @NtkActor
-    func intercept(context: NtkInterceptorContext, next: NtkRequestHandler) async throws -> any iNtkResponse
+    func intercept(context: NtkInterceptorContext, next: iNtkRequestHandler) async throws -> any iNtkResponse
 }
 
 /// 拦截器协议的默认实现

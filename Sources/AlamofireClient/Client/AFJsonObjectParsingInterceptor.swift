@@ -34,7 +34,7 @@ public struct AFJsonObjectParsingInterceptor<
         self.customHandler = customHandler
     }
     
-    public func intercept(context: NtkInterceptorContext, next: any NtkRequestHandler)
+    public func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler)
         async throws -> any iNtkResponse
     {
         let response = try await next.handle(context: context)

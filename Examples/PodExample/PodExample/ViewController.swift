@@ -277,7 +277,7 @@ struct IPv6Request: iAFRequest {
 
 struct IPv6ParsingInterceptor: iNtkInterceptor {
 
-    func intercept(context: NtkInterceptorContext, next: any NtkRequestHandler) async throws -> any iNtkResponse {
+    func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
         let response = try await next.handle(context: context)
 
         let rawData: Data

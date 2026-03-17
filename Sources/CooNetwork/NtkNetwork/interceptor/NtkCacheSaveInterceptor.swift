@@ -48,7 +48,7 @@ public struct NtkCacheSaveInterceptor: iNtkInterceptor {
     ///   - next: 下一个请求处理器
     /// - Returns: 处理后的响应对象
     /// - Throws: 处理过程中的错误
-    public func intercept(context: NtkInterceptorContext, next: any NtkRequestHandler) async throws -> any iNtkResponse {
+    public func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
         let response = try await next.handle(context: context)
         // 能走到这里说明已经通过了NtkValidationInterceptor的校验
         guard let requestPolicy = context.mutableRequest.requestConfiguration else { return response }

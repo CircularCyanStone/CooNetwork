@@ -41,40 +41,12 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
     // 但为了绝对安全，我们在这里使用简单的锁保护配置状态。
     private let lock = NtkUnfairLock()
 
-    /// 按优先级排序的自定义拦截器列表
-    private var interceptors: [iNtkInterceptor] {
-        get {
-            return lock.withLock {
-                _interceptors.sorted { $0.priority > $1.priority }
-            }
-        }
-        set {
-            lock.withLock {
-                _interceptors = newValue
-            }
-        }
-    }
-
     /// 存储所有核心拦截器
     private var _coreInterceptors: [iNtkInterceptor] = []
 
     /// 单次使用保护位
     /// 用于阻止同一个 NtkNetwork 实例重复发起 request()
     private var _hasRequested: Bool = false
-
-    /// 按优先级排序的核心拦截器列表
-    private var coreInterceptors: [iNtkInterceptor] {
-        get {
-            return lock.withLock {
-                _coreInterceptors.sorted { $0.priority > $1.priority }
-            }
-        }
-        set {
-            lock.withLock {
-                _coreInterceptors = newValue
-            }
-        }
-    }
 
     /// 检查当前请求是否已被取消
     public var isCancelled: Bool {

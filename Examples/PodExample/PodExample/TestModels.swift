@@ -126,7 +126,7 @@ struct StandardValidation: iNtkResponseValidation {
 /// 不期望 `{code, data, msg}` 格式的包装结构
 struct DirectDataParsingInterceptor<ResponseData: Decodable & Sendable>: iNtkInterceptor {
 
-    func intercept(context: NtkInterceptorContext, next: any NtkRequestHandler) async throws -> any iNtkResponse {
+    func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
         let response = try await next.handle(context: context)
 
         // 如果已经是目标类型，直接返回

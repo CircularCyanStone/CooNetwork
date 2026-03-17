@@ -110,7 +110,7 @@ private struct DummyCacheStorage: iNtkCacheStorage {
 }
 
 @NtkActor
-private struct AlwaysFailHandler: NtkRequestHandler {
+private struct AlwaysFailHandler: iNtkRequestHandler {
     func handle(context: NtkInterceptorContext) async throws -> any iNtkResponse {
         throw NtkError.requestTimeout
     }

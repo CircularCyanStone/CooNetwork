@@ -22,7 +22,7 @@
 | **NtkNetwork** | 提供网络请求管理的核心抽象 | NtkNetwork, NtkNetworkExecutor, Ntk |
 | **iNtk** | 定义网络抽象的协议接口 | iNtkClient, iNtkRequest, iNtkResponse, iNtkInterceptor, iNtkResponseValidation, iNtkResponseMapKeys |
 |**model** | 定义网络请求和响应的数据结构 | NtkMutableRequest, NtkClientResponse, NtkResponse<T>, NtkDynamicData, NtkReturnCode, NtkNever |
-| **interceptor** | 提供拦截器链的管理和执行机制 | NtkInterceptorChainManager, NtkInterceptorContext, NtkRequestHandler |
+| **interceptor** | 提供拦截器链的管理和执行机制 | NtkInterceptorChainManager, NtkInterceptorContext, iNtkRequestHandler |
 | **cache** | 提供网络请求的缓存解决方案 | iNtkCacheStorage, NtkNetworkCache, NtkCacheMeta, NtkRequestIdentifierManager, NtkRequestConfiguration |
 | **retry** | 提供网络请求的自动重试功能 | NtkRetryInterceptor |
 | **deduplication** | 防止相同请求重复执行 | NtkDeduplicationInterceptor |

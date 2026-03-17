@@ -43,17 +43,24 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
         self.dataParsingInterceptor = dataParsingInterceptor
     }
     
+    // MARK: - Helper Methods
+
+    /// 按优先级降序排序拦截器（优先级高的先执行）
+    private func sortInterceptors(_ interceptors: [iNtkInterceptor]) -> [iNtkInterceptor] {
+        interceptors.sorted { $0.priority > $1.priority }
+    }
+
     // MARK: - Core Execution
-    
+
     func execute() async throws -> NtkResponse<ResponseData> {
         let context = NtkInterceptorContext(mutableRequest: mutableRequest, validation: validation, client: client)
-        
+
         // 动态添加核心拦截器
         var executionCoreInterceptors = coreInterceptors
         executionCoreInterceptors.append(NtkDeduplicationInterceptor())
         executionCoreInterceptors.append(dataParsingInterceptor)
-        
-        let allInterceptors = interceptors + executionCoreInterceptors.sorted { $0.priority > $1.priority }
+
+        let allInterceptors = interceptors + sortInterceptors(executionCoreInterceptors)
         
         let realChainManager = NtkInterceptorChainManager(interceptors: allInterceptors) { [weak self] context in
             // 在执行链末端更新请求对象
@@ -78,10 +85,10 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
     
     func loadCache() async throws -> NtkResponse<ResponseData>? {
         let context = NtkInterceptorContext(mutableRequest: mutableRequest, validation: validation, client: client)
-        
+
         var executionCoreInterceptors = coreInterceptors
         executionCoreInterceptors.append(dataParsingInterceptor)
-        let tmpInterceptors = executionCoreInterceptors.sorted { $0.priority > $1.priority }
+        let tmpInterceptors = sortInterceptors(executionCoreInterceptors)
         
         let realChainManager = NtkInterceptorChainManager(interceptors: tmpInterceptors) { [weak self] context in
             self?.mutableRequest = context.mutableRequest
@@ -109,9 +116,9 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
     
     func hasCacheData() async -> Bool where ResponseData == Bool {
         let context = NtkInterceptorContext(mutableRequest: mutableRequest, validation: validation, client: client)
-        
+
         // hasCacheData 可能不需要完整的拦截器链，但为了保持一致性，使用已配置的拦截器
-        let sortedInterceptors = interceptors.sorted { $0.priority > $1.priority }
+        let sortedInterceptors = sortInterceptors(interceptors)
         
         let realChainManager = NtkInterceptorChainManager(interceptors: sortedInterceptors) { [weak self] context in
             self?.mutableRequest = context.mutableRequest

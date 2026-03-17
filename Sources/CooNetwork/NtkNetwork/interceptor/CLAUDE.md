@@ -10,4 +10,4 @@
 
 - `NtkInterceptorChainManager` - 拦截器链管理器
 - `NtkInterceptorContext` - 请求上下文
-- `NtkRequestHandler` - 请求处理器协议
+- `iNtkRequestHandler` - 请求处理器协议

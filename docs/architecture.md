@@ -103,7 +103,7 @@ Sources/AlamofireClient/
 
 - `NtkInterceptorChainManager` - 责任链管理
 - `NtkInterceptorContext` - 请求上下文
-- `NtkRequestHandler` - 请求处理器接口
+- `iNtkRequestHandler` - 请求处理器接口
 
 ### cache/ (缓存系统)
 

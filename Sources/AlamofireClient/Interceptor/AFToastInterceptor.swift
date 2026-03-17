@@ -32,7 +32,7 @@ public struct AFToastInterceptor: iNtkInterceptor {
         self.toastHandler = toastHandler
     }
     
-    public func intercept(context: NtkInterceptorContext, next: any NtkRequestHandler) async throws -> any iNtkResponse {
+    public func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
         guard let afRequest = context.mutableRequest.originalRequest as? iAFRequest else {
             return try await next.handle(context: context)
         }

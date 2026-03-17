@@ -29,7 +29,7 @@ public struct NtkRetryInterceptor: iNtkInterceptor {
     }
     
     @NtkActor
-    public func intercept(context: NtkInterceptorContext, next: NtkRequestHandler) async throws -> any iNtkResponse {
+    public func intercept(context: NtkInterceptorContext, next: iNtkRequestHandler) async throws -> any iNtkResponse {
         var attemptCount = 0
         var lastError: Error?
         
@@ -54,13 +54,7 @@ public struct NtkRetryInterceptor: iNtkInterceptor {
                     await recordRetryFailure(attemptCount: attemptCount - 1, finalError: error)
                     throw error
                 }
-                
-                // 如果已达到最大重试次数，抛出错误
-                guard attemptCount < retryPolicy.maxRetryCount else {
-                    await recordRetryFailure(attemptCount: attemptCount - 1, finalError: error)
-                    throw error
-                }
-                
+
                 // 计算延迟时间
                 guard let delay = retryPolicy.retryDelay(for: attemptCount, error: error) else {
                     // 策略返回nil，不应该重试
