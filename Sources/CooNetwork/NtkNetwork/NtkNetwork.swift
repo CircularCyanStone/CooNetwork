@@ -19,12 +19,6 @@ import Foundation
 /// 并且设计意图是作为单线程配置器使用。
 public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
 
-    /// 响应结果枚举，用于区分缓存和网络响应
-    private enum ResponseResult {
-        case cache(NtkResponse<ResponseData>?)
-        case network(NtkResponse<ResponseData>)
-    }
-
     /// 网络客户端实现
     private var client: any iNtkClient
 
@@ -283,7 +277,7 @@ extension NtkNetwork {
             let task = Task {
                 do {
                     var networkReturnedFirst = false
-                    try await withThrowingTaskGroup(of: ResponseResult.self) { group in
+                    try await withThrowingTaskGroup(of: NtkNetworkExecutor.ResponseResult.self) { group in
                         // 并发加载缓存
                         group.addTask {
                             do {
