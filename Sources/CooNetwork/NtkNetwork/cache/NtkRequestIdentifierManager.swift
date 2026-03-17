@@ -94,136 +94,142 @@ extension NtkRequestIdentifierManager {
     ///   - cacheConfig: 缓存配置，用于参数过滤
     /// - Returns: 哈希值字符串
     private func generateHashForCache(request: NtkMutableRequest, cacheConfig: NtkRequestConfiguration?) -> String {
-        var components: [String] = []
-        
-        // HTTP方法
-        components.append(request.method.rawValue)
-        
-        // URL
-        if let baseURL = request.baseURL {
-            components.append(baseURL.absoluteString)
-        }
-        components.append(request.path)
-        
-        // Headers哈希（通过cacheConfig过滤）
-        if let headers = request.headers {
-            if let config = cacheConfig {
-                let filteredHeaders = config.filterHeaders(headers)
-                let sortedKeys = filteredHeaders.keys.sorted()
-                for key in sortedKeys {
-                    components.append(key)
-                    if let value = filteredHeaders[key] {
-                        components.append("\(value)")
-                    }
-                }
-            } else {
-                let sortedKeys = headers.keys.sorted()
-                for key in sortedKeys {
-                    components.append(key)
-                    if let value = headers[key] {
-                        components.append("\(value)")
-                    }
-                }
-            }
-        }
-        
-        // 参数哈希（通过cachePolicy过滤）
-        if let parameters = request.parameters {
-            if let config = cacheConfig {
-                let filteredParams = config.filterParameters(parameters)
-                let sortedKeys = filteredParams.keys.sorted()
-                for key in sortedKeys {
-                    components.append(key)
-                    if let value = filteredParams[key] {
-                        components.append("\(value)")
-                    }
-                }
-            } else {
-                let sortedKeys = parameters.keys.sorted()
-                for key in sortedKeys {
-                    components.append(key)
-                    if let value = parameters[key] {
-                        components.append("\(value)")
-                    }
-                }
-            }
-        }
-        
-        // 缓存配置
-        if let config = cacheConfig {
-            components.append("\(config.cacheTime)")
-        }
-        
-        // 使用MD5生成稳定哈希
+        // 使用 MD5 生成稳定哈希
+        let components = buildHashComponents(
+            request: request,
+            config: cacheConfig,
+            includeCacheTime: true
+        )
+
         let combinedString = components.joined(separator: "|")
         let data = Data(combinedString.utf8)
         let digest = Insecure.MD5.hash(data: data)
-        
+
         // 将MD5摘要转换为16进制字符串
         return digest.map { String(format: "%02x", $0) }.joined()
     }
     
     /// 生成去重哈希值
-    /// 使用Swift Hasher为请求去重生成哈希，通过requestPolicy过滤动态参数
+    /// 使用Swift Hasher为请求去重生成哈希，通过requestConfiguration过滤动态参数
     /// - Parameter request: 网络请求对象
     /// - Returns: 哈希值
     private func generateHashForDeduplication(request: NtkMutableRequest) -> Int {
         var hasher = Hasher()
-        
+
         // HTTP方法
         hasher.combine(request.method.rawValue)
-        
+
         // URL
         if let baseURL = request.baseURL {
             hasher.combine(baseURL.absoluteString)
         }
         hasher.combine(request.path)
-        
-        // Headers哈希（通过requestPolicy过滤动态headers）
+
+        // Headers哈希（通过requestConfiguration过滤动态headers）
         if let headers = request.headers {
-            if let config = request.requestConfiguration {
-                let filteredHeaders = config.filterHeaders(headers)
-                let sortedKeys = filteredHeaders.keys.sorted()
-                for key in sortedKeys {
-                    hasher.combine(key)
-                    if let value = filteredHeaders[key] {
-                        hasher.combine("\(value)")
-                    }
-                }
-            } else {
-                let sortedKeys = headers.keys.sorted()
-                for key in sortedKeys {
-                    hasher.combine(key)
-                    if let value = headers[key] {
-                        hasher.combine("\(value)")
-                    }
-                }
-            }
+            appendFilteredHeaders(to: &hasher, headers: headers, config: request.requestConfiguration)
         }
-        
-        // 参数哈希（通过requestPolicy过滤动态参数）
+
+        // 参数哈希（通过requestConfiguration过滤动态参数）
         if let parameters = request.parameters {
-            if let config = request.requestConfiguration {
-                let filteredParams = config.filterParameters(parameters)
-                let sortedKeys = filteredParams.keys.sorted()
-                for key in sortedKeys {
-                    hasher.combine(key)
-                    if let value = filteredParams[key] {
-                        hasher.combine("\(value)")
-                    }
-                }
-            } else {
-                let sortedKeys = parameters.keys.sorted()
-                for key in sortedKeys {
-                    hasher.combine(key)
-                    if let value = parameters[key] {
-                        hasher.combine("\(value)")
-                    }
+            appendFilteredParameters(to: &hasher, parameters: parameters, config: request.requestConfiguration)
+        }
+
+        return hasher.finalize()
+    }
+
+    /// 构建哈希组件数组（用于缓存）
+    /// - Parameters:
+    ///   - request: 网络请求对象
+    ///   - config: 请求配置，用于参数过滤
+    ///   - includeCacheTime: 是否包含缓存时间
+    /// - Returns: 哈希组件数组
+    private func buildHashComponents(
+        request: NtkMutableRequest,
+        config: NtkRequestConfiguration?,
+        includeCacheTime: Bool
+    ) -> [String] {
+        var components: [String] = []
+
+        // HTTP方法
+        components.append(request.method.rawValue)
+
+        // URL
+        if let baseURL = request.baseURL {
+            components.append(baseURL.absoluteString)
+        }
+        components.append(request.path)
+
+        // Headers
+        if let headers = request.headers {
+            let filtered = config?.filterHeaders(headers) ?? headers
+            let sortedKeys = filtered.keys.sorted()
+            for key in sortedKeys {
+                components.append(key)
+                if let value = filtered[key] {
+                    components.append("\(value)")
                 }
             }
         }
-        
-        return hasher.finalize()
+
+        // Parameters
+        if let parameters = request.parameters {
+            let filtered = config?.filterParameters(parameters) ?? parameters
+            let sortedKeys = filtered.keys.sorted()
+            for key in sortedKeys {
+                components.append(key)
+                if let value = filtered[key] {
+                    components.append("\(value)")
+                }
+            }
+        }
+
+        // 缓存时间
+        if includeCacheTime, let config = config {
+            components.append("\(config.cacheTime)")
+        }
+
+        return components
+    }
+
+    /// 将过滤后的 Headers 添加到 Hasher（用于去重）
+    /// - Parameters:
+    ///   - hasher: Hasher 引用
+    ///   - headers: 原始 Headers
+    ///   - config: 请求配置（用于过滤）
+    private func appendFilteredHeaders(
+        to hasher: inout Hasher,
+        headers: [String: String],
+        config: NtkRequestConfiguration?
+    ) {
+        let filtered = config?.filterHeaders(headers) ?? headers
+        let sortedKeys = filtered.keys.sorted()
+        for key in sortedKeys {
+            hasher.combine(key)
+            if let value = filtered[key] {
+                hasher.combine(value)
+            }
+        }
+    }
+
+    /// 将过滤后的 Parameters 添加到 Hasher（用于去重）
+    /// - Parameters:
+    ///   - hasher: Hasher 引用
+    ///   - parameters: 原始 Parameters
+    ///   - config: 请求配置（用于过滤）
+    private func appendFilteredParameters(
+        to hasher: inout Hasher,
+        parameters: [String: Sendable],
+        config: NtkRequestConfiguration?
+    ) {
+        let filtered = config?.filterParameters(parameters) ?? parameters
+        let sortedKeys = filtered.keys.sorted()
+        for key in sortedKeys {
+            hasher.combine(key)
+            if let value = filtered[key] {
+                hasher.combine("\(value)")
+            }
+        }
     }
 }
 

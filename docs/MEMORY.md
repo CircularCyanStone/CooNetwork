@@ -79,17 +79,27 @@
 ### 5. Executor 创建代码重复
 - **文件**: `NtkNetwork.swift`
 - **问题**: `request()`, `loadCache()`, `hasCacheData()` 重复创建 executor
-- **状态**: 待讨论
+- **改进**: 提取私有方法 `makeExecutor<T>()` 统一创建逻辑
+- **状态**: ✅ 已完成 (2026-03-17)
 
-### 6. 执行链构建代码重复
+### ~~6. 执行链构建代码重复~~
 - **文件**: `NtkNetworkExecutor.swift`
 - **问题**: 三个方法有重复的拦截器链构建逻辑
-- **状态**: 待讨论
+- **评估**: 三个方法的拦截器组合策略和错误处理策略完全不同，只有排序逻辑重复，强行统一反而降低可读性
+- **结论**: 接受现状
+- **状态**: ~~待讨论~~
 
 ### 7. 哈希计算逻辑重复
 - **文件**: `NtkRequestIdentifierManager.swift`
 - **问题**: `generateHashForCache` 和 `generateHashForDeduplication` 90% 代码重复
-- **状态**: 待讨论
+- **改进**: 提取公共逻辑到三个辅助方法：
+  - `buildHashComponents()` - 构建哈希组件数组（用于缓存）
+  - `appendFilteredHeaders()` - 添加过滤后的 Headers 到 Hasher
+  - `appendFilteredParameters()` - 添加过滤后的 Parameters 到 Hasher
+- **保持逻辑一致性**:
+  - 缓存哈希：使用参数传入的 `cacheConfig`，包含 `cacheTime`
+  - 去重哈希：使用 `request.requestConfiguration`，不包含额外内容
+- **状态**: ✅ 已完成 (2026-03-17)
 
 ### 7. 拦截器排序重复
 - **文件**: `NtkNetwork.swift`, `NtkNetworkExecutor.swift`

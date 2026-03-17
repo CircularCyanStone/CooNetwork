@@ -172,6 +172,21 @@ extension NtkNetwork {
 
 
 
+    /// 创建执行器
+    /// - Returns: 配置好的网络执行器实例
+    private func makeExecutor<T: Sendable>() -> NtkNetworkExecutor<T> {
+        lock.withLock {
+            NtkNetworkExecutor<T>(
+                client: client,
+                request: mutableRequest,
+                interceptors: _interceptors,
+                coreInterceptors: _coreInterceptors,
+                validation: validation!,
+                dataParsingInterceptor: dataParsingInterceptor
+            )
+        }
+    }
+
     /// 添加拦截器
     /// - Parameter i: 拦截器实现
     /// - Returns: 当前实例，支持链式调用
@@ -216,28 +231,14 @@ extension NtkNetwork {
     public func request() async throws -> NtkResponse<ResponseData> {
         try markRequestConsumedOrThrow()
 
-        guard let validation else {
+        guard validation != nil else {
             fatalError(
                 "iNtkResponseValidation must not be nil, you should call method 'func validation(_ validation: iNtkResponseValidation) -> Self' first"
             )
         }
 
-        // 1. 创建 Executor 并传递配置快照
-        // 注意：这里传递的是值类型(NtkMutableRequest)的拷贝和引用类型的引用(Client, Interceptors)
-        // Client 和 Interceptors 必须是 Sendable 的
-        let executor = lock.withLock {
-            NtkNetworkExecutor<ResponseData>(
-                client: client,
-                request: mutableRequest,
-                interceptors: _interceptors,
-                coreInterceptors: _coreInterceptors,
-                validation: validation,
-                dataParsingInterceptor: dataParsingInterceptor
-            )
-        }
-
-        // 2. 委托执行
-        return try await executor.execute()
+        // 委托执行
+        return try await makeExecutor().execute()
     }
 
     /// 加载缓存数据
@@ -245,24 +246,13 @@ extension NtkNetwork {
     /// - Returns: 缓存的响应对象，如果没有缓存则返回nil
     /// - Throws: 缓存加载过程中的错误
     public func loadCache() async throws -> NtkResponse<ResponseData>? {
-        guard let validation else {
+        guard validation != nil else {
             fatalError(
                 "iNtkResponseValidation must not be nil, you should call method 'func validation(_ validation: iNtkResponseValidation) -> Self' first"
             )
         }
 
-        let executor = lock.withLock {
-            NtkNetworkExecutor<ResponseData>(
-                client: client,
-                request: mutableRequest,
-                interceptors: _interceptors,
-                coreInterceptors: _coreInterceptors,
-                validation: validation,
-                dataParsingInterceptor: dataParsingInterceptor
-            )
-        }
-
-        return try await executor.loadCache()
+        return try await makeExecutor().loadCache()
     }
 
     /// 便捷发起网络请求并加载缓存
@@ -340,23 +330,12 @@ extension NtkNetwork where ResponseData == Bool {
     /// 判断是否存在缓存数据
     /// - Returns: 如果存在缓存数据返回true，否则返回false
     public func hasCacheData() async -> Bool {
-        guard let validation else {
+        guard validation != nil else {
             fatalError(
                 "iNtkResponseValidation must not be nil, you should call method 'func validation(_ validation: iNtkResponseValidation) -> Self' first"
             )
         }
 
-        let executor = lock.withLock {
-            NtkNetworkExecutor<Bool>(
-                client: client,
-                request: mutableRequest,
-                interceptors: _interceptors,
-                coreInterceptors: _coreInterceptors,
-                validation: validation,
-                dataParsingInterceptor: dataParsingInterceptor
-            )
-        }
-
-        return await executor.hasCacheData()
+        return await makeExecutor().hasCacheData()
     }
 }
