@@ -12,18 +12,20 @@ import CryptoKit
 /// 请求标识符管理器
 /// 负责为网络请求生成唯一的缓存键和去重标识符
 /// 使用Swift Hasher确保高性能的哈希计算
-public class NtkRequestIdentifierManager: @unchecked Sendable {
-    
-    private let lock = NtkUnfairLock()
-    
-    /// 内存缓存映射
-    /// 使用LRU策略管理缓存条目，避免内存无限增长
-    private var cacheMap: [String: String] = [:]
-    
+@NtkActor
+public class NtkRequestIdentifierManager {
+
+    /// 内存缓存：请求特征 → 缓存键
+    /// 避免重复计算相同请求的哈希
+    private var requestCache: [RequestCacheKey: String] = [:]
+    /// LRU 队列：按访问顺序存储缓存键
+    private var lruLRUQueue: [RequestCacheKey] = []
+    private let maxCacheSize = 100
+
     /// 单例实例
     /// 确保全局唯一的标识符管理器
     public static let shared = NtkRequestIdentifierManager()
-    
+
     private init() {}
     
     /// 获取缓存键
@@ -33,10 +35,31 @@ public class NtkRequestIdentifierManager: @unchecked Sendable {
     ///   - cacheConfig: 缓存配置，用于参数过滤
     /// - Returns: 缓存键字符串
     public func getCacheKey(request: NtkMutableRequest, cacheConfig: NtkRequestConfiguration?) -> String {
+        let requestKey = RequestCacheKey(request: request, cacheConfig: cacheConfig)
+
+        // 查询缓存
+        if let cached = requestCache[requestKey] {
+            // 缓存命中：更新 LRU 队列，移到末尾
+            updateLRU(key: requestKey)
+            return cached
+        }
+
+        // 计算新值
         let hash = generateHashForCache(request: request, cacheConfig: cacheConfig)
-        let key = "cache_\(hash)"
-        updateCache(key: key, value: key)
-        return key
+        let cacheKey = "cache_\(hash)"
+
+        // 更新缓存（LRU 策略）
+        if requestCache.count >= maxCacheSize {
+            // 删除最老的条目（队列第一个）
+            if let oldestKey = lruLRUQueue.first {
+                requestCache.removeValue(forKey: oldestKey)
+                lruLRUQueue.removeFirst()
+            }
+        }
+        requestCache[requestKey] = cacheKey
+        lruLRUQueue.append(requestKey)
+
+        return cacheKey
     }
     
     /// 获取请求标识符
@@ -51,7 +74,19 @@ public class NtkRequestIdentifierManager: @unchecked Sendable {
 
 // MARK: - Private Methods
 extension NtkRequestIdentifierManager {
-    
+
+    /// 更新 LRU 队列
+    /// 将访问的键移到队列末尾，表示最近使用
+    /// - Parameter key: 访问的缓存键
+    private func updateLRU(key: RequestCacheKey) {
+        // 如果键已在队列中，先移除
+        if let index = lruLRUQueue.firstIndex(where: { $0 == key }) {
+            lruLRUQueue.remove(at: index)
+        }
+        // 添加到末尾（最近使用）
+        lruLRUQueue.append(key)
+    }
+
     /// 生成缓存哈希值
     /// 使用MD5为缓存生成稳定哈希，确保相同请求内容始终产生相同的缓存key
     /// - Parameters:
@@ -190,21 +225,36 @@ extension NtkRequestIdentifierManager {
         
         return hasher.finalize()
     }
-    
-    /// 更新缓存
-    /// 使用LRU策略更新内存缓存，当缓存达到容量限制时淘汰最旧的条目
-    /// - Parameters:
-    ///   - key: 缓存键
-    ///   - value: 缓存值
-    private func updateCache(key: String, value: String) {
-        lock.withLock {
-            if cacheMap.count >= 100 {
-                // 删除最旧条目（简化的LRU实现）
-                if let firstKey = cacheMap.keys.first {
-                    cacheMap.removeValue(forKey: firstKey)
-                }
+}
+
+// MARK: - RequestCacheKey
+
+/// 请求缓存键
+/// 用于缓存原始请求到缓存键的映射
+private struct RequestCacheKey: Hashable {
+    let method: String
+    let baseURL: String?
+    let path: String
+    let headers: [String: String]?
+    let parameters: [String: String]?  // 转换为字符串以支持 Hashable
+    let cacheTime: TimeInterval?
+
+    init(request: NtkMutableRequest, cacheConfig: NtkRequestConfiguration?) {
+        self.method = request.method.rawValue
+        self.baseURL = request.baseURL?.absoluteString
+        self.path = request.path
+        self.headers = cacheConfig?.filterHeaders(request.headers ?? [:])
+
+        // 转换参数类型为字符串以支持 Hashable
+        if let params = cacheConfig?.filterParameters(request.parameters ?? [:]) {
+            var convertedParams: [String: String] = [:]
+            for (key, value) in params {
+                convertedParams[key] = "\(value)"
             }
-            cacheMap[key] = value
+            self.parameters = convertedParams
+        } else {
+            self.parameters = nil
         }
+        self.cacheTime = cacheConfig?.cacheTime
     }
 }
