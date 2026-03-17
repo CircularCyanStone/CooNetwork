@@ -44,7 +44,12 @@ Sources/CooNetwork/
 │   ├── retry/          # 重试机制
 │   ├── deduplication/   # 去重机制
 │   ├── UI/             # UI 相关拦截器
-│   └── lock/           # 并发锁
+│   │   └── loading/    # Loading 状态拦截器
+│   ├── error/          # 错误处理
+│   ├── utils/          # 工具类
+│   ├── lock/           # 并发锁
+│   ├── NtkNetwork.swift         # 网络配置层
+│   └── NtkNetworkExecutor.swift  # 网络执行层
 ```
 
 ### AlamofireClient (Alamofire 实现)
@@ -113,6 +118,28 @@ Sources/AlamofireClient/
 - `NtkNetworkCache` - 缓存管理
 - `NtkCacheMeta` - 缓存元数据
 - `NtkRequestIdentifierManager` - 缓存键管理
+
+### error/ (错误处理)
+
+统一的错误处理机制：
+
+- `NtkError` - 核心错误类型定义
+- `NtkError+OC` - Objective-C 兼容的错误映射
+
+### utils/ (工具类)
+
+通用工具：
+
+- `NtkActor` - 自定义 Actor 隔离机制
+- `NtkLogger` - 日志工具
+
+### UI/loading/ (Loading 拦截器)
+
+UI 状态管理：
+
+- `NtkLoadingInterceptor` - Loading 状态拦截器
+- `NtkNetwork+loading` - Loading 便捷扩展
+- `NtkRequestWrapper+loading` - 请求包装 Loading 支持
 
 ## 扩展性
 
