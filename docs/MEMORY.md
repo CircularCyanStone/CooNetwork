@@ -24,6 +24,14 @@
   - 100000 次调用: 性能提升 93.71%
 - **状态**: ✅ 已完成 (2026-03-17)
 
+### 3. LRU 缓存策略修复
+- **文件**: `NtkRequestIdentifierManager.swift`
+- **问题**: 使用 `Dictionary.keys.first` 无法保证获取最老条目（Dictionary 无序）
+- **改进**: 新增 `lruLRUQueue` 数组维护访问顺序，实现真正的 LRU
+  - 缓存命中时将键移到队列末尾
+  - 缓存满时删除队列第一个元素（最老的）
+- **状态**: ✅ 已完成 (2026-03-17)
+
 ---
 
 ## 原始问题列表（已完成）
@@ -58,7 +66,27 @@
 
 ## 中优先级问题（待讨论）
 
-### 6. 哈希计算逻辑重复
+### 4. 拦截器优先级系统过度设计
+- **文件**: `iNtkInterceptor.swift`, `NtkRetryInterceptor.swift`
+- **问题**: 存在三套优先级表示方式（枚举、Int 扩展、结构体）
+- **改进**: 删除冗余的 `iNtkInterceptorPriority` 枚举和 `Int` 扩展，统一使用 `NtkInterceptorPriority`
+  - 保留 `NtkInterceptorPriority` 结构体（类型安全，已用于协议）
+  - 简化静态属性：`.low`, `.medium`, `.high`
+  - 简化 `.priority(_:)` 工厂方法
+  - 新增 `+` 和 `-` 运算符，支持 `.high + 1` 这种用法
+- **状态**: ✅ 已完成 (2026-03-17)
+
+### 5. Executor 创建代码重复
+- **文件**: `NtkNetwork.swift`
+- **问题**: `request()`, `loadCache()`, `hasCacheData()` 重复创建 executor
+- **状态**: 待讨论
+
+### 6. 执行链构建代码重复
+- **文件**: `NtkNetworkExecutor.swift`
+- **问题**: 三个方法有重复的拦截器链构建逻辑
+- **状态**: 待讨论
+
+### 7. 哈希计算逻辑重复
 - **文件**: `NtkRequestIdentifierManager.swift`
 - **问题**: `generateHashForCache` 和 `generateHashForDeduplication` 90% 代码重复
 - **状态**: 待讨论

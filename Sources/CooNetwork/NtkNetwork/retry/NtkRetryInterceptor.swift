@@ -22,7 +22,7 @@ public struct NtkRetryInterceptor: iNtkInterceptor {
     ///   - priority: 拦截器优先级，默认为高优先级
     public init(
         retryPolicy: iNtkRetryPolicy,
-        priority: NtkInterceptorPriority = .priority(.high)
+        priority: NtkInterceptorPriority = .high
     ) {
         self.retryPolicy = retryPolicy
         self.priority = priority
