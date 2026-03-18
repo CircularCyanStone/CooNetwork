@@ -91,9 +91,9 @@ public extension iNtkRequest {
         nil
     }
     
-    /// 默认超时时间为20秒
+    /// 默认超时时间，使用全局配置
     var timeout: TimeInterval {
-        20
+        NtkConfiguration.current.builder.defaultTimeout
     }
     
     /// 默认请求策略配置为空

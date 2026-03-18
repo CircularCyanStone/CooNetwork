@@ -193,17 +193,18 @@ extension NtkTaskManager {
         timeout: TimeInterval,
         execution: @escaping @Sendable () async throws -> T
     ) async throws -> T {
-        // 校验超时参数有效性，无效时使用默认值 60 秒
+        // 校验超时参数有效性，无效时使用全局默认值
         let validTimeout: TimeInterval
         if timeout > 0 && timeout.isFinite {
             // 夹取超时值，防止 UInt64 溢出（上限设为 100 年）
             validTimeout = min(timeout, 3_153_600_000)
         } else {
+            let defaultTimeout = NtkConfiguration.current.builder.defaultTimeout
             logger.warning(
-                "无效的超时时间: \(timeout)，使用默认值 60 秒",
+                "无效的超时时间: \(timeout)，使用全局默认值 \(defaultTimeout) 秒",
                 category: .deduplication
             )
-            validTimeout = 60.0
+            validTimeout = defaultTimeout
         }
 
         return try await withThrowingTaskGroup(of: T.self) { group in

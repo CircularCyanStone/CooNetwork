@@ -19,6 +19,10 @@ public struct NtkConfiguration: Sendable {
 
         /// 是否全局启用去重功能（默认启用）
         public var isDeduplicationEnabled: Bool = true
+
+        /// 默认请求超时时间（秒）
+        /// - Note: 所有请求的超时配置都以此值为基准
+        public var defaultTimeout: TimeInterval = 20
     }
 
     /// 当前配置，带有默认值
