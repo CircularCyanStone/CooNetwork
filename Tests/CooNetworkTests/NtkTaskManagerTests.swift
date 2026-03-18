@@ -304,7 +304,7 @@ struct NtkTaskManagerTests {
         anotherFollowerRequest.responseType = "String"
         let counter = ExecutionCounter()
         #expect(ownerRequest.instanceIdentifier != followerRequest.instanceIdentifier)
-        
+
         let ownerTask = Task {
             try await NtkTaskManager.shared.executeWithDeduplication(request: ownerRequest) {
                 await counter.increment()
@@ -313,34 +313,34 @@ struct NtkTaskManagerTests {
                 return "shared"
             } as String
         }
-        
+
         await gate.waitUntilFirstStarted()
-        
+
         let followerTask = Task {
             try await NtkTaskManager.shared.executeWithDeduplication(request: followerRequest) {
                 await counter.increment()
                 return "should-not-run"
             } as String
         }
-        
+
         await Task.yield()
         NtkTaskManager.shared.cancelRequest(request: followerRequest)
-        
+
         let normalFollowerTask = Task {
             try await NtkTaskManager.shared.executeWithDeduplication(request: anotherFollowerRequest) {
                 await counter.increment()
                 return "should-not-run"
             } as String
         }
-        
+
         try await Task.sleep(nanoseconds: 50_000_000)
         await gate.releaseFirst()
-        
+
         let followerValue = try await followerTask.value
         let ownerValue = try await ownerTask.value
         let normalFollowerValue = try await normalFollowerTask.value
         let executionCount = await counter.value()
-        
+
         #expect(followerValue == "shared")
         #expect(ownerValue == "shared")
         #expect(normalFollowerValue == "shared")
