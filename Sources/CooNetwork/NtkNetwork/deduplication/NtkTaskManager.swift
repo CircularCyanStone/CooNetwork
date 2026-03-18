@@ -359,7 +359,8 @@ extension NtkTaskManager {
     }
 
     private func isDeduplicationEnabled(for request: NtkMutableRequest) -> Bool {
-        NtkDeduplicationConfig.shared.isGloballyEnabled && request.isDeduplicationEnabled
+        // 从全局配置读取去重开关
+        return NtkConfiguration.current.builder.isDeduplicationEnabled && request.isDeduplicationEnabled
     }
 
 }

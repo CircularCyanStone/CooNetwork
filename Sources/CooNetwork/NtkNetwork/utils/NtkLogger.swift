@@ -14,12 +14,14 @@ import os.log
 public let logger = NtkLogger.shared
 
 public struct NtkLogger: Sendable {
-    
+
     /// 全局共享实例
+    /// 初始化时从 NtkConfiguration 读取配置
     public static let shared: NtkLogger = {
-        let logEnable = NtkConfiguration.shared.isLoggingEnabled
-        let logger = NtkLogger(isLoggingEnabled: logEnable)
-        return logger
+        return NtkLogger(
+            isLoggingEnabled: NtkConfiguration.current.builder.isLoggingEnabled,
+            currentLevel: .info
+        )
     }()
     
     /// 日志子系统标识

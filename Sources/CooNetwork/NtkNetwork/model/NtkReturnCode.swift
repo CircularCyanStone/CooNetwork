@@ -99,6 +99,10 @@ public final class NtkReturnCode: Codable, Sendable {
     /// 编码状态码到编码器
     /// 根据内部类型标识将原始值编码为对应的JSON类型
     /// - Parameter encoder: JSON编码器
+    /// - Note: 使用 try? 静默失败是防御性编程的刻意设计
+    ///       目的：保证生产环境不崩溃，即使出现极端内存损坏场景
+    ///       原理：_type 和 rawValue 由同一个 init 设置，理论上始终一致
+    ///       影响：编码失败时 JSON 编码器最多写入 nil，不会导致更严重问题
     /// - Throws: 编码过程中的错误
     public func encode(to encoder: Encoder) throws {
         var singleValueContainer =  encoder.singleValueContainer()

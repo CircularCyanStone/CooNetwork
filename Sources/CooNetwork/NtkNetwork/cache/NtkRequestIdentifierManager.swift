@@ -9,6 +9,100 @@
 import Foundation
 import CryptoKit
 
+// MARK: - LRU 双向链表
+
+/// LRU 双向链表节点
+@usableFromInline
+internal final class LRUNode<Key: Hashable, Value> {
+    var key: Key
+    var value: Value
+    var prev: LRUNode?
+    var next: LRUNode?
+
+    init(key: Key, value: Value) {
+        self.key = key
+        self.value = value
+    }
+}
+
+/// LRU 双向链表
+/// 支持 O(1) 的头部插入、移动和尾部删除操作
+@usableFromInline
+internal final class LRUList<Key: Hashable, Value> {
+    private(set) var head: LRUNode<Key, Value>?  // 最近使用
+    private(set) var tail: LRUNode<Key, Value>?  // 最久未使用
+    private(set) var count: Int = 0
+
+    /// 添加节点到头部（标记为最近使用）
+    /// - Parameters:
+    ///   - key: 节点键
+    ///   - value: 节点值
+    /// - Returns: 新创建的节点
+    func addFirst(key: Key, value: Value) -> LRUNode<Key, Value> {
+        let node = LRUNode(key: key, value: value)
+
+        if head == nil {
+            head = node
+            tail = node
+        } else {
+            node.next = head
+            head?.prev = node
+            head = node
+        }
+
+        count += 1
+        return node
+    }
+
+    /// 将已有节点移动到头部（标记为最近使用）
+    /// - Parameter node: 要移动的节点
+    func moveToFirst(_ node: LRUNode<Key, Value>) {
+        guard node !== head else { return }  // 已经在头部，无需操作
+
+        // 从原位置移除
+        remove(node)
+
+        // 插入到头部
+        node.next = head
+        head?.prev = node
+        node.prev = nil
+        head = node
+
+        count += 1
+    }
+
+    /// 移除并返回尾部节点（最久未使用）
+    /// - Returns: 被移除的键值对，如果链表为空则返回 nil
+    func removeLast() -> (key: Key, value: Value)? {
+        guard let tailNode = tail else { return nil }
+
+        let result = (key: tailNode.key, value: tailNode.value)
+        remove(tailNode)
+
+        return result
+    }
+
+    /// 移除指定节点（内部方法，不更新 count）
+    private func remove(_ node: LRUNode<Key, Value>) {
+        node.prev?.next = node.next
+        node.next?.prev = node.prev
+
+        if node === head {
+            head = node.next
+        }
+        if node === tail {
+            tail = node.prev
+        }
+
+        // 清理引用
+        node.prev = nil
+        node.next = nil
+        count -= 1
+    }
+}
+
+// MARK: - NtkRequestIdentifierManager
+
 /// 请求标识符管理器
 /// 负责为网络请求生成唯一的缓存键和去重标识符
 /// 使用Swift Hasher确保高性能的哈希计算
@@ -18,16 +112,38 @@ public class NtkRequestIdentifierManager {
     /// 内存缓存：请求特征 → 缓存键
     /// 避免重复计算相同请求的哈希
     private var requestCache: [RequestCacheKey: String] = [:]
-    /// LRU 队列：按访问顺序存储缓存键
-    private var lruLRUQueue: [RequestCacheKey] = []
-    private let maxCacheSize = 100
+
+    /// LRU 链表节点索引：请求特征 → 链表节点
+    private var lruNodeIndex: [RequestCacheKey: LRUNode<RequestCacheKey, String>] = [:]
+
+    /// LRU 双向链表：按访问顺序管理缓存键
+    private let lruList = LRUList<RequestCacheKey, String>()
+
+    /// 缓存最大容量
+    private let maxCacheSize: Int
+
+    private init() {
+        // 基于设备物理内存分段计算，设置合理上限
+        let totalMemoryMB = ProcessInfo.processInfo.physicalMemory / 1024 / 1024
+
+        switch totalMemoryMB {
+        case 0..<2048:      // < 2GB
+            self.maxCacheSize = 100
+        case 2048..<4096:   // 2GB - 4GB
+            self.maxCacheSize = 300
+        case 4096..<6144:   // 4GB - 6GB
+            self.maxCacheSize = 500
+        case 6144..<8192:   // 6GB - 8GB
+            self.maxCacheSize = 800
+        default:             // >= 8GB
+            self.maxCacheSize = 1000
+        }
+    }
 
     /// 单例实例
     /// 确保全局唯一的标识符管理器
     public static let shared = NtkRequestIdentifierManager()
 
-    private init() {}
-    
     /// 获取缓存键
     /// 为网络请求生成用于缓存的唯一标识符，考虑缓存配置
     /// - Parameters:
@@ -38,10 +154,10 @@ public class NtkRequestIdentifierManager {
         let requestKey = RequestCacheKey(request: request, cacheConfig: cacheConfig)
 
         // 查询缓存
-        if let cached = requestCache[requestKey] {
-            // 缓存命中：更新 LRU 队列，移到末尾
-            updateLRU(key: requestKey)
-            return cached
+        if let node = lruNodeIndex[requestKey] {
+            // // 缓存命中：更新 LRU 链表，移到头部
+            lruList.moveToFirst(node)
+            return node.value
         }
 
         // 计算新值
@@ -49,19 +165,22 @@ public class NtkRequestIdentifierManager {
         let cacheKey = "cache_\(hash)"
 
         // 更新缓存（LRU 策略）
-        if requestCache.count >= maxCacheSize {
-            // 删除最老的条目（队列第一个）
-            if let oldestKey = lruLRUQueue.first {
-                requestCache.removeValue(forKey: oldestKey)
-                lruLRUQueue.removeFirst()
+        if lruList.count >= maxCacheSize {
+            // 删除最老的条目（链表尾部）
+            if let removed = lruList.removeLast() {
+                requestCache.removeValue(forKey: removed.key)
+                lruNodeIndex.removeValue(forKey: removed.key)
             }
         }
+
+        // 添加到缓存
         requestCache[requestKey] = cacheKey
-        lruLRUQueue.append(requestKey)
+        let newNode = lruList.addFirst(key: requestKey, value: cacheKey)
+        lruNodeIndex[requestKey] = newNode
 
         return cacheKey
     }
-    
+
     /// 获取请求标识符
     /// 为网络请求生成用于去重的唯一标识符
     /// - Parameter request: 网络请求对象
@@ -74,18 +193,6 @@ public class NtkRequestIdentifierManager {
 
 // MARK: - Private Methods
 extension NtkRequestIdentifierManager {
-
-    /// 更新 LRU 队列
-    /// 将访问的键移到队列末尾，表示最近使用
-    /// - Parameter key: 访问的缓存键
-    private func updateLRU(key: RequestCacheKey) {
-        // 如果键已在队列中，先移除
-        if let index = lruLRUQueue.firstIndex(where: { $0 == key }) {
-            lruLRUQueue.remove(at: index)
-        }
-        // 添加到末尾（最近使用）
-        lruLRUQueue.append(key)
-    }
 
     /// 生成缓存哈希值
     /// 使用MD5为缓存生成稳定哈希，确保相同请求内容始终产生相同的缓存key
@@ -108,7 +215,7 @@ extension NtkRequestIdentifierManager {
         // 将MD5摘要转换为16进制字符串
         return digest.map { String(format: "%02x", $0) }.joined()
     }
-    
+
     /// 生成去重哈希值
     /// 使用Swift Hasher为请求去重生成哈希，通过requestConfiguration过滤动态参数
     /// - Parameter request: 网络请求对象

@@ -59,9 +59,9 @@ public struct AFJsonObjectParsingInterceptor<
         }
         
         if let customHandler {
-            let customeRespose = try customHandler.handle(sendableResponse, response: &clientResponse, request: afRequest, context: context)
+            let customResponse = try customHandler.handle(sendableResponse, response: &clientResponse, request: afRequest, context: context)
             return try handleNormal(
-                customeRespose,
+                customResponse,
                 response: &clientResponse,
                 request: afRequest,
                 validation: context.validation
@@ -100,16 +100,16 @@ extension AFJsonObjectParsingInterceptor {
         )
 
         let code = sendableResponse[Keys.code]
-        let retCode = NtkReturnCode(code)
-        /// 更新retCode
-        response.updateCode(retCode)
+        let returnCode = NtkReturnCode(code)
+        /// 更新returnCode
+        response.updateCode(returnCode)
         let msg = sendableResponse[Keys.msg] as? String
-        
+
         let serviceOK = validation.isServiceSuccess(response)
         if !serviceOK {
             /// 服务端校验失败，抛出验证错误
             let fixResponse = NtkResponse(
-                code: retCode,
+                code: returnCode,
                 data: response.data,
                 msg: msg,
                 response: response,
@@ -123,7 +123,7 @@ extension AFJsonObjectParsingInterceptor {
         if ResponseData.self is NtkNever.Type {
             // 用户期待的数据类型就是Never，不需要数据
             let fixResponse = NtkResponse(
-                code: retCode,
+                code: returnCode,
                 data: NtkNever() as! ResponseData,
                 msg: msg,
                 response: response,
@@ -157,7 +157,7 @@ extension AFJsonObjectParsingInterceptor {
                 // 使用自定义解码器
                 if let retData = try request.customReturnDataDecode(data) as? ResponseData {
                     let response = NtkResponse(
-                        code: retCode,
+                        code: returnCode,
                         data: retData,
                         msg: msg,
                         response: response.response,
@@ -184,7 +184,7 @@ extension AFJsonObjectParsingInterceptor {
                     from: responseData
                 )
                 let fixResponse = NtkResponse(
-                    code: retCode,
+                    code: returnCode,
                     data: decoded as! ResponseData,
                     msg: msg,
                     response: response.response,
