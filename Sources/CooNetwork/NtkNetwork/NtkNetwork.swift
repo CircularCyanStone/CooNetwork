@@ -277,7 +277,7 @@ extension NtkNetwork {
                     continuation.finish(throwing: error)
                 }
             }
-
+            
             continuation.onTermination = { @Sendable termination in
                 switch termination {
                 case .cancelled:
