@@ -355,8 +355,7 @@ extension NtkTaskManager {
     private func ownerDidFinish(requestKey: RuntimeKey, token: UUID) {
         guard var entry = ongoingRequests[requestKey], entry.token == token else { return }
         entry.ownerActive = false
-        let totalWaiters = (entry.ownerActive ? 1 : 0) + entry.followerTasks.count
-        if totalWaiters == 0 {
+        if entry.followerTasks.isEmpty {
             ongoingRequests.removeValue(forKey: requestKey)
         } else {
             ongoingRequests[requestKey] = entry

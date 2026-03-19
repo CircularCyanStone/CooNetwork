@@ -28,22 +28,33 @@ public struct NtkConfiguration: Sendable {
         public var defaultTimeout: TimeInterval = 20
     }
 
-    /// 当前配置，带有默认值
-    /// nonisolated(unsafe): 使用 lock 保护读写操作
-    nonisolated(unsafe) private(set) static var current = NtkConfiguration()
-    
-    /// 添加Builder类型可以保证，internal private(set) 修饰，
-    /// 可以保证外部无法直接通过builder属性修改配置。
-    /// 外部只能通过configure函数去修改属性。
-    internal private(set) var builder: Builder = Builder()
-    
+    /// 内部存储
+    nonisolated(unsafe) private static var _current = NtkConfiguration()
+
     private static let lock = NtkUnfairLock()
 
-    /// 更新全局配置
-    /// - Parameter configuration: 配置修改闭包，接收 current 的可变引用
+    /// 当前配置的不可变快照（线程安全）
+    /// 每次读取返回一份值拷贝，不会读到半更新状态
+    public static var current: NtkConfiguration {
+        lock.lock()
+        defer { lock.unlock() }
+        return _current
+    }
+
+    /// 配置快照，创建后不可变
+    internal let builder: Builder
+
+    init(builder: Builder = Builder()) {
+        self.builder = builder
+    }
+
+    /// 更新全局配置（生成新快照，原子替换）
+    /// - Parameter configuration: 配置修改闭包
     public static func configure(_ configuration: (inout Builder) -> Void) {
         lock.lock()
         defer { lock.unlock() }
-        configuration(&current.builder)
+        var newBuilder = _current.builder
+        configuration(&newBuilder)
+        _current = NtkConfiguration(builder: newBuilder)
     }
 }

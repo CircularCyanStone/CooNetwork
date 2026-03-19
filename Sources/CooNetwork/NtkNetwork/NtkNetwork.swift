@@ -148,12 +148,17 @@ extension NtkNetwork {
     /// - Returns: 配置好的网络执行器实例
     private func makeExecutor<T: Sendable>() -> NtkNetworkExecutor<T> {
         lock.withLock {
-            NtkNetworkExecutor<T>(
+            guard let validation else {
+                fatalError(
+                    "iNtkResponseValidation must not be nil, you should call method 'func validation(_ validation: iNtkResponseValidation) -> Self' first"
+                )
+            }
+            return NtkNetworkExecutor<T>(
                 client: client,
                 request: mutableRequest,
                 interceptors: _interceptors,
                 coreInterceptors: _coreInterceptors,
-                validation: validation!,
+                validation: validation,
                 dataParsingInterceptor: dataParsingInterceptor
             )
         }
@@ -199,6 +204,7 @@ extension NtkNetwork {
         }
     }
 
+
     /// 发送网络请求
     /// 异步执行网络请求并返回响应结果
     /// - Returns: 网络响应对象
@@ -206,14 +212,6 @@ extension NtkNetwork {
     @discardableResult
     public func request() async throws -> NtkResponse<ResponseData> {
         try markRequestConsumedOrThrow()
-
-        guard validation != nil else {
-            fatalError(
-                "iNtkResponseValidation must not be nil, you should call method 'func validation(_ validation: iNtkResponseValidation) -> Self' first"
-            )
-        }
-
-        // 委托执行
         return try await makeExecutor().execute()
     }
 
@@ -222,12 +220,6 @@ extension NtkNetwork {
     /// - Returns: 缓存的响应对象，如果没有缓存则返回nil
     /// - Throws: 缓存加载过程中的错误
     public func loadCache() async throws -> NtkResponse<ResponseData>? {
-        guard validation != nil else {
-            fatalError(
-                "iNtkResponseValidation must not be nil, you should call method 'func validation(_ validation: iNtkResponseValidation) -> Self' first"
-            )
-        }
-
         return try await makeExecutor().loadCache()
     }
 
@@ -239,6 +231,13 @@ extension NtkNetwork {
     /// - Returns: 异步序列，按完成顺序返回缓存和网络响应
     /// - Throws: 在网络请求或缓存加载过程中可能抛出的任何错误
     public func requestWithCache() -> AsyncThrowingStream<NtkResponse<ResponseData>, Error> {
+        // 单次使用保护（同步阶段检查）
+        do {
+            try markRequestConsumedOrThrow()
+        } catch {
+            return AsyncThrowingStream { $0.finish(throwing: error) }
+        }
+
         return AsyncThrowingStream { continuation in
             let task = Task {
                 do {
@@ -257,7 +256,7 @@ extension NtkNetwork {
 
                         // 并发发起网络请求
                         group.addTask {
-                            return .network(try await self.request())
+                            return .network(try await self.makeExecutor().execute())
                         }
 
                         // 按完成顺序处理结果
@@ -294,7 +293,7 @@ extension NtkNetwork {
                     // 因为任务要么已经完成，要么已经在 catch 块中处理了错误
                     logger.debug("AsyncStream 正常结束，无需取消任务", category: .network)
                 @unknown default:
-                    fatalError("unknown")
+                    break
                 }
             }
         }
@@ -306,12 +305,6 @@ extension NtkNetwork where ResponseData == Bool {
     /// 判断是否存在缓存数据
     /// - Returns: 如果存在缓存数据返回true，否则返回false
     public func hasCacheData() async -> Bool {
-        guard validation != nil else {
-            fatalError(
-                "iNtkResponseValidation must not be nil, you should call method 'func validation(_ validation: iNtkResponseValidation) -> Self' first"
-            )
-        }
-
         return await makeExecutor().hasCacheData()
     }
 }

@@ -16,29 +16,22 @@ public let logger = NtkLogger.shared
 public struct NtkLogger: Sendable {
 
     /// 全局共享实例
-    /// 初始化时从 NtkConfiguration 读取配置
-    public static let shared: NtkLogger = {
-        return NtkLogger(
-            isLoggingEnabled: NtkConfiguration.current.builder.isLoggingEnabled,
-            currentLevel: .info
-        )
-    }()
-    
+    public static let shared = NtkLogger()
+
     /// 日志子系统标识
     private let subsystem = "com.coo.network.CNtk"
-    
-    /// 全局日志开关
-    let isLoggingEnabled: Bool
-    
+
+    /// 全局日志开关（动态读取 NtkConfiguration）
+    var isLoggingEnabled: Bool {
+        NtkConfiguration.current.builder.isLoggingEnabled
+    }
+
     /// 当前允许输出的最低日志等级
     let currentLevel: Level
-    
+
     /// 初始化日志工具
-    /// - Parameters:
-    ///   - isLoggingEnabled: 是否启用日志
-    ///   - currentLevel: 当前日志等级，默认为 .info。小于此等级的日志将不会输出
-    init(isLoggingEnabled: Bool = true, currentLevel: Level = .info) {
-        self.isLoggingEnabled = isLoggingEnabled
+    /// - Parameter currentLevel: 当前日志等级，默认为 .info。小于此等级的日志将不会输出
+    init(currentLevel: Level = .info) {
         self.currentLevel = currentLevel
     }
     

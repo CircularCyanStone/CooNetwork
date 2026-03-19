@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  NtkDeduplicationConst.swift
 //  CooNetwork
 //
 //  Created by 李奇奇 on 2026/3/16.

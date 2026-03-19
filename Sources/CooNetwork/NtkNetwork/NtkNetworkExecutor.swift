@@ -76,10 +76,6 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
             } else {
                 throw NtkError.serviceDataTypeInvalid
             }
-        } catch let error as NtkError {
-            throw error
-        } catch {
-            throw error
         }
     }
     
@@ -107,10 +103,6 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
             }
         } catch NtkError.Cache.noCache {
             return nil
-        } catch let error as NtkError {
-            throw error
-        } catch {
-            throw error
         }
     }
     
