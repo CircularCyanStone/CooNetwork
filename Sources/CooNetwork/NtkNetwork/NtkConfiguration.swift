@@ -11,8 +11,11 @@
  */
 import Foundation
 
+/// CooNetwork 全局配置
+/// 配置应在应用启动时通过 configure() 设置
 public struct NtkConfiguration: Sendable {
 
+    /// 配置构建器
     public struct Builder : Sendable{
         /// 日志开关（默认关闭）
         public var isLoggingEnabled: Bool = false

@@ -17,8 +17,10 @@ import Alamofire
 /// 结合 TFNDataParsingInterceptor 的直解优点与 AF 响应校验/键映射能力
 public struct AFDataParsingInterceptor<ResponseData: Sendable & Decodable, Keys: iNtkResponseMapKeys>: iNtkInterceptor {
 
+    /// 初始化 Data 解析拦截器
     public init() {}
 
+    /// 拦截响应并解析原始 Data 为目标类型
     public func intercept(
         context: NtkInterceptorContext,
         next: any iNtkRequestHandler) async throws -> any iNtkResponse {

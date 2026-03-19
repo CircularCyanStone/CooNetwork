@@ -28,6 +28,7 @@ public struct NtkRetryInterceptor: iNtkInterceptor {
         self.priority = priority
     }
     
+    /// 拦截请求并在失败时按策略重试
     @NtkActor
     public func intercept(context: NtkInterceptorContext, next: iNtkRequestHandler) async throws -> any iNtkResponse {
         var attemptCount = 0

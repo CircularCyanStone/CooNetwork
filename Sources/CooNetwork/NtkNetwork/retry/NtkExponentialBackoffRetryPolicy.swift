@@ -46,6 +46,7 @@ public struct NtkExponentialBackoffRetryPolicy: iNtkRetryPolicy {
         self.jitterFactor = max(0.0, min(1.0, jitterFactor)) // 确保在0-1范围内
     }
     
+    /// 计算指数退避延迟时间
     public func retryDelay(for attemptCount: Int, error: Error) -> TimeInterval? {
         guard shouldRetry(attemptCount: attemptCount, error: error) else {
             return nil

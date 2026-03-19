@@ -8,11 +8,11 @@
 import Foundation
 import os.log
 
-/// 网络组件统一日志工具
-/// 基于OSLog实现，兼容iOS 10+
-
+/// 全局日志实例
 public let logger = NtkLogger.shared
 
+/// 网络组件统一日志工具
+/// 基于OSLog实现，兼容iOS 10+
 public struct NtkLogger: Sendable {
 
     /// 全局共享实例
@@ -60,6 +60,7 @@ public struct NtkLogger: Sendable {
         case error = 3
         case fault = 4
 
+        /// 比较日志级别优先级
         public static func < (lhs: Level, rhs: Level) -> Bool {
             return lhs.rawValue < rhs.rawValue
         }

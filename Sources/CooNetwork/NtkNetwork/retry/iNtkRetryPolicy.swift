@@ -29,6 +29,7 @@ public protocol iNtkRetryPolicy: Sendable {
 
 /// 重试策略的默认实现
 extension iNtkRetryPolicy {
+    /// 默认实现：根据错误类型判断是否应该重试
     public func shouldRetry(attemptCount: Int, error: Error) -> Bool {
         guard attemptCount <= maxRetryCount else { return false }
         

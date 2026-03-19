@@ -34,6 +34,7 @@ public struct AFJsonObjectParsingInterceptor<
         self.customHandler = customHandler
     }
     
+    /// 拦截响应并解析 JSON 字典为目标类型
     public func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler)
         async throws -> any iNtkResponse
     {
@@ -79,6 +80,7 @@ public struct AFJsonObjectParsingInterceptor<
 
 extension AFJsonObjectParsingInterceptor {
 
+    /// 处理标准 {code, data, msg} 格式的 JSON 响应
     public func handleNormal(
         _ sendableResponse: [String: Sendable],
         response: inout NtkClientResponse,

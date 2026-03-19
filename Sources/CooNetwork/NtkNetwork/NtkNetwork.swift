@@ -189,6 +189,10 @@ extension NtkNetwork {
         await NtkTaskManager.shared.cancelRequest(request: requestToCancel)
     }
 
+    /// 设置请求的额外数据
+    /// - Parameters:
+    ///   - value: 值
+    ///   - key: 键名
     public func setRequestValue(_ value: Sendable, forKey key: String) {
         lock.withLock {
             mutableRequest[key] = value

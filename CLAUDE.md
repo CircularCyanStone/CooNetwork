@@ -25,7 +25,8 @@ Sources/
 
 ## 架构文档
 
-详细的架构设计和决策记录见: [docs/architecture.md](docs/architecture.md)
+- 架构设计: [docs/architecture.md](docs/architecture.md)
+- 设计决策记录: [docs/design-decisions.md](docs/design-decisions.md) — 经评审确认的刻意设计，code review 前请先查阅
 
 ## 模块说明
 

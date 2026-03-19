@@ -145,18 +145,22 @@ public final class AFClient<Keys: iNtkResponseMapKeys>: iNtkClient {
 
 /// 内部使用的无缓存存储实现
 public struct AFNoCacheStorage: iNtkCacheStorage {
+    /// 初始化无缓存存储
     public init() {}
-    
+
+    /// 不存储数据，始终返回 false
     @NtkActor
     public func setData(metaData: NtkCacheMeta, key: String, for request: NtkMutableRequest) async -> Bool {
         return false
     }
-    
+
+    /// 不读取数据，始终返回 nil
     @NtkActor
     public func getData(key: String, for request: NtkMutableRequest) async -> NtkCacheMeta? {
         return nil
     }
-    
+
+    /// 不存在缓存，始终返回 false
     @NtkActor
     public func hasData(key: String, for request: NtkMutableRequest) async -> Bool {
         return false

@@ -20,6 +20,10 @@ public struct NtkLoadingInterceptor: iNtkInterceptor, Sendable {
     public var interceptAfter: (@Sendable (_ request: iNtkRequest, _ response: (any iNtkResponse)?, _ error: (any Error)?) -> Void)?
     
     
+    /// 初始化 Loading 拦截器
+    /// - Parameters:
+    ///   - interceptBefore: 请求前回调
+    ///   - interceptAfter: 请求后回调
     public init(interceptBefore: (@Sendable (_: iNtkRequest, _ loadingText: String?) -> Void)? = nil, interceptAfter: (@Sendable (_: iNtkRequest, _: (any iNtkResponse)?, _: (any Error)?) -> Void)? = nil) {
         self.interceptBefore = interceptBefore
         self.interceptAfter = interceptAfter

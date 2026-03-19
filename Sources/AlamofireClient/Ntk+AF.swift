@@ -46,8 +46,12 @@ public extension Ntk {
 /// AF请求默认的响应体验证工具
 /// 默认 code == 0 或 "0" 视为成功
 public struct AFDetaultResponseValidation: iNtkResponseValidation {
+    /// 初始化默认响应验证器
     public init() {}
-    
+
+    /// 验证服务端响应是否成功
+    /// - Parameter response: 响应对象
+    /// - Returns: code 为 0 或 "0" 时返回 true
     public func isServiceSuccess(_ response: any iNtkResponse) -> Bool {
         if let code = response.code.int, code == 0 {
             return true
