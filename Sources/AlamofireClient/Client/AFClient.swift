@@ -26,7 +26,7 @@ public final class AFClient<Keys: iNtkResponseMapKeys>: iNtkClient {
     /// - Parameters:
     ///   - session: Alamofire Session，默认为 .default
     ///   - storage: 缓存存储实现，默认为不缓存
-    public init(session: Session = .default, storage: iNtkCacheStorage = AFNoCacheStorage()) {
+    public init(session: Session = AF, storage: iNtkCacheStorage = AFNoCacheStorage()) {
         self.session = session
         self.storage = storage
     }
@@ -46,9 +46,6 @@ public final class AFClient<Keys: iNtkResponseMapKeys>: iNtkClient {
     /// - Note: 标记为 nonisolated 以规避在 Actor 中使用非 Sendable 类型 (Any) 的参数传递问题
     @NtkActor
     private func sendRequest(_ request: NtkMutableRequest) async throws -> NtkClientResponse {
-        // 使用 var 以支持 upload 分支中的 disableDeduplication() 修改
-        var request = request
-
         guard let ntkRequest = request.originalRequest as? iAFRequest else {
             fatalError("request must be iAFRequest")
         }
@@ -68,9 +65,6 @@ public final class AFClient<Keys: iNtkResponseMapKeys>: iNtkClient {
         var afRequest: DataRequest
 
         if let uploadRequest = ntkRequest as? iAFUploadRequest {
-            // Upload 请求自动禁用去重（uploadSource 不参与哈希计算）
-            request.disableDeduplication()
-
             // Upload 分支
             switch uploadRequest.uploadSource {
             case .data(let data):

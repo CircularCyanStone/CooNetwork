@@ -204,6 +204,14 @@ extension NtkNetwork {
         }
     }
 
+    /// 禁用去重
+    /// Upload 请求需要在拦截器链执行前禁用去重
+    public func disableDeduplication() {
+        lock.withLock {
+            mutableRequest.disableDeduplication()
+        }
+    }
+
 
     /// 发送网络请求
     /// 异步执行网络请求并返回响应结果

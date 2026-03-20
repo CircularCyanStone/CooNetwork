@@ -39,6 +39,11 @@ public extension Ntk {
         // 创建 AFClient，注入缓存策略
         let client = AFClient<Keys>(storage: storage)
         let net = with(client, request: request, dataParsingInterceptor: dataParsingInterceptor, validation: validation)
+        // Upload 请求自动禁用去重（uploadSource 不参与哈希计算，会导致误判重复）
+        // 必须在拦截器链执行前设置，所以放在这里而非 AFClient.sendRequest() 中
+        if request is iAFUploadRequest {
+            net.disableDeduplication()
+        }
         return net
     }
 }

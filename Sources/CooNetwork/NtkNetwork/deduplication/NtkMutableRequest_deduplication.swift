@@ -24,7 +24,7 @@ extension NtkMutableRequest {
 
     /// 去重策略
     /// 控制请求是否启用去重功能
-    var deduplicationPolicy: NtkDeduplicationPolicy? {
+    private var deduplicationPolicy: NtkDeduplicationPolicy? {
         get {
             return extraData[NtkDeduplicationKeys.deduplicationPolicyKey] as? NtkDeduplicationPolicy
         }
