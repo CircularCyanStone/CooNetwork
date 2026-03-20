@@ -169,4 +169,7 @@ public extension iAFUploadRequest {
 
     /// 默认进度回调为 nil
     var onTransferProgress: (@Sendable (NtkTransferProgress) -> Void)? { nil }
+
+    /// 上传请求默认使用 POST
+    var method: NtkHTTPMethod { .post }
 }
