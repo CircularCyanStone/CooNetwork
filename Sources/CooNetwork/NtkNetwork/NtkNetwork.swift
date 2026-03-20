@@ -104,7 +104,7 @@ extension NtkNetwork {
     }
     
     /// 标记 request() 已消费，若重复调用则抛错并在开发期强提醒
-    private func markRequestConsumedOrThrow() throws {
+    func markRequestConsumedOrThrow() throws {
         let allowed = lock.withLock {
             guard !_hasRequested else { return false }
             _hasRequested = true
@@ -146,7 +146,7 @@ extension NtkNetwork {
 
     /// 创建执行器
     /// - Returns: 配置好的网络执行器实例
-    private func makeExecutor<T: Sendable>() -> NtkNetworkExecutor<T> {
+    func makeExecutor<T: Sendable>() -> NtkNetworkExecutor<T> {
         lock.withLock {
             guard let validation else {
                 fatalError(
