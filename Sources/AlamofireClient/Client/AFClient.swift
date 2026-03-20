@@ -177,7 +177,7 @@ public final class AFClient<Keys: iNtkResponseMapKeys>: iNtkClient {
         _ request: NtkMutableRequest,
         protocolHandler: (@Sendable (NtkTransferProgress) -> Void)?
     ) -> (@Sendable (NtkTransferProgress) -> Void)? {
-        request["transferProgress"] as? @Sendable (NtkTransferProgress) -> Void
+        request[NtkRequestTransferProgressKey] as? @Sendable (NtkTransferProgress) -> Void
             ?? protocolHandler
     }
 

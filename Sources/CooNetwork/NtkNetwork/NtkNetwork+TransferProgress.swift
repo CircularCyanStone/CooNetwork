@@ -7,6 +7,22 @@
 
 import Foundation
 
+public let NtkRequestTransferProgressKey = "transferProgress"
+
+// MARK: - 链式 API（通道 b）
+
+extension NtkNetwork {
+    /// 挂载传输进度回调（调用时临时挂载，优先级高于协议属性）
+    /// Upload/Download 通用
+    @discardableResult
+    public func onTransferProgress(
+        _ handler: @escaping @Sendable (NtkTransferProgress) -> Void
+    ) -> Self {
+        setRequestValue(handler, forKey: NtkRequestTransferProgressKey)
+        return self
+    }
+}
+
 // MARK: - AsyncStream（通道 c）
 
 extension NtkNetwork {
@@ -27,7 +43,7 @@ extension NtkNetwork {
                 { @Sendable (progress: NtkTransferProgress) in
                     continuation.yield(.progress(progress))
                 } as @Sendable (NtkTransferProgress) -> Void,
-                forKey: "transferProgress"
+                forKey: NtkRequestTransferProgressKey
             )
 
             let task = Task {

@@ -25,7 +25,7 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
     /// 数据解析插件
     private var dataParsingInterceptor: iNtkInterceptor
 
-    private var mutableRequest: NtkMutableRequest
+    internal var mutableRequest: NtkMutableRequest
 
     /// 响应验证器
     private var validation: iNtkResponseValidation?
@@ -39,7 +39,7 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
     // 或者，鉴于我们现在是在主线程或其他线程构建，而 client/request 是值类型或不可变的，
     // 我们暂时依靠使用者的单线程构建习惯。
     // 但为了绝对安全，我们在这里使用简单的锁保护配置状态。
-    private let lock = NtkUnfairLock()
+    internal let lock = NtkUnfairLock()
 
     /// 存储所有核心拦截器
     private var _coreInterceptors: [iNtkInterceptor] = []
@@ -201,14 +201,6 @@ extension NtkNetwork {
     public func setRequestValue(_ value: Sendable, forKey key: String) {
         lock.withLock {
             mutableRequest[key] = value
-        }
-    }
-
-    /// 禁用去重
-    /// Upload 请求需要在拦截器链执行前禁用去重
-    public func disableDeduplication() {
-        lock.withLock {
-            mutableRequest.disableDeduplication()
         }
     }
 
