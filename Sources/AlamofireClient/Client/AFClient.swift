@@ -46,7 +46,7 @@ public final class AFClient<Keys: iNtkResponseMapKeys>: iNtkClient {
     /// - Note: 标记为 nonisolated 以规避在 Actor 中使用非 Sendable 类型 (Any) 的参数传递问题
     @NtkActor
     private func sendRequest(_ request: NtkMutableRequest) async throws -> NtkClientResponse {
-        guard let mRequest = request.originalRequest as? iAFRequest else {
+        guard let ntkRequest = request.originalRequest as? iAFRequest else {
             fatalError("request must be iAFRequest")
         }
         
@@ -56,28 +56,28 @@ public final class AFClient<Keys: iNtkResponseMapKeys>: iNtkClient {
         let headers = HTTPHeaders(request.headers ?? [:])
         
         // 准备请求配置
-        let finalRequestModifier = createRequestModifier(for: mRequest)
+        let finalRequestModifier = createRequestModifier(for: ntkRequest)
         
         // 检查任务取消
         try Task.checkCancellation()
         
         // 创建请求任务
-        let requestTask: DataRequest
+        var afRequest: DataRequest
         
         if let parameters = request.parameters, !parameters.isEmpty {
             // 处理参数：直接转换为 [String: Any]? 供 Alamofire 使用
             // 使用 iAFRequest 指定的 encoding
-            requestTask = session.request(
+            afRequest = session.request(
                 url,
                 method: method,
                 parameters: parameters,
-                encoding: mRequest.encoding,
+                encoding: ntkRequest.encoding,
                 headers: headers,
                 requestModifier: finalRequestModifier
             )
         } else {
             // 无参数请求
-            requestTask = session.request(
+            afRequest = session.request(
                 url,
                 method: method,
                 headers: headers,
@@ -85,12 +85,13 @@ public final class AFClient<Keys: iNtkResponseMapKeys>: iNtkClient {
             )
         }
         
+        afRequest = ntkRequest.chainConfigureAFRequest(for: afRequest)
+        
         // 配置验证策略
-        let configuredRequest = applyValidation(requestTask, request: mRequest)
-
+        let configuredRequest = applyValidation(afRequest, request: ntkRequest)
         // 执行请求并序列化响应
         // 使用 iAFRequest 配置的序列化方式，支持自定义 emptyResponseCodes 等参数
-        let serializationTask = mRequest.configureSerialization(for: configuredRequest)
+        let serializationTask = ntkRequest.configureSerialization(for: configuredRequest)
         let response = await serializationTask.response
         
         switch response.result {
@@ -100,7 +101,7 @@ public final class AFClient<Keys: iNtkResponseMapKeys>: iNtkClient {
                 data: data,
                 msg: nil,
                 response: response,
-                request: mRequest,
+                request: ntkRequest,
                 isCache: false
             )
         case .failure(let error):
@@ -114,10 +115,10 @@ public final class AFClient<Keys: iNtkResponseMapKeys>: iNtkClient {
                 data: nil,
                 msg: "",
                 response: response,
-                request: mRequest,
+                request: ntkRequest,
                 isCache: false
             )
-            throw NtkError.AF.afError(error, mRequest, fixResponse)
+            throw NtkError.AF.afError(error, ntkRequest, fixResponse)
         }
     }
     

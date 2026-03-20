@@ -58,6 +58,7 @@ public protocol iAFRequest: iNtkRequest, iAFRequestToast {
     /// 允许每个接口单独配置编码方式（JSON、URL、自定义等）
     var encoding: ParameterEncoding { get }
     
+    // MARK: - 请求配置
     /// 请求验证规则
     /// 自定义HTTP状态码验证逻辑
     var validation: DataRequest.Validation? { get }
@@ -65,10 +66,14 @@ public protocol iAFRequest: iNtkRequest, iAFRequestToast {
     /// 请求修饰器
     /// 在发送前对URLRequest进行最后修改
     var requestModifier: Session.RequestModifier? { get }
+    
+    
+    /// 支持AF Request 类型的链式调用，用于配置请求
+    func chainConfigureAFRequest(for request: DataRequest) -> DataRequest
 
     // MARK: - 响应序列化配置
 
-    /// 配置响应序列化
+    /// 配置响应序列化，用于构建最终的Data类型的请求任务
     /// 允许自定义序列化行为，如 emptyResponseCodes、emptyRequestMethods 等
     /// - Parameter request: 已配置的 DataRequest 对象
     /// - Returns: 可序列化的任务对象
@@ -124,6 +129,9 @@ extension iAFRequest  {
         return nil
     }
 
+    func chainConfigureAFRequest(for request: DataRequest) -> DataRequest {
+        request
+    }
     // MARK: - 响应序列化默认实现
 
     /// 默认序列化配置，使用 Alamofire 默认值
