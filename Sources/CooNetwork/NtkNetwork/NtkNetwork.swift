@@ -153,7 +153,7 @@ extension NtkNetwork {
                     "iNtkResponseValidation must not be nil, you should call method 'func validation(_ validation: iNtkResponseValidation) -> Self' first"
                 )
             }
-            return NtkNetworkExecutor<T>(
+            let config = NtkNetworkExecutor<T>.Configuration(
                 client: client,
                 request: mutableRequest,
                 interceptors: _interceptors,
@@ -161,6 +161,7 @@ extension NtkNetwork {
                 validation: validation,
                 dataParsingInterceptor: dataParsingInterceptor
             )
+            return NtkNetworkExecutor<T>(config: config)
         }
     }
 
