@@ -93,37 +93,37 @@ extension iAFRequest  {
     public func toastRetErrorMsg(_ code: String) -> Bool {
         true
     }
-    
+
     public var toastSystemErrorMsg: Bool {
         true
     }
-    
+
     public func unwrapReturnData(_ retData: Sendable) -> Sendable {
         retData
     }
-    
+
     /// 默认不启用自定义响应数据解码，使用JSONDecoder自动解码
     public var enableCustomReturnDataDecode: Bool {
         false
     }
-    
+
     /// 默认的自定义解码实现，直接返回原始数据
     public func customReturnDataDecode(_ retData: Sendable) throws -> Sendable {
         return retData
     }
-    
+
     // MARK: - Alamofire默认实现
-    
+
     /// 默认使用JSON编码（POST/PUT/PATCH）或URL编码（GET）
     public var encoding: ParameterEncoding {
         URLEncoding.default
     }
-    
+
     /// 默认验证200-299状态码
     public var validation: DataRequest.Validation? {
         return nil // 使用Alamofire默认验证
     }
-    
+
     /// 默认无请求修饰
     public var requestModifier: Session.RequestModifier? {
         return nil
@@ -138,4 +138,35 @@ extension iAFRequest  {
     public func configureSerialization(for request: DataRequest) -> DataTask<Data> {
         request.serializingData()
     }
+}
+
+// MARK: - Upload
+
+/// 上传数据来源
+/// 支持三种上传方式：原始 Data、本地文件 URL、Multipart 表单
+public enum AFUploadSource: @unchecked Sendable {
+    /// 使用原始 Data 上传
+    case data(Data)
+    /// 使用本地文件 URL 上传
+    case fileURL(URL)
+    /// 使用 Multipart 表单上传
+    case multipart(@Sendable (MultipartFormData) -> Void)
+}
+
+/// AF 上传请求协议
+/// 继承自 iAFRequest，在普通请求基础上新增上传数据来源和进度回调
+public protocol iAFUploadRequest: iAFRequest {
+
+    /// 上传数据来源
+    var uploadSource: AFUploadSource { get }
+
+    /// 上传进度回调（协议属性通道，可选）
+    /// 链式 API `onTransferProgress()` 优先级更高
+    var onTransferProgress: (@Sendable (NtkTransferProgress) -> Void)? { get }
+}
+
+public extension iAFUploadRequest {
+
+    /// 默认进度回调为 nil
+    var onTransferProgress: (@Sendable (NtkTransferProgress) -> Void)? { nil }
 }
