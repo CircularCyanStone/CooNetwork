@@ -44,7 +44,7 @@ extension NtkMutableRequest {
     /// 禁用去重
     /// - Returns: 返回自身，支持链式调用
     @discardableResult
-    mutating func disableDeduplication() -> NtkMutableRequest {
+    public mutating func disableDeduplication() -> NtkMutableRequest {
         deduplicationPolicy = .disabled
         return self
     }

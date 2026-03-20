@@ -46,25 +46,31 @@ public final class AFClient<Keys: iNtkResponseMapKeys>: iNtkClient {
     /// - Note: 标记为 nonisolated 以规避在 Actor 中使用非 Sendable 类型 (Any) 的参数传递问题
     @NtkActor
     private func sendRequest(_ request: NtkMutableRequest) async throws -> NtkClientResponse {
+        // 使用 var 以支持 upload 分支中的 disableDeduplication() 修改
+        var request = request
+
         guard let ntkRequest = request.originalRequest as? iAFRequest else {
             fatalError("request must be iAFRequest")
         }
-        
+
         // 构建完整URL
         let url = (request.baseURL?.absoluteString ?? "") + request.path
         let method = HTTPMethod(rawValue: request.method.rawValue.uppercased())
         let headers = HTTPHeaders(request.headers ?? [:])
-        
+
         // 准备请求配置
         let finalRequestModifier = createRequestModifier(for: ntkRequest)
-        
+
         // 检查任务取消
         try Task.checkCancellation()
-        
+
         // 创建请求任务
         var afRequest: DataRequest
 
         if let uploadRequest = ntkRequest as? iAFUploadRequest {
+            // Upload 请求自动禁用去重（uploadSource 不参与哈希计算）
+            request.disableDeduplication()
+
             // Upload 分支
             switch uploadRequest.uploadSource {
             case .data(let data):
