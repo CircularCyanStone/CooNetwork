@@ -63,8 +63,37 @@ public final class AFClient<Keys: iNtkResponseMapKeys>: iNtkClient {
         
         // 创建请求任务
         var afRequest: DataRequest
-        
-        if let parameters = request.parameters, !parameters.isEmpty {
+
+        if let uploadRequest = ntkRequest as? iAFUploadRequest {
+            // Upload 分支
+            switch uploadRequest.uploadSource {
+            case .data(let data):
+                afRequest = session.upload(
+                    data, to: url, method: method, headers: headers,
+                    requestModifier: finalRequestModifier
+                )
+            case .fileURL(let fileURL):
+                afRequest = session.upload(
+                    fileURL, to: url, method: method, headers: headers,
+                    requestModifier: finalRequestModifier
+                )
+            case .multipart(let formBuilder):
+                afRequest = session.upload(
+                    multipartFormData: formBuilder,
+                    to: url, method: method, headers: headers,
+                    requestModifier: finalRequestModifier
+                )
+            }
+            // 挂载上传进度（链式 API > 协议属性）
+            let progressHandler = resolveTransferProgressHandler(
+                request, protocolHandler: uploadRequest.onTransferProgress
+            )
+            if let progressHandler {
+                (afRequest as? UploadRequest)?.uploadProgress { progress in
+                    progressHandler(NtkTransferProgress(from: progress))
+                }
+            }
+        } else if let parameters = request.parameters, !parameters.isEmpty {
             // 处理参数：直接转换为 [String: Any]? 供 Alamofire 使用
             // 使用 iAFRequest 指定的 encoding
             afRequest = session.request(
@@ -84,7 +113,7 @@ public final class AFClient<Keys: iNtkResponseMapKeys>: iNtkClient {
                 requestModifier: finalRequestModifier
             )
         }
-        
+
         afRequest = ntkRequest.chainConfigureAFRequest(for: afRequest)
         
         // 配置验证策略
@@ -141,7 +170,17 @@ public final class AFClient<Keys: iNtkResponseMapKeys>: iNtkClient {
             return request.validate() // 默认验证 200...299
         }
     }
-    
+
+    /// 解析传输进度回调（链式 API > 协议属性）
+    /// Upload/Download 共用
+    private func resolveTransferProgressHandler(
+        _ request: NtkMutableRequest,
+        protocolHandler: (@Sendable (NtkTransferProgress) -> Void)?
+    ) -> (@Sendable (NtkTransferProgress) -> Void)? {
+        request["transferProgress"] as? @Sendable (NtkTransferProgress) -> Void
+            ?? protocolHandler
+    }
+
 }
 
 /// 内部使用的无缓存存储实现
