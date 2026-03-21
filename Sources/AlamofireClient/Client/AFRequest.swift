@@ -26,12 +26,6 @@ public protocol iAFRequestToast {
 /// 继承自 iNtkRequest 并扩展了对 Alamofire 高级特性的支持
 public protocol iAFRequest: iNtkRequest, iAFRequestToast {
     
-    /// 接口是否需要用户登录
-    var checkLogin: Bool { get }
-    
-    /// 是否是加密接口
-    var isEncrypt: Bool { get }
-    
     /// 拆包返回值retData
     /// - Parameter retData: 后端的retData
     /// - Returns: 拆包后的数据

@@ -75,10 +75,9 @@ public struct AFDataParsingInterceptor<ResponseData: Sendable & Decodable, Keys:
             
             // 直接使用 JSONDecoder 从原始 Data 解码为标准 {code, data, msg} 结构
             let decoderResponse = try JSONDecoder().decode(
-                NtkResponseDecoder<ResponseData?, Keys>.self,
+                NtkResponseDecoder<ResponseData, Keys>.self,
                 from: rawData
             )
-
             // 1. NtkNever：不需要数据内容
             if ResponseData.self is NtkNever.Type {
                 let fixResponse = NtkResponse(
@@ -93,36 +92,35 @@ public struct AFDataParsingInterceptor<ResponseData: Sendable & Decodable, Keys:
                 return fixResponse
             }
 
-            // 2. 常规数据：data 不为空
-            if let retData = decoderResponse.data {
-                let fixResponse = NtkResponse(
+            guard let retData = decoderResponse.data else {
+                // 2. 常规数据：data 为 nil
+                // 先以 Optional 形态进行业务校验，因为业务校验可能只看 code
+                let optionalResponse = NtkResponse<ResponseData?>(
                     code: decoderResponse.code,
-                    data: retData,
+                    data: nil,
                     msg: decoderResponse.msg,
                     response: clientResponse,
                     request: afRequest,
                     isCache: clientResponse.isCache
                 )
-                try validate(fixResponse, request: afRequest, validation: context.validation)
-                return fixResponse
+                // 校验不通过直接抛 validation 错误
+                try validate(optionalResponse, request: afRequest, validation: context.validation)
+                
+                // 校验通过但没有数据，抛出数据为空错误
+                throw NtkError.serviceDataEmpty
             }
-           
-            // 3. 常规数据：data 为 nil
-            // 先以 Optional 形态进行业务校验，因为业务校验可能只看 code
-            let optionalResponse = NtkResponse<ResponseData?>(
+            
+            // 3. 常规数据：data 不为空
+            let fixResponse = NtkResponse(
                 code: decoderResponse.code,
-                data: nil,
+                data: retData,
                 msg: decoderResponse.msg,
                 response: clientResponse,
                 request: afRequest,
                 isCache: clientResponse.isCache
             )
-            // 校验不通过直接抛 validation 错误
-            try validate(optionalResponse, request: afRequest, validation: context.validation)
-            
-            // 校验通过但没有数据，抛出数据为空错误
-            throw NtkError.serviceDataEmpty
-            
+            try validate(fixResponse, request: afRequest, validation: context.validation)
+            return fixResponse
         } catch let error as DecodingError {
             // 字段解析错误
             throw NtkError.decodeInvalid(error, rawData, afRequest)

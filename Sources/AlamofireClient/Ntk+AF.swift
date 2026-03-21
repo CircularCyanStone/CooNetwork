@@ -37,8 +37,7 @@ public extension Ntk {
         storage: iNtkCacheStorage? = nil
     ) -> NtkNetwork<ResponseData> where ResponseData: Decodable {
         let client = AFClient()
-        let cacheableClient: AFCacheClient? = storage.map { AFCacheClient(storage: $0) }
-        let net = with(client, request: request, dataParsingInterceptor: dataParsingInterceptor, validation: validation, cacheableClient: cacheableClient)
+        let net = with(client, request: request, dataParsingInterceptor: dataParsingInterceptor, validation: validation, cacheStorage: storage)
         if request is iAFUploadRequest {
             net.disableDeduplication()
         }
@@ -62,8 +61,7 @@ public extension Ntk {
         storage: iNtkCacheStorage? = nil
     ) -> NtkNetwork<ResponseData> where ResponseData: Decodable {
         let client = AFClient()
-        let cacheableClient: AFCacheClient? = storage.map { AFCacheClient(storage: $0) }
-        let net = with(client, request: request, dataParsingInterceptor: dataParsingInterceptor, validation: validation, cacheableClient: cacheableClient)
+        let net = with(client, request: request, dataParsingInterceptor: dataParsingInterceptor, validation: validation, cacheStorage: storage)
         if request is iAFUploadRequest {
             net.disableDeduplication()
         }

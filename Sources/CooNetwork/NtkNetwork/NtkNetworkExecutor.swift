@@ -23,7 +23,7 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
     /// 由 NtkNetwork 在 getOrCreateExecutor() 时冻结，执行期间不可变
     struct Configuration {
         let client: any iNtkClient
-        let cacheableClient: (any iNtkCacheableClient)?
+        let cacheStorage: (any iNtkCacheStorage)?
         let request: NtkMutableRequest
         let interceptors: [iNtkInterceptor]
         var coreInterceptors: [iNtkInterceptor]
@@ -50,7 +50,7 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
     // MARK: - Core Execution
 
     func execute() async throws -> NtkResponse<ResponseData> {
-        let context = NtkInterceptorContext(mutableRequest: mutableRequest, validation: config.validation, client: config.client, cacheableClient: config.cacheableClient)
+        let context = NtkInterceptorContext(mutableRequest: mutableRequest, validation: config.validation, client: config.client)
 
         // 动态添加核心拦截器
         var executionCoreInterceptors = config.coreInterceptors
@@ -77,10 +77,10 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
     }
     
     func loadCache() async throws -> NtkResponse<ResponseData>? {
-        guard let cacheableClient = config.cacheableClient else {
+        guard let storage = config.cacheStorage else {
             return nil
         }
-        let context = NtkInterceptorContext(mutableRequest: mutableRequest, validation: config.validation, client: config.client, cacheableClient: cacheableClient)
+        let context = NtkInterceptorContext(mutableRequest: mutableRequest, validation: config.validation, client: config.client)
 
         var executionCoreInterceptors = config.coreInterceptors
         executionCoreInterceptors.append(config.dataParsingInterceptor)
@@ -88,12 +88,13 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
 
         let realChainManager = NtkInterceptorChainManager(interceptors: tmpInterceptors) { [weak self] context in
             self?.mutableRequest = context.mutableRequest
-            if let response = try await cacheableClient.loadCache(context.mutableRequest) {
-                return response
+            let cache = NtkNetworkCache(storage: storage)
+            guard let data = try await cache.loadData(for: context.mutableRequest) else {
+                throw NtkError.Cache.noCache
             }
-            throw NtkError.Cache.noCache
+            return NtkClientResponse(data: data, msg: nil, response: data, request: context.mutableRequest, isCache: true)
         }
-        
+
         do {
             let response = try await realChainManager.execute(context: context)
             if let response = response as? NtkResponse<ResponseData> {
@@ -105,21 +106,23 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
             return nil
         }
     }
-    
+
     func hasCacheData() async -> Bool where ResponseData == Bool {
-        guard let cacheableClient = config.cacheableClient else {
+        guard let storage = config.cacheStorage else {
             return false
         }
-        let context = NtkInterceptorContext(mutableRequest: mutableRequest, validation: config.validation, client: config.client, cacheableClient: cacheableClient)
+        let context = NtkInterceptorContext(mutableRequest: mutableRequest, validation: config.validation, client: config.client)
 
-        // hasCacheData 可能不需要完整的拦截器链，但为了保持一致性，使用已配置的拦截器
         let sortedInterceptors = sortInterceptors(config.interceptors)
 
         let realChainManager = NtkInterceptorChainManager(interceptors: sortedInterceptors) { [weak self] context in
             self?.mutableRequest = context.mutableRequest
-            return await cacheableClient.hasCacheData(context.mutableRequest)
+            let cache = NtkNetworkCache(storage: storage)
+            let result = await cache.hasData(for: context.mutableRequest)
+            let response = NtkResponse(code: .init(200), data: result, msg: nil, response: result, request: context.mutableRequest, isCache: true)
+            return response
         }
-        
+
         do {
             let response = try await realChainManager.execute(context: context) as? NtkResponse<Bool>
             return response?.data ?? false

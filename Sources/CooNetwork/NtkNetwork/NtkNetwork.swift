@@ -22,9 +22,9 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
     /// 网络客户端实现
     private var client: any iNtkClient
 
-    /// 可缓存的客户端（可选）
+    /// 缓存存储器（可选）
     /// 只有需要缓存功能时才提供
-    private var cacheableClient: (any iNtkCacheableClient)?
+    private var cacheStorage: (any iNtkCacheStorage)?
 
     /// 数据解析插件
     private var dataParsingInterceptor: iNtkInterceptor
@@ -65,18 +65,18 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
     /// 初始化网络请求管理器
     /// - Parameters:
     ///   - client: 网络客户端实现
-    ///   - cacheableClient: 可缓存的客户端（可选）
+    ///   - cacheStorage: 缓存存储器（可选）
     ///   - request: 网络请求对象
     ///   - dataParsingInterceptor: 响应解析插件
     ///   - validation: 响应验证器
     ///   - interceptors: 初始拦截器列表
     public required init(
-        _ client: any iNtkClient, cacheableClient: (any iNtkCacheableClient)? = nil,
+        _ client: any iNtkClient, cacheStorage: (any iNtkCacheStorage)? = nil,
         request: iNtkRequest, dataParsingInterceptor: iNtkInterceptor,
         validation: iNtkResponseValidation, interceptors: [iNtkInterceptor] = []
     ) {
         self.client = client
-        self.cacheableClient = cacheableClient
+        self.cacheStorage = cacheStorage
         self.mutableRequest = NtkMutableRequest(request)
         // 注入响应类型信息，用于去重键生成
         self.mutableRequest.responseType = String(describing: ResponseData.self)
@@ -90,19 +90,19 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
     /// 创建网络请求管理器的便捷方法
     /// - Parameters:
     ///   - client: 网络客户端实现
-    ///   - cacheableClient: 可缓存的客户端（可选）
+    ///   - cacheStorage: 缓存存储器（可选）
     ///   - request: 网络请求对象
     ///   - dataParsingInterceptor: 响应解析插件
     ///   - validation: 响应验证器
     ///   - interceptors: 初始拦截器列表
     /// - Returns: 配置好的网络请求管理器实例
     public class func with(
-        _ client: any iNtkClient, cacheableClient: (any iNtkCacheableClient)? = nil,
+        _ client: any iNtkClient, cacheStorage: (any iNtkCacheStorage)? = nil,
         request: iNtkRequest, dataParsingInterceptor: iNtkInterceptor,
         validation: iNtkResponseValidation, interceptors: [iNtkInterceptor] = []
     ) -> Self {
         let net = self.init(
-            client, cacheableClient: cacheableClient, request: request,
+            client, cacheStorage: cacheStorage, request: request,
             dataParsingInterceptor: dataParsingInterceptor,
             validation: validation, interceptors: interceptors)
         return net
@@ -175,7 +175,7 @@ extension NtkNetwork {
             }
             let config = NtkNetworkExecutor<ResponseData>.Configuration(
                 client: client,
-                cacheableClient: cacheableClient,
+                cacheStorage: cacheStorage,
                 request: mutableRequest,
                 interceptors: _interceptors,
                 coreInterceptors: _coreInterceptors,

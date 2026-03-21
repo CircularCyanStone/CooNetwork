@@ -176,15 +176,3 @@ public final class AFClient: iNtkClient {
     }
 
 }
-
-// MARK: - AF 缓存客户端
-
-/// AFClient 的缓存能力包装
-/// 当需要缓存功能时，通过此类型提供 iNtkCacheableClient 实现
-public struct AFCacheClient: iNtkCacheableClient {
-    public let storage: iNtkCacheStorage
-
-    public init(storage: iNtkCacheStorage) {
-        self.storage = storage
-    }
-}

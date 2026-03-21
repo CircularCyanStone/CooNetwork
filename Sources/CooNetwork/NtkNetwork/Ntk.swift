@@ -21,9 +21,9 @@ public final class Ntk<ResponseData: Sendable> {
     ///   - request: 请求对象
     ///   - dataParsingInterceptor: 数据解析拦截器
     ///   - validation: 响应验证器
-    ///   - cacheableClient: 可缓存的客户端（可选）
+    ///   - cacheStorage: 缓存存储器（可选）
     /// - Returns: 配置好的 NtkNetwork 实例
-    public static func with(_ client: any iNtkClient, request: iNtkRequest, dataParsingInterceptor: iNtkInterceptor, validation: iNtkResponseValidation, cacheableClient: (any iNtkCacheableClient)? = nil) -> NtkNetwork<ResponseData> {
+    public static func with(_ client: any iNtkClient, request: iNtkRequest, dataParsingInterceptor: iNtkInterceptor, validation: iNtkResponseValidation, cacheStorage: (any iNtkCacheStorage)? = nil) -> NtkNetwork<ResponseData> {
         var _validation: iNtkResponseValidation
         if let requestValidation = request as? iNtkResponseValidation {
             _validation = requestValidation
@@ -32,12 +32,12 @@ public final class Ntk<ResponseData: Sendable> {
         }
 
         var interceptors: [iNtkInterceptor] = []
-        if request.requestConfiguration != nil {
-            interceptors.append(NtkCacheSaveInterceptor())
+        if let storage = cacheStorage, request.requestConfiguration != nil {
+            interceptors.append(NtkCacheSaveInterceptor(storage: storage))
         }
 
-        let net = NtkNetwork<ResponseData>.with(client, cacheableClient: cacheableClient, request: request, dataParsingInterceptor: dataParsingInterceptor, validation: _validation, interceptors: interceptors)
+        let net = NtkNetwork<ResponseData>.with(client, cacheStorage: cacheStorage, request: request, dataParsingInterceptor: dataParsingInterceptor, validation: _validation, interceptors: interceptors)
         return net
     }
-    
+
 }
