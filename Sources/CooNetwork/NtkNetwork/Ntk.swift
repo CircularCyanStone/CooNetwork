@@ -7,12 +7,12 @@
 
 import Foundation
 
-typealias NtkBool<Keys: iNtkResponseMapKeys> = Ntk<Bool, Keys>
+typealias NtkBool = Ntk<Bool>
 
 /// 网络请求便捷入口
 /// 封装 NtkNetwork 的创建逻辑，自动处理验证器选择和缓存拦截器注入
 @NtkActor
-public final class Ntk<ResponseData: Sendable, Keys: iNtkResponseMapKeys> {
+public final class Ntk<ResponseData: Sendable> {
 
     nonisolated
     /// 创建配置好的网络请求管理器
@@ -21,21 +21,22 @@ public final class Ntk<ResponseData: Sendable, Keys: iNtkResponseMapKeys> {
     ///   - request: 请求对象
     ///   - dataParsingInterceptor: 数据解析拦截器
     ///   - validation: 响应验证器
+    ///   - cacheableClient: 可缓存的客户端（可选）
     /// - Returns: 配置好的 NtkNetwork 实例
-    public static func with(_ client: any iNtkClient, request: iNtkRequest, dataParsingInterceptor: iNtkInterceptor, validation: iNtkResponseValidation) -> NtkNetwork<ResponseData> {
+    public static func with(_ client: any iNtkClient, request: iNtkRequest, dataParsingInterceptor: iNtkInterceptor, validation: iNtkResponseValidation, cacheableClient: (any iNtkCacheableClient)? = nil) -> NtkNetwork<ResponseData> {
         var _validation: iNtkResponseValidation
         if let requestValidation = request as? iNtkResponseValidation {
             _validation = requestValidation
         }else {
             _validation = validation
         }
-        
+
         var interceptors: [iNtkInterceptor] = []
         if request.requestConfiguration != nil {
             interceptors.append(NtkCacheSaveInterceptor())
         }
-        
-        let net = NtkNetwork<ResponseData>.with(client, request: request, dataParsingInterceptor: dataParsingInterceptor, validation: _validation, interceptors: interceptors)
+
+        let net = NtkNetwork<ResponseData>.with(client, cacheableClient: cacheableClient, request: request, dataParsingInterceptor: dataParsingInterceptor, validation: _validation, interceptors: interceptors)
         return net
     }
     

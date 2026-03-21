@@ -12,35 +12,58 @@ import CooNetwork
 import Alamofire
 
 /// 类型别名，便捷用于后端返回值JSON key的映射模式为AFResponseMapKeys。
-public typealias NtkAF<ResponseData> = Ntk<ResponseData, AFResponseMapKeys>
+public typealias NtkAF<ResponseData> = Ntk<ResponseData>
 
 /// 类型别名，用于返回值为Bool类型的情况，后端JSON key的映射模式为AFResponseMapKeys。
-public typealias NtkAFBool = Ntk<Bool, AFResponseMapKeys>
+public typealias NtkAFBool = Ntk<Bool>
 
 /// AF网络请求管理器扩展
 /// 提供AF请求的便捷创建和配置功能，集成了默认的拦截器和UI交互闭包
 public extension Ntk {
-    
-    /// 创建AF网络请求
+
+    /// 创建AF网络请求（使用默认 AFResponseMapKeys）
     /// 自动配置AF客户端
     /// - Parameters:
     ///   - request: AF请求对象
     ///   - dataParsingInterceptor: 响应解析器，默认为 AFDataParsingInterceptor
     ///   - validation: 响应校验器，默认为 nil (使用默认校验逻辑)
-    ///   - cacheStorage: 缓存存储策略，默认为不缓存 (AFNoCacheStorage)
+    ///   - cacheStorage: 缓存存储策略，默认为 nil（不缓存）
     /// - Returns: 配置好的网络请求管理器
     nonisolated
     static func withAF(
         _ request: iAFRequest,
-        dataParsingInterceptor: iNtkInterceptor = AFDataParsingInterceptor<ResponseData, Keys>(),
-        validation: iNtkResponseValidation = AFDetaultResponseValidation(),
-        storage: iNtkCacheStorage = AFNoCacheStorage()
+        dataParsingInterceptor: iNtkInterceptor = AFDataParsingInterceptor<ResponseData, AFResponseMapKeys>(),
+        validation: iNtkResponseValidation = AFDefaultResponseValidation(),
+        storage: iNtkCacheStorage? = nil
     ) -> NtkNetwork<ResponseData> where ResponseData: Decodable {
-        // 创建 AFClient，注入缓存策略
-        let client = AFClient<Keys>(storage: storage)
-        let net = with(client, request: request, dataParsingInterceptor: dataParsingInterceptor, validation: validation)
-        // Upload 请求自动禁用去重（uploadSource 不参与哈希计算，会导致误判重复）
-        // 必须在拦截器链执行前设置，所以放在这里而非 AFClient.sendRequest() 中
+        let client = AFClient()
+        let cacheableClient: AFCacheClient? = storage.map { AFCacheClient(storage: $0) }
+        let net = with(client, request: request, dataParsingInterceptor: dataParsingInterceptor, validation: validation, cacheableClient: cacheableClient)
+        if request is iAFUploadRequest {
+            net.disableDeduplication()
+        }
+        return net
+    }
+
+    /// 创建AF网络请求（使用自定义 Keys 映射）
+    /// - Parameters:
+    ///   - request: AF请求对象
+    ///   - keys: 响应字段映射类型
+    ///   - dataParsingInterceptor: 响应解析器
+    ///   - validation: 响应校验器
+    ///   - cacheStorage: 缓存存储策略
+    /// - Returns: 配置好的网络请求管理器
+    nonisolated
+    static func withAF<Keys: iNtkResponseMapKeys>(
+        _ request: iAFRequest,
+        keys: Keys.Type,
+        dataParsingInterceptor: iNtkInterceptor = AFDataParsingInterceptor<ResponseData, Keys>(),
+        validation: iNtkResponseValidation = AFDefaultResponseValidation(),
+        storage: iNtkCacheStorage? = nil
+    ) -> NtkNetwork<ResponseData> where ResponseData: Decodable {
+        let client = AFClient()
+        let cacheableClient: AFCacheClient? = storage.map { AFCacheClient(storage: $0) }
+        let net = with(client, request: request, dataParsingInterceptor: dataParsingInterceptor, validation: validation, cacheableClient: cacheableClient)
         if request is iAFUploadRequest {
             net.disableDeduplication()
         }
@@ -50,7 +73,7 @@ public extension Ntk {
 
 /// AF请求默认的响应体验证工具
 /// 默认 code == 0 或 "0" 视为成功
-public struct AFDetaultResponseValidation: iNtkResponseValidation {
+public struct AFDefaultResponseValidation: iNtkResponseValidation {
     /// 初始化默认响应验证器
     public init() {}
 

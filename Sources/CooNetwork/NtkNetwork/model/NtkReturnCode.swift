@@ -10,7 +10,7 @@ import Foundation
 /// 网络响应状态码包装器
 /// 支持多种数据类型的状态码（字符串、整数、布尔值、浮点数）
 /// 提供类型安全的访问方式和自动类型转换功能
-public final class NtkReturnCode: Codable, Sendable {
+public struct NtkReturnCode: Codable, Sendable {
     
     /// 内部存储枚举
     /// 将类型标记与值绑定在一起，确保类型与值始终一致

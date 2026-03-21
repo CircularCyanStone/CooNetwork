@@ -22,6 +22,10 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
     /// 网络客户端实现
     private var client: any iNtkClient
 
+    /// 可缓存的客户端（可选）
+    /// 只有需要缓存功能时才提供
+    private var cacheableClient: (any iNtkCacheableClient)?
+
     /// 数据解析插件
     private var dataParsingInterceptor: iNtkInterceptor
 
@@ -32,6 +36,9 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
 
     /// 存储所有注册的自定义拦截器
     private var _interceptors: [iNtkInterceptor] = []
+    
+    /// 存储所有核心拦截器
+    private var _coreInterceptors: [iNtkInterceptor] = []
 
     // 注意：由于是 Sendable 类且有可变属性，理论上需要锁保护。
     // 但作为 Builder，通常在单线程构建。
@@ -41,12 +48,14 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
     // 但为了绝对安全，我们在这里使用简单的锁保护配置状态。
     internal let lock = NtkUnfairLock()
 
-    /// 存储所有核心拦截器
-    private var _coreInterceptors: [iNtkInterceptor] = []
-
     /// 单次使用保护位
     /// 用于阻止同一个 NtkNetwork 实例重复发起 request()
     private var _hasRequested: Bool = false
+
+    /// 缓存的执行器实例
+    /// 在首次调用 getOrCreateExecutor() 时创建，后续调用返回同一实例
+    /// 确保 requestWithCache() 中 loadCache 和 execute 共享同一个 executor
+    private var _executor: NtkNetworkExecutor<ResponseData>?
 
     /// 检查当前请求是否已被取消
     public var isCancelled: Bool {
@@ -56,15 +65,18 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
     /// 初始化网络请求管理器
     /// - Parameters:
     ///   - client: 网络客户端实现
+    ///   - cacheableClient: 可缓存的客户端（可选）
     ///   - request: 网络请求对象
     ///   - dataParsingInterceptor: 响应解析插件
     ///   - validation: 响应验证器
     ///   - interceptors: 初始拦截器列表
     public required init(
-        _ client: any iNtkClient, request: iNtkRequest, dataParsingInterceptor: iNtkInterceptor,
+        _ client: any iNtkClient, cacheableClient: (any iNtkCacheableClient)? = nil,
+        request: iNtkRequest, dataParsingInterceptor: iNtkInterceptor,
         validation: iNtkResponseValidation, interceptors: [iNtkInterceptor] = []
     ) {
         self.client = client
+        self.cacheableClient = cacheableClient
         self.mutableRequest = NtkMutableRequest(request)
         // 注入响应类型信息，用于去重键生成
         self.mutableRequest.responseType = String(describing: ResponseData.self)
@@ -78,17 +90,20 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
     /// 创建网络请求管理器的便捷方法
     /// - Parameters:
     ///   - client: 网络客户端实现
+    ///   - cacheableClient: 可缓存的客户端（可选）
     ///   - request: 网络请求对象
     ///   - dataParsingInterceptor: 响应解析插件
     ///   - validation: 响应验证器
     ///   - interceptors: 初始拦截器列表
     /// - Returns: 配置好的网络请求管理器实例
     public class func with(
-        _ client: any iNtkClient, request: iNtkRequest, dataParsingInterceptor: iNtkInterceptor,
+        _ client: any iNtkClient, cacheableClient: (any iNtkCacheableClient)? = nil,
+        request: iNtkRequest, dataParsingInterceptor: iNtkInterceptor,
         validation: iNtkResponseValidation, interceptors: [iNtkInterceptor] = []
     ) -> Self {
         let net = self.init(
-            client, request: request, dataParsingInterceptor: dataParsingInterceptor,
+            client, cacheableClient: cacheableClient, request: request,
+            dataParsingInterceptor: dataParsingInterceptor,
             validation: validation, interceptors: interceptors)
         return net
     }
@@ -144,24 +159,32 @@ extension NtkNetwork {
 
 
 
-    /// 创建执行器
+    /// 获取或创建执行器（Lazy 模式）
+    /// 首次调用时冻结当前配置并创建 executor，后续调用返回同一实例
+    /// 确保同一个 NtkNetwork 实例的所有执行路径共享同一个 executor
     /// - Returns: 配置好的网络执行器实例
-    func makeExecutor<T: Sendable>() -> NtkNetworkExecutor<T> {
+    func getOrCreateExecutor() -> NtkNetworkExecutor<ResponseData> {
         lock.withLock {
+            if let existing = _executor {
+                return existing
+            }
             guard let validation else {
                 fatalError(
                     "iNtkResponseValidation must not be nil, you should call method 'func validation(_ validation: iNtkResponseValidation) -> Self' first"
                 )
             }
-            let config = NtkNetworkExecutor<T>.Configuration(
+            let config = NtkNetworkExecutor<ResponseData>.Configuration(
                 client: client,
+                cacheableClient: cacheableClient,
                 request: mutableRequest,
                 interceptors: _interceptors,
                 coreInterceptors: _coreInterceptors,
                 validation: validation,
                 dataParsingInterceptor: dataParsingInterceptor
             )
-            return NtkNetworkExecutor<T>(config: config)
+            let executor = NtkNetworkExecutor<ResponseData>(config: config)
+            _executor = executor
+            return executor
         }
     }
 
@@ -213,7 +236,7 @@ extension NtkNetwork {
     @discardableResult
     public func request() async throws -> NtkResponse<ResponseData> {
         try markRequestConsumedOrThrow()
-        return try await makeExecutor().execute()
+        return try await getOrCreateExecutor().execute()
     }
 
     /// 加载缓存数据
@@ -221,7 +244,7 @@ extension NtkNetwork {
     /// - Returns: 缓存的响应对象，如果没有缓存则返回nil
     /// - Throws: 缓存加载过程中的错误
     public func loadCache() async throws -> NtkResponse<ResponseData>? {
-        return try await makeExecutor().loadCache()
+        return try await getOrCreateExecutor().loadCache()
     }
 
     /// 便捷发起网络请求并加载缓存
@@ -257,7 +280,7 @@ extension NtkNetwork {
 
                         // 并发发起网络请求
                         group.addTask {
-                            return .network(try await self.makeExecutor().execute())
+                            return .network(try await self.getOrCreateExecutor().execute())
                         }
 
                         // 按完成顺序处理结果
@@ -306,6 +329,6 @@ extension NtkNetwork where ResponseData == Bool {
     /// 判断是否存在缓存数据
     /// - Returns: 如果存在缓存数据返回true，否则返回false
     public func hasCacheData() async -> Bool {
-        return await makeExecutor().hasCacheData()
+        return await getOrCreateExecutor().hasCacheData()
     }
 }

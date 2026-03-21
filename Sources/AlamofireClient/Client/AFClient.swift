@@ -12,23 +12,17 @@ import CooNetwork
 @preconcurrency import Alamofire
 
 /// AF 客户端请求执行实现
-/// 负责执行基于Alamofire的网络请求，支持泛型响应键映射
-/// 去除了缓存功能，Toast使用闭包回调
-public final class AFClient<Keys: iNtkResponseMapKeys>: iNtkClient {
-    
-    /// 缓存存储实现 (占位实现，不进行实际缓存)
-    public let storage: any iNtkCacheStorage
-    
+/// 负责执行基于Alamofire的网络请求
+public final class AFClient: iNtkClient {
+
     /// Alamofire Session
     private let session: Session
-    
+
     /// 初始化
     /// - Parameters:
     ///   - session: Alamofire Session，默认为 .default
-    ///   - storage: 缓存存储实现，默认为不缓存
-    public init(session: Session = AF, storage: iNtkCacheStorage = AFNoCacheStorage()) {
+    public init(session: Session = AF) {
         self.session = session
-        self.storage = storage
     }
     
     /// 执行网络请求
@@ -183,26 +177,14 @@ public final class AFClient<Keys: iNtkResponseMapKeys>: iNtkClient {
 
 }
 
-/// 内部使用的无缓存存储实现
-public struct AFNoCacheStorage: iNtkCacheStorage {
-    /// 初始化无缓存存储
-    public init() {}
+// MARK: - AF 缓存客户端
 
-    /// 不存储数据，始终返回 false
-    @NtkActor
-    public func setData(metaData: NtkCacheMeta, key: String, for request: NtkMutableRequest) async -> Bool {
-        return false
-    }
+/// AFClient 的缓存能力包装
+/// 当需要缓存功能时，通过此类型提供 iNtkCacheableClient 实现
+public struct AFCacheClient: iNtkCacheableClient {
+    public let storage: iNtkCacheStorage
 
-    /// 不读取数据，始终返回 nil
-    @NtkActor
-    public func getData(key: String, for request: NtkMutableRequest) async -> NtkCacheMeta? {
-        return nil
-    }
-
-    /// 不存在缓存，始终返回 false
-    @NtkActor
-    public func hasData(key: String, for request: NtkMutableRequest) async -> Bool {
-        return false
+    public init(storage: iNtkCacheStorage) {
+        self.storage = storage
     }
 }

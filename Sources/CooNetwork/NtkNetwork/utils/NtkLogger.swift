@@ -12,7 +12,7 @@ import os.log
 public let logger = NtkLogger.shared
 
 /// 网络组件统一日志工具
-/// 基于OSLog实现，兼容iOS 10+
+/// 基于OSLog实现
 public struct NtkLogger: Sendable {
 
     /// 全局共享实例
@@ -59,7 +59,6 @@ public struct NtkLogger: Sendable {
         }
         
         /// 转换为OSLogType
-        @available(iOS 10.0, *)
         var osLogType: OSLogType {
             switch self {
             case .debug:
@@ -72,22 +71,6 @@ public struct NtkLogger: Sendable {
                 return .error
             case .fault:
                 return .fault
-            }
-        }
-        
-        /// 用于iOS 10以下版本的字符串表示
-        var stringValue: String {
-            switch self {
-            case .debug:
-                return "DEBUG"
-            case .info:
-                return "INFO"
-            case .warning:
-                return "WARNING"
-            case .error:
-                return "ERROR"
-            case .fault:
-                return "FAULT"
             }
         }
     }
@@ -119,20 +102,10 @@ public struct NtkLogger: Sendable {
         // 提取文件名
         let fileName = (file as NSString).lastPathComponent
         let location = "\(fileName):\(function):\(line)"
-        
-        if #available(iOS 10.0, *) {
-            // iOS 10+ 使用OSLog
-            let log = OSLog(subsystem: subsystem, category: category.rawValue)
-            let logMessage = "[\(location)] \(message)"
-            os_log("%{public}@", log: log, type: level.osLogType, logMessage)
-        } else {
-            // iOS 10以下使用print
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
-            let timestamp = formatter.string(from: Date())
-            let logMessage = "[\(category.rawValue)][\(level.stringValue)][\(timestamp)][\(location)] \(message)"
-            print(logMessage)
-        }
+
+        let log = OSLog(subsystem: subsystem, category: category.rawValue)
+        let logMessage = "[\(location)] \(message)"
+        os_log("%{public}@", log: log, type: level.osLogType, logMessage)
     }
     
     /// 便捷方法：输出debug日志

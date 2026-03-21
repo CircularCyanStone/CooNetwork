@@ -55,7 +55,10 @@ public final class NtkCacheMeta: NSObject, NSSecureCoding, Sendable {
         self.appVersion = appVersion
         self.creationDate = coder.decodeDouble(forKey: "creationDate")
         self.expirationDate = coder.decodeDouble(forKey: "expirationDate")
-        let data = coder.decodeObject(forKey: "data")
+        let data = coder.decodeObject(of: [
+            NSString.self, NSDictionary.self, NSArray.self,
+            NSNumber.self, NSData.self
+        ], forKey: "data")
 
         if let data = data as? [String : Sendable] {
             self.data = data

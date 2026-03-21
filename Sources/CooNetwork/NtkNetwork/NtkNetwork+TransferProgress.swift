@@ -48,7 +48,7 @@ extension NtkNetwork {
 
             let task = Task {
                 do {
-                    let result = try await self.makeExecutor().execute() as NtkResponse<ResponseData>
+                    let result = try await self.getOrCreateExecutor().execute() as NtkResponse<ResponseData>
                     continuation.yield(.completed(result))
                     continuation.finish()
                 } catch {

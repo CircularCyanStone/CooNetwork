@@ -21,12 +21,17 @@ public final class NtkInterceptorContext: Sendable {
     /// 网络客户端
     public let client: any iNtkClient
 
+    /// 可缓存的客户端（可选）
+    /// 只有当 client 同时遵循 iNtkCacheableClient 时才有值
+    public let cacheableClient: (any iNtkCacheableClient)?
+
     /// 拦截器间传递的额外数据
     public var extraData: [String: Sendable] = [:]
 
-    init(mutableRequest: NtkMutableRequest, validation: iNtkResponseValidation, client: any iNtkClient) {
+    init(mutableRequest: NtkMutableRequest, validation: iNtkResponseValidation, client: any iNtkClient, cacheableClient: (any iNtkCacheableClient)? = nil) {
         self.mutableRequest = mutableRequest
         self.validation = validation
         self.client = client
+        self.cacheableClient = cacheableClient
     }
 }

@@ -11,6 +11,7 @@ import Foundation
 /// 用于处理网络响应中的动态数据，支持 Dictionary<String, any Sendable>、Int、Bool、String 等多种类型
 /// 提供类型安全的访问接口和便利的下标语法支持
 @objcMembers
+@dynamicMemberLookup
 public final class NtkDynamicData: NSObject, Sendable, Codable {
     
     /// 内部存储枚举

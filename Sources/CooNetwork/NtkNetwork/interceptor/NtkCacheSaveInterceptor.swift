@@ -52,10 +52,11 @@ public struct NtkCacheSaveInterceptor: iNtkInterceptor {
         let response = try await next.handle(context: context)
         // 能走到这里说明已经通过了NtkValidationInterceptor的校验
         guard let requestPolicy = context.mutableRequest.requestConfiguration else { return response }
+        guard let cacheableClient = context.cacheableClient else { return response }
         if requestPolicy.cacheTime > 0 && requestPolicy.shouldCache(response) {
             // 根据缓存时间和自定义策略保存响应到缓存
             if let extractedResponse = responseExtractor(response) {
-                let result = await context.client.saveCache(context.mutableRequest, response: extractedResponse)
+                let result = await cacheableClient.saveCache(context.mutableRequest, response: extractedResponse)
                 logger.debug("NTK请求缓存\(result ? "成功" : "失败")")
             }
         }
