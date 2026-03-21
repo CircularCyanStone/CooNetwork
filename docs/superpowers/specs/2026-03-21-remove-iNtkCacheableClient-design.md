@@ -28,9 +28,11 @@
 | `NtkNetworkExecutor.swift` | `Configuration.cacheableClient` → `cacheStorage: (any iNtkCacheStorage)?`；`loadCache()` 和 `hasCacheData()` 内部直接用 `NtkNetworkCache(storage:)` |
 | `NtkNetwork.swift` | `cacheableClient` 属性 → `cacheStorage: (any iNtkCacheStorage)?`；init/with 签名同步更新 |
 | `Ntk.swift` | `cacheableClient` 参数 → `cacheStorage`；`NtkCacheSaveInterceptor(storage:)` 创建时注入 storage |
-| `Ntk+AF.swift` | 删除 `AFCacheClient` 创建逻辑，直接传 `storage` |
-| `NtkInterceptorContext.swift` | 删除 `cacheableClient` 属性 |
-| `NtkCacheSaveInterceptor.swift` | 新增 `storage: iNtkCacheStorage` 属性，init 注入；`intercept` 中直接用 `NtkNetworkCache(storage:).save(...)` |
+| `Ntk+AF.swift` | 两个 `withAF` 重载均删除 `AFCacheClient` 创建逻辑，直接传 `storage` |
+| `NtkInterceptorContext.swift` | 删除 `cacheableClient` 属性（保留 `@NtkActor` 标注） |
+| `NtkCacheSaveInterceptor.swift` | 新增 `storage: any iNtkCacheStorage` 属性，init 注入；`intercept` 中直接用 `NtkNetworkCache(storage:).save(...)` |
+| `NtkNetworkExecutorTests.swift` | 更新 mock 类型：`ExecMockCacheableClient` → 改为提供 `iNtkCacheStorage` mock；Configuration 构造更新 |
+| `NtkNetworkIntegrationTests.swift` | 更新 mock 类型：`IntegMockCacheableClient` → 改为提供 `iNtkCacheStorage` mock |
 
 ### 不变
 
@@ -81,16 +83,16 @@ return NtkResponse(code: .init(200), data: result, msg: nil, response: result, r
 ```swift
 public struct NtkCacheSaveInterceptor: iNtkInterceptor {
     public var priority: NtkInterceptorPriority
-    private let storage: iNtkCacheStorage
+    private let storage: any iNtkCacheStorage
     private let responseExtractor: ResponseExtractor
 
-    public init(storage: iNtkCacheStorage, priority: NtkInterceptorPriority = .priority(0)) {
+    public init(storage: any iNtkCacheStorage, priority: NtkInterceptorPriority = .priority(0)) {
         self.storage = storage
         self.priority = priority
         self.responseExtractor = Self.defaultResponseExtractor
     }
 
-    public init(storage: iNtkCacheStorage, priority: NtkInterceptorPriority = .priority(0), responseExtractor: @escaping ResponseExtractor) {
+    public init(storage: any iNtkCacheStorage, priority: NtkInterceptorPriority = .priority(0), responseExtractor: @escaping ResponseExtractor) {
         self.storage = storage
         self.priority = priority
         self.responseExtractor = responseExtractor
@@ -113,9 +115,10 @@ public struct NtkCacheSaveInterceptor: iNtkInterceptor {
 
 ### NtkInterceptorContext
 
-删除 `cacheableClient` 属性，init 签名简化：
+删除 `cacheableClient` 属性，init 签名简化（保留 `@NtkActor` 标注）：
 
 ```swift
+@NtkActor
 public final class NtkInterceptorContext: Sendable {
     public var mutableRequest: NtkMutableRequest
     public let validation: iNtkResponseValidation
@@ -156,7 +159,10 @@ public static func with(
 
 ### Ntk+AF.swift
 
+两个 `withAF` 重载均删除 `AFCacheClient` 创建，直接传 `storage`：
+
 ```swift
+// 重载 1：默认 AFResponseMapKeys
 static func withAF(
     _ request: iAFRequest,
     dataParsingInterceptor: iNtkInterceptor = ...,
@@ -164,7 +170,23 @@ static func withAF(
     storage: iNtkCacheStorage? = nil
 ) -> NtkNetwork<ResponseData> where ResponseData: Decodable {
     let client = AFClient()
-    // 不再创建 AFCacheClient，直接传 storage
+    let net = with(client, request: request, dataParsingInterceptor: dataParsingInterceptor,
+                   validation: validation, cacheStorage: storage)
+    if request is iAFUploadRequest {
+        net.disableDeduplication()
+    }
+    return net
+}
+
+// 重载 2：自定义 Keys 映射
+static func withAF<Keys: iNtkResponseMapKeys>(
+    _ request: iAFRequest,
+    keys: Keys.Type,
+    dataParsingInterceptor: iNtkInterceptor = ...,
+    validation: iNtkResponseValidation = ...,
+    storage: iNtkCacheStorage? = nil
+) -> NtkNetwork<ResponseData> where ResponseData: Decodable {
+    let client = AFClient()
     let net = with(client, request: request, dataParsingInterceptor: dataParsingInterceptor,
                    validation: validation, cacheStorage: storage)
     if request is iAFUploadRequest {
@@ -173,6 +195,22 @@ static func withAF(
     return net
 }
 ```
+
+### NtkNetworkExecutor.execute()
+
+`execute()` 方法中构造 `NtkInterceptorContext` 时删除 `cacheableClient` 参数：
+
+```swift
+let context = NtkInterceptorContext(
+    mutableRequest: mutableRequest,
+    validation: config.validation,
+    client: config.client
+)
+```
+
+## 行为变更说明
+
+`NtkCacheSaveInterceptor` 的创建条件从 `request.requestConfiguration != nil` 变为 `cacheStorage != nil && request.requestConfiguration != nil`。这是一个微小的行为优化：当没有提供 storage 时，不再创建一个会在 `intercept()` 中立即 early-return 的空拦截器。功能等价，减少了无意义的拦截器链节点。
 
 ## 验证标准
 
