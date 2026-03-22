@@ -23,47 +23,22 @@ import Testing
 
 struct NtkNetworkSingleUseTests {
     @Test
-    func sameNetworkInstanceShouldRejectSecondRequest() async throws {
+    func networkInstanceShouldCompleteFirstRequest() async throws {
         let client = SingleUseDummyClient()
         let network = NtkNetwork<Bool>.with(
             client,
             request: SingleUseDummyRequest(),
-            dataParsingInterceptor: SingleUseDummyParsingInterceptor(),
-            validation: SingleUseDummyValidation()
+            responseParser: SingleUseDummyParsingInterceptor()
         )
 
         let firstResponse = try await network.request()
         #expect(firstResponse.data == true)
-
-        do {
-            _ = try await network.request()
-            Issue.record("期望同一 NtkNetwork 实例第二次 request 被阻止，但实际未阻止")
-        } catch let error as NtkError {
-            if case .requestCancelled = error {
-                #expect(Bool(true))
-            } else {
-                Issue.record("抛出了 NtkError 但类型不符合预期: \(error)")
-            }
-        } catch {
-            Issue.record("抛出了非预期错误类型: \(error)")
-        }
+        // 重复调用同一实例是开发期契约错误，会触发 fatalError，无需在测试中验证
     }
 }
 
 private struct SingleUseDummyRequest: iNtkRequest {
     var path: String { "/single-use/test" }
-}
-
-private struct SingleUseDummyValidation: iNtkResponseValidation {
-    func isServiceSuccess(_ response: any iNtkResponse) -> Bool {
-        true
-    }
-}
-
-private struct SingleUseDummyKeys: iNtkResponseMapKeys {
-    static let code: String = "code"
-    static let data: String = "data"
-    static let msg: String = "msg"
 }
 
 private struct SingleUseDummyClient: iNtkClient {

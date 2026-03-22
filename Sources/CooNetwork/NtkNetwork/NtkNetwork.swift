@@ -91,40 +91,18 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
 }
 extension NtkNetwork {
 
-    /// 标记 request() 已消费，若重复调用则抛错并在开发期强提醒
-    func markRequestConsumedOrThrow() throws {
+    /// 标记 request() 已消费，重复调用直接 fatalError
+    /// 这是开发期契约错误：同一实例不应被重复使用
+    func markRequestConsumed() {
         let allowed = lock.withLock {
             guard !_hasRequested else { return false }
             _hasRequested = true
             return true
         }
-
         guard allowed else {
-            Self.reportDuplicateRequestUsage()
-            throw NtkError.requestCancelled
+            fatalError("NtkNetwork 实例仅支持单次 request() 调用。请为每次请求创建新的 NtkNetwork 实例。")
         }
     }
-
-    /// 报告重复请求使用
-    private static func reportDuplicateRequestUsage() {
-        #if DEBUG
-        guard isRunningInTests() else {
-            fatalError(singleUseErrorMessage)
-        }
-        #endif
-        logger.warning(singleUseErrorMessage, category: .network)
-    }
-    /// 单次使用错误消息（使用 var 而非 let 以支持泛型类）
-    private static var singleUseErrorMessage: String {
-        "NtkNetwork 实例仅支持单次 request() 调用。请为每次请求创建新的 NtkNetwork 实例。"
-    }
-#if DEBUG
-    /// 检查是否在测试环境中运行
-    private static func isRunningInTests() -> Bool {
-        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
-            || ProcessInfo.processInfo.arguments.contains { $0.contains("xctest") }
-    }
-#endif
 
 }
 
@@ -189,7 +167,7 @@ extension NtkNetwork {
     /// - Throws: 网络请求过程中的错误
     @discardableResult
     public func request() async throws -> NtkResponse<ResponseData> {
-        try markRequestConsumedOrThrow()
+        markRequestConsumed()
         return try await getOrCreateExecutor().execute()
     }
 
@@ -210,11 +188,7 @@ extension NtkNetwork {
     /// - Throws: 在网络请求或缓存加载过程中可能抛出的任何错误
     public func requestWithCache() -> AsyncThrowingStream<NtkResponse<ResponseData>, Error> {
         // 单次使用保护（同步阶段检查）
-        do {
-            try markRequestConsumedOrThrow()
-        } catch {
-            return AsyncThrowingStream { $0.finish(throwing: error) }
-        }
+        markRequestConsumed()
 
         return AsyncThrowingStream { continuation in
             let task = Task {

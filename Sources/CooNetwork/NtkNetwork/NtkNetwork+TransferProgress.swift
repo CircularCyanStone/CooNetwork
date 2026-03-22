@@ -31,11 +31,7 @@ extension NtkNetwork {
     /// 与 requestWithCache() 同为流式 API 家族
     public func requestWithProgress() -> AsyncThrowingStream<NtkTransferEvent<ResponseData>, Error> {
         // 同步阶段：单次使用保护
-        do {
-            try markRequestConsumedOrThrow()
-        } catch {
-            return AsyncThrowingStream { $0.finish(throwing: error) }
-        }
+        markRequestConsumed()
 
         return AsyncThrowingStream { continuation in
             // 通过链式 API 通道注入进度闭包，桥接到 stream

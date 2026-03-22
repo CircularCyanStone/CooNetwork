@@ -32,10 +32,10 @@ public extension Ntk {
     static func withAF(
         _ request: iAFRequest,
         validation: iNtkResponseValidation = AFDefaultResponseValidation(),
-        responseParser: iNtkResponseParser?,
+        responseParser: iNtkResponseParser? = nil,
         storage: iNtkCacheStorage? = nil
     ) -> NtkNetwork<ResponseData> where ResponseData: Decodable {
-        return Ntk.withAF(request, keys: AFResponseMapKeys.self, responseParser: responseParser, storage: storage)
+        return Ntk.withAF(request, keys: AFResponseMapKeys.self, validation: validation, responseParser: responseParser, storage: storage)
     }
 
     /// 创建AF网络请求（使用自定义 Keys 映射）
