@@ -22,9 +22,6 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
     /// 网络客户端实现
     private var client: any iNtkClient
 
-    /// 数据解析插件
-    private var dataParsingInterceptor: iNtkInterceptor
-
     internal var mutableRequest: NtkMutableRequest
 
     /// 响应验证器
@@ -59,12 +56,12 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
     /// - Parameters:
     ///   - client: 网络客户端实现
     ///   - request: 网络请求对象
-    ///   - dataParsingInterceptor: 响应解析插件
+    ///   - responseParser: 响应解析插件
     ///   - validation: 响应验证器
     ///   - interceptors: 初始拦截器列表
     public required init(
         _ client: any iNtkClient,
-        request: iNtkRequest, dataParsingInterceptor: iNtkInterceptor,
+        request: iNtkRequest, responseParser: any iNtkResponseParser,
         validation: iNtkResponseValidation, interceptors: [iNtkInterceptor] = []
     ) {
         self.client = client
@@ -73,27 +70,26 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
         self.mutableRequest.responseType = String(describing: ResponseData.self)
         // 创建取消状态引用
         self.mutableRequest.isCancelledRef = NtkCancellableState()
-        self.dataParsingInterceptor = dataParsingInterceptor
         self.validation = validation
-        self._interceptors = interceptors
+        self._interceptors = [NtkResponseParserBox(responseParser)] + interceptors
     }
 
     /// 创建网络请求管理器的便捷方法
     /// - Parameters:
     ///   - client: 网络客户端实现
     ///   - request: 网络请求对象
-    ///   - dataParsingInterceptor: 响应解析插件
+    ///   - responseParser: 响应解析插件
     ///   - validation: 响应验证器
     ///   - interceptors: 初始拦截器列表
     /// - Returns: 配置好的网络请求管理器实例
     public class func with(
         _ client: any iNtkClient,
-        request: iNtkRequest, dataParsingInterceptor: iNtkInterceptor,
+        request: iNtkRequest, responseParser: any iNtkResponseParser,
         validation: iNtkResponseValidation, interceptors: [iNtkInterceptor] = []
     ) -> Self {
         let net = self.init(
             client, request: request,
-            dataParsingInterceptor: dataParsingInterceptor,
+            responseParser: responseParser,
             validation: validation, interceptors: interceptors)
         return net
     }
@@ -160,8 +156,7 @@ extension NtkNetwork {
                 client: client,
                 request: mutableRequest,
                 interceptors: _interceptors,
-                validation: validation,
-                dataParsingInterceptor: dataParsingInterceptor
+                validation: validation
             )
             let executor = NtkNetworkExecutor<ResponseData>(config: config)
             _executor = executor

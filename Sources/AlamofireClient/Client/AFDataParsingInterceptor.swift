@@ -15,9 +15,7 @@ import Alamofire
 
 /// 基于原始 Data 的响应解析拦截器
 /// 结合 TFNDataParsingInterceptor 的直解优点与 AF 响应校验/键映射能力
-public struct AFDataParsingInterceptor<ResponseData: Sendable & Decodable, Keys: iNtkResponseMapKeys>: iNtkInterceptor {
-
-    public var priority: NtkInterceptorPriority { .dataParsing }
+public struct AFDataParsingInterceptor<ResponseData: Sendable & Decodable, Keys: iNtkResponseMapKeys>: iNtkResponseParser {
 
     /// 初始化 Data 解析拦截器
     public init() {}

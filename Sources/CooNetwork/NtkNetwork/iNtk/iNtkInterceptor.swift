@@ -61,8 +61,6 @@ public struct NtkInterceptorPriority: Comparable, Sendable {
     public static let medium = Self(tier: .standard, value: 750)
     /// 高优先级（1000）
     public static let high   = Self(tier: .standard, value: 1000)
-    
-    public static let dataParsing = Self(tier: .inner, value: 750)
 
     // ── 框架内部常量 ──
     /// Dedup 使用：最外层
@@ -155,3 +153,4 @@ extension iNtkInterceptor {
         .medium
     }
 }
+

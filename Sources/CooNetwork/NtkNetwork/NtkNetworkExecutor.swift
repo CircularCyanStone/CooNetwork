@@ -26,7 +26,6 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
         let request: NtkMutableRequest
         let interceptors: [iNtkInterceptor]
         let validation: iNtkResponseValidation
-        let dataParsingInterceptor: iNtkInterceptor
     }
 
     private let config: Configuration
@@ -55,7 +54,6 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
         // 动态添加核心拦截器（Tier 保证正确排序）
         var interceptorsToRun = config.interceptors
         interceptorsToRun.append(NtkDeduplicationInterceptor())
-        interceptorsToRun.append(config.dataParsingInterceptor)
         let allInterceptors = sortInterceptors(interceptorsToRun)
         
         let realChainManager = NtkInterceptorChainManager(interceptors: allInterceptors) { [weak self] context in
@@ -81,7 +79,7 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
         }
         let context = NtkInterceptorContext(mutableRequest: mutableRequest, validation: config.validation, client: config.client)
 
-        let tmpInterceptors = [config.dataParsingInterceptor]
+        let tmpInterceptors = config.interceptors.filter { $0 is NtkResponseParserBox }
 
         let realChainManager = NtkInterceptorChainManager(interceptors: tmpInterceptors) { [weak self] context in
             self?.mutableRequest = context.mutableRequest
