@@ -29,7 +29,6 @@ struct NtkNetworkExecutorTests {
             client: ExecMockClient(result: .failure(NtkError.requestTimeout)),
             request: request,
             interceptors: [],
-            coreInterceptors: [],
             validation: ExecDummyValidation(),
             dataParsingInterceptor: ExecMockParsingInterceptor()
         )
@@ -56,8 +55,7 @@ struct NtkNetworkExecutorTests {
         let config = NtkNetworkExecutor<Bool>.Configuration(
             client: ExecMockClient(result: .success(())),
             request: request,
-            interceptors: [lowPriority],
-            coreInterceptors: [highPriority],
+            interceptors: [lowPriority, highPriority],
             validation: ExecDummyValidation(),
             dataParsingInterceptor: ExecMockParsingInterceptor()
         )
@@ -153,7 +151,6 @@ private func makeExecutor(
         client: client,
         request: request,
         interceptors: interceptors,
-        coreInterceptors: [],
         validation: ExecDummyValidation(),
         dataParsingInterceptor: parsingInterceptor
     )
@@ -173,7 +170,6 @@ private func makeBoolExecutor(
         client: client,
         request: request,
         interceptors: interceptors,
-        coreInterceptors: [],
         validation: ExecDummyValidation(),
         dataParsingInterceptor: ExecMockParsingInterceptor()
     )

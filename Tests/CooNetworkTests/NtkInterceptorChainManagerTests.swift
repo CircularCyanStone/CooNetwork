@@ -118,6 +118,48 @@ struct NtkInterceptorChainManagerTests {
         let captured = await capture.value()
         #expect(captured as? String == "testValue")
     }
+
+    // MARK: - Tier 隔离：核心拦截器不可被用户拦截器入侵
+
+    /// 验证 outer tier 始终在 standard tier 外侧执行，standard 始终在 inner tier 外侧
+    /// 无论传入顺序如何，sortInterceptors 按 tier+value 降序排列
+    @Test
+    @NtkActor
+    func tierIsolationEnsuresCoreOrderingIsPreserved() async throws {
+        let counter = ChainCallCounter()
+
+        // outer tier（模拟 Dedup）
+        let outerInterceptor = ChainTieredInterceptor(
+            id: "outer", counter: counter, _priority: .coreOuterHighest
+        )
+        // standard tier（用户拦截器，高 value）
+        let userInterceptor = ChainTieredInterceptor(
+            id: "user", counter: counter, _priority: .high
+        )
+        // inner tier（模拟 DataParsing）
+        let innerInterceptor = ChainTieredInterceptor(
+            id: "inner", counter: counter, _priority: .coreInnerHigh
+        )
+
+        // 故意以错误顺序传入，让 sortInterceptors 纠正
+        let unsorted: [any iNtkInterceptor] = [userInterceptor, innerInterceptor, outerInterceptor]
+        let sorted = unsorted.sorted { $0.priority > $1.priority }
+
+        let manager = NtkInterceptorChainManager(interceptors: sorted) { context in
+            await counter.record("final")
+            return ChainDummyResponse(request: ChainDummyRequest())
+        }
+        let context = makeContext()
+        _ = try await manager.execute(context: context)
+        let log = await counter.log()
+
+        // outer 必须最外层，inner 必须最内层
+        #expect(log == [
+            "outer-request", "user-request", "inner-request",
+            "final",
+            "inner-response", "user-response", "outer-response"
+        ])
+    }
 }
 
 // MARK: - Helpers
@@ -186,6 +228,23 @@ private struct ChainShortCircuitInterceptor: iNtkInterceptor {
     func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
         await counter.record("\(id)-shortcircuit")
         return ChainDummyResponse(request: ChainDummyRequest())
+    }
+}
+
+/// Tier 感知的记录拦截器，用于验证 tier 排序
+@NtkActor
+private struct ChainTieredInterceptor: iNtkInterceptor {
+    let id: String
+    let counter: ChainCallCounter
+    let _priority: NtkInterceptorPriority
+
+    nonisolated var priority: NtkInterceptorPriority { _priority }
+
+    func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
+        await counter.record("\(id)-request")
+        let response = try await next.handle(context: context)
+        await counter.record("\(id)-response")
+        return response
     }
 }
 
