@@ -13,7 +13,7 @@ struct NtkInterceptorPriorityTests {
 
     @Test
     func outerTierGreaterThanStandard() {
-        let outer = NtkInterceptorPriority.coreOuterHighest
+        let outer = NtkInterceptorPriority.outerHighest
         let standard = NtkInterceptorPriority.high
         #expect(outer > standard)
     }
@@ -21,14 +21,14 @@ struct NtkInterceptorPriorityTests {
     @Test
     func standardTierGreaterThanInner() {
         let standard = NtkInterceptorPriority.low
-        let inner = NtkInterceptorPriority.coreInnerLow
+        let inner = NtkInterceptorPriority.innerLow
         #expect(standard > inner)
     }
 
     @Test
     func outerTierGreaterThanInner() {
-        let outer = NtkInterceptorPriority.coreOuterHighest
-        let inner = NtkInterceptorPriority.coreInnerHigh
+        let outer = NtkInterceptorPriority.outerHighest
+        let inner = NtkInterceptorPriority.innerHigh
         #expect(outer > inner)
     }
 
@@ -46,7 +46,7 @@ struct NtkInterceptorPriorityTests {
         let p = NtkInterceptorPriority.priority(500)
         // Must be less than any inner tier (inner.low = 250 but inner tier is lower)
         // Must be greater than inner tier constants
-        let inner = NtkInterceptorPriority.coreInnerHigh
+        let inner = NtkInterceptorPriority.innerHigh
         #expect(p > inner)  // standard tier always > inner tier
     }
 
@@ -70,10 +70,10 @@ struct NtkInterceptorPriorityTests {
     func additionPreservesTier() {
         let p = NtkInterceptorPriority.medium  // standard, 750
         let result = p + 100
-        let outerHigh = NtkInterceptorPriority.coreOuterHighest
+        let outerHigh = NtkInterceptorPriority.outerHighest
         // result is still standard tier, so must be < outer tier
         #expect(result < outerHigh)
-        #expect(result > NtkInterceptorPriority.coreInnerHigh)  // still above inner
+        #expect(result > NtkInterceptorPriority.innerHigh)  // still above inner
     }
 
     @Test
@@ -85,7 +85,7 @@ struct NtkInterceptorPriorityTests {
 
     @Test
     func subtractionPreservesTier() {
-        let inner = NtkInterceptorPriority.coreInnerHigh  // inner, 750
+        let inner = NtkInterceptorPriority.innerHigh  // inner, 750
         let result = inner - 500  // inner, 250
         let standard = NtkInterceptorPriority.low  // standard, 250
         // same value, different tier → inner < standard

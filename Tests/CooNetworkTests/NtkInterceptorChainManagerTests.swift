@@ -130,7 +130,7 @@ struct NtkInterceptorChainManagerTests {
 
         // outer tier（模拟 Dedup）
         let outerInterceptor = ChainTieredInterceptor(
-            id: "outer", counter: counter, _priority: .coreOuterHighest
+            id: "outer", counter: counter, _priority: .outerHighest
         )
         // standard tier（用户拦截器，高 value）
         let userInterceptor = ChainTieredInterceptor(
@@ -138,7 +138,7 @@ struct NtkInterceptorChainManagerTests {
         )
         // inner tier（模拟 DataParsing）
         let innerInterceptor = ChainTieredInterceptor(
-            id: "inner", counter: counter, _priority: .coreInnerHigh
+            id: "inner", counter: counter, _priority: .innerHigh
         )
 
         // 故意以错误顺序传入，让 sortInterceptors 纠正

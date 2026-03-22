@@ -15,8 +15,8 @@
 | File | Change |
 |------|--------|
 | `Sources/CooNetwork/NtkNetwork/iNtk/iNtkInterceptor.swift` | Rewrite `NtkInterceptorPriority`: add `Tier` enum, adjust `init`, operators, access control |
-| `Sources/CooNetwork/NtkNetwork/deduplication/NtkDeduplicationInterceptor.swift` | Add `priority: .coreOuterHighest` |
-| `Sources/CooNetwork/NtkNetwork/interceptor/NtkCacheInterceptor.swift` | Remove `priority` param from `init`, fix to `.coreInnerLow` |
+| `Sources/CooNetwork/NtkNetwork/deduplication/NtkDeduplicationInterceptor.swift` | Add `priority: .outerHighest` |
+| `Sources/CooNetwork/NtkNetwork/interceptor/NtkCacheInterceptor.swift` | Remove `priority` param from `init`, fix to `.innerLow` |
 | `Sources/CooNetwork/NtkNetwork/NtkNetworkExecutor.swift` | Remove `coreInterceptors` from `Configuration`; simplify `execute()`, `loadCache()`, `hasCacheData()` |
 | `Sources/CooNetwork/NtkNetwork/NtkNetwork.swift` | Remove `_coreInterceptors` and `addCoreInterceptor(_:)` |
 | `Sources/AlamofireClient/Client/AFDataParsingInterceptor.swift` | Add `priority: .dataParsing` |
@@ -47,7 +47,7 @@ struct NtkInterceptorPriorityTests {
 
     @Test
     func outerTierGreaterThanStandard() {
-        let outer = NtkInterceptorPriority.coreOuterHighest
+        let outer = NtkInterceptorPriority.outerHighest
         let standard = NtkInterceptorPriority.high
         #expect(outer > standard)
     }
@@ -55,14 +55,14 @@ struct NtkInterceptorPriorityTests {
     @Test
     func standardTierGreaterThanInner() {
         let standard = NtkInterceptorPriority.low
-        let inner = NtkInterceptorPriority.coreInnerLow
+        let inner = NtkInterceptorPriority.innerLow
         #expect(standard > inner)
     }
 
     @Test
     func outerTierGreaterThanInner() {
-        let outer = NtkInterceptorPriority.coreOuterHighest
-        let inner = NtkInterceptorPriority.coreInnerHigh
+        let outer = NtkInterceptorPriority.outerHighest
+        let inner = NtkInterceptorPriority.innerHigh
         #expect(outer > inner)
     }
 
@@ -75,7 +75,7 @@ struct NtkInterceptorPriorityTests {
 
     @Test
     func innerTierHighValueStillBelowStandardLow() {
-        let innerHigh = NtkInterceptorPriority.coreInnerHigh  // inner, 750
+        let innerHigh = NtkInterceptorPriority.innerHigh  // inner, 750
         let standardLow = NtkInterceptorPriority.low          // standard, 250
         #expect(standardLow > innerHigh)
     }
@@ -148,7 +148,7 @@ struct NtkInterceptorPriorityTests {
 swift test --filter NtkInterceptorPriorityTests 2>&1 | tail -20
 ```
 
-Expected: compile error — `coreOuterHighest`, `coreInnerHigh`, `coreInnerLow`, `.tier` do not exist yet.
+Expected: compile error — `outerHighest`, `innerHigh`, `innerLow`, `.tier` do not exist yet.
 
 - [ ] **Step 1.3: Rewrite NtkInterceptorPriority**
 
@@ -189,11 +189,11 @@ public struct NtkInterceptorPriority: Comparable, Sendable {
 
     // ── 框架内部常量 ──
     /// Dedup 使用：最外层
-    static let coreOuterHighest = Self(tier: .outer, value: 1000)
+    static let outerHighest = Self(tier: .outer, value: 1000)
     /// DataParsing 使用：内层高位（通过 package-level `.dataParsing` 暴露给 AlamofireClient）
-    static let coreInnerHigh    = Self(tier: .inner, value: 750)
+    static let innerHigh    = Self(tier: .inner, value: 750)
     /// Cache 使用：内层低位
-    static let coreInnerLow     = Self(tier: .inner, value: 250)
+    static let innerLow     = Self(tier: .inner, value: 250)
 
     /// 数据解析拦截器专用优先级（package 级别，供 AlamofireClient 使用）
     package static let dataParsing = Self(tier: .inner, value: 750)
@@ -281,7 +281,7 @@ In `NtkDeduplicationInterceptor.swift`, add a `priority` property:
 
 ```swift
 struct NtkDeduplicationInterceptor: iNtkInterceptor {
-    var priority: NtkInterceptorPriority { .coreOuterHighest }
+    var priority: NtkInterceptorPriority { .outerHighest }
     // ... existing intercept method unchanged
 }
 ```
@@ -290,7 +290,7 @@ struct NtkDeduplicationInterceptor: iNtkInterceptor {
 
 In `NtkCacheInterceptor.swift`:
 - Remove the `priority` parameter from both `init` overloads
-- Change `public var priority: NtkInterceptorPriority` to be set to `.coreInnerLow` in `init`
+- Change `public var priority: NtkInterceptorPriority` to be set to `.innerLow` in `init`
 
 Result:
 ```swift
@@ -302,13 +302,13 @@ public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
 
     public init(storage: any iNtkCacheStorage) {
         self.storage = storage
-        self.priority = .coreInnerLow
+        self.priority = .innerLow
         self.responseExtractor = Self.defaultResponseExtractor
     }
 
     public init(storage: any iNtkCacheStorage, responseExtractor: @escaping ResponseExtractor) {
         self.storage = storage
-        self.priority = .coreInnerLow
+        self.priority = .innerLow
         self.responseExtractor = responseExtractor
     }
     // ... rest of implementation unchanged
@@ -529,10 +529,10 @@ func tierIsolationEnsuresCoreOrderingIsPreserved() async throws {
     // 无论用户拦截器 value 多高，outer 永远在外，inner 永远在内
     let counter = ChainCallCounter()
 
-    // outer tier (coreOuterHighest = outer/1000)
+    // outer tier (outerHighest = outer/1000)
     let outerCore = ChainTieredInterceptor(
         id: "outerCore",
-        priority: .coreOuterHighest,
+        priority: .outerHighest,
         counter: counter
     )
 
@@ -543,10 +543,10 @@ func tierIsolationEnsuresCoreOrderingIsPreserved() async throws {
         counter: counter
     )
 
-    // inner tier (coreInnerHigh = inner/750)
+    // inner tier (innerHigh = inner/750)
     let innerCore = ChainTieredInterceptor(
         id: "innerCore",
-        priority: .coreInnerHigh,
+        priority: .innerHigh,
         counter: counter
     )
 

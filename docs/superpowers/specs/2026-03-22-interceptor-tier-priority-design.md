@@ -68,11 +68,11 @@ public struct NtkInterceptorPriority: Comparable, Sendable {
 
     // ── 框架内部常量 ──
     /// Dedup 使用：最外层
-    static let coreOuterHighest = Self(tier: .outer, value: 1000)
+    static let outerHighest = Self(tier: .outer, value: 1000)
     /// DataParsing 使用：内层高位
-    static let coreInnerHigh    = Self(tier: .inner, value: 750)
+    static let innerHigh    = Self(tier: .inner, value: 750)
     /// Cache 使用：内层低位
-    static let coreInnerLow     = Self(tier: .inner, value: 250)
+    static let innerLow     = Self(tier: .inner, value: 250)
 
     /// 默认初始化：standard tier，value 750（与原行为一致）
     public init() {
@@ -126,12 +126,12 @@ extension NtkInterceptorPriority {
 
 | 拦截器 | Tier | Value | 链位置 |
 |--------|------|-------|--------|
-| NtkDeduplicationInterceptor | `.outer` | 1000 (coreOuterHighest) | 最外层 |
+| NtkDeduplicationInterceptor | `.outer` | 1000 (outerHighest) | 最外层 |
 | NtkRetryInterceptor | `.standard` | 1000 (.high) | 用户最外 |
 | AFToastInterceptor | `.standard` | 750 (.medium) | 用户中间 |
 | NtkLoadingInterceptor | `.standard` | 750 (.medium) | 用户中间 |
-| DataParsing (AFDataParsingInterceptor 等) | `.inner` | 750 (coreInnerHigh) | 内层外侧 |
-| NtkCacheInterceptor | `.inner` | 250 (coreInnerLow) | 最内层 |
+| DataParsing (AFDataParsingInterceptor 等) | `.inner` | 750 (innerHigh) | 内层外侧 |
+| NtkCacheInterceptor | `.inner` | 250 (innerLow) | 最内层 |
 
 ## NtkNetworkExecutor 改造
 
@@ -209,12 +209,12 @@ func hasCacheData() async -> Bool {
 
 ### NtkCacheInterceptor 改造
 
-`priority` 参数移除，固定为 `.coreInnerLow`，Cache 拦截器必须是最内层，允许用户调整其优先级没有合理的使用场景：
+`priority` 参数移除，固定为 `.innerLow`，Cache 拦截器必须是最内层，允许用户调整其优先级没有合理的使用场景：
 
 ```swift
 public init(storage: any iNtkCacheStorage) {
     self.storage = storage
-    self.priority = .coreInnerLow
+    self.priority = .innerLow
 }
 ```
 
@@ -229,7 +229,7 @@ public struct AFDataParsingInterceptor<...>: iNtkInterceptor {
 }
 ```
 
-由于 `.coreInnerHigh` 是 `internal`，而 `AFDataParsingInterceptor` 在 `AlamofireClient` 模块中，使用 `package` 访问级别暴露专用常量（Swift 5.9+，本项目已使用 swift-tools-version 6.1）。`AlamofireClient` 和 `CooNetwork` 在同一 package 内，`package` 级别对双方可见，但对外部消费者不可见，彻底避免用户复用 inner tier 常量：
+由于 `.innerHigh` 是 `internal`，而 `AFDataParsingInterceptor` 在 `AlamofireClient` 模块中，使用 `package` 访问级别暴露专用常量（Swift 5.9+，本项目已使用 swift-tools-version 6.1）。`AlamofireClient` 和 `CooNetwork` 在同一 package 内，`package` 级别对双方可见，但对外部消费者不可见，彻底避免用户复用 inner tier 常量：
 
 ```swift
 /// 数据解析拦截器专用优先级
@@ -246,8 +246,8 @@ package static let dataParsing = Self(tier: .inner, value: 750)
 | `iNtkInterceptor.swift` | NtkInterceptorPriority 重构（Tier、init 访问控制、运算符） |
 | `NtkNetworkExecutor.swift` | 移除 coreInterceptors，简化 execute/loadCache |
 | `NtkNetwork.swift` | 移除 _coreInterceptors、addCoreInterceptor |
-| `NtkDeduplicationInterceptor.swift` | 添加 `priority: .coreOuterHighest` |
-| `NtkCacheInterceptor.swift` | 移除 `priority` 参数，固定为 `.coreInnerLow` |
+| `NtkDeduplicationInterceptor.swift` | 添加 `priority: .outerHighest` |
+| `NtkCacheInterceptor.swift` | 移除 `priority` 参数，固定为 `.innerLow` |
 | `AFDataParsingInterceptor.swift` | 添加 `priority: .dataParsing` |
 | `AFJsonObjectParsingInterceptor.swift` | 添加 `priority: .dataParsing` |
 

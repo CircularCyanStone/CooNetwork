@@ -18,7 +18,7 @@ public typealias ResponseExtractor = @Sendable (any iNtkResponse) -> Sendable?
 public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
     /// 拦截器优先级
     /// 使用最低优先级（0），确保在所有其他拦截器之后执行
-    public var priority: NtkInterceptorPriority
+    public let priority: NtkInterceptorPriority = .innerLow
 
     /// 缓存存储器
     private let storage: any iNtkCacheStorage
@@ -29,7 +29,6 @@ public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
     /// 默认初始化方法，使用默认的响应提取器
     public init(storage: any iNtkCacheStorage) {
         self.storage = storage
-        self.priority = .coreInnerLow
         self.responseExtractor = Self.defaultResponseExtractor
     }
 
@@ -39,7 +38,6 @@ public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
     ///   - responseExtractor: 自定义的响应提取器闭包
     public init(storage: any iNtkCacheStorage, responseExtractor: @escaping ResponseExtractor) {
         self.storage = storage
-        self.priority = .coreInnerLow
         self.responseExtractor = responseExtractor
     }
 

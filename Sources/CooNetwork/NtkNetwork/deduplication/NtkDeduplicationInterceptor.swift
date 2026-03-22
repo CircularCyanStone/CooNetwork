@@ -9,7 +9,7 @@ import Foundation
 
 struct NtkDeduplicationInterceptor: iNtkInterceptor {
 
-    var priority: NtkInterceptorPriority { .coreOuterHighest }
+    var priority: NtkInterceptorPriority { .outerHighest }
 
     func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
         let response = try await NtkTaskManager.shared.executeWithDeduplication(request: context.mutableRequest) {

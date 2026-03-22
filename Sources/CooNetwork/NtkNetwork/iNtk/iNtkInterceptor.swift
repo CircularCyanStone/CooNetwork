@@ -8,20 +8,40 @@
 import Foundation
 
 /// 拦截器优先级
-/// 使用三层 Tier 结构隔离框架拦截器与用户拦截器的执行顺序
-/// - Tier 比较优先于 value 比较：outer > standard > inner
-/// - Note: 对于请求流：值越大执行越早
-///         对于响应流：值越小执行越早
+///
+/// 使用三层 Tier 结构控制拦截器的执行顺序，构成洋葱模型。
+/// 排序规则：**Tier 优先**，同 Tier 再比 value，降序排列。
+///
+/// ## 执行顺序
+///
+/// Tier 决定层级，同 Tier 内 value 越大越靠外（请求流越先执行，响应流越晚返回）。
+/// 以三层各三个拦截器为例：
+///
+/// **请求流**（由外到内，进入 finalHandler 前）：
+/// ```
+/// outer/1000 → outer/750 → outer/100
+///   → standard/1000 → standard/700 → standard/300
+///     → inner/1000 → inner/600 → inner/200
+///       → finalHandler
+/// ```
+///
+/// **响应流**（由内到外，finalHandler 返回后）：
+/// ```
+/// finalHandler
+///   → inner/200 → inner/600 → inner/1000
+///     → standard/300 → standard/700 → standard/1000
+///       → outer/100 → outer/750 → outer/1000
+/// ```
 public struct NtkInterceptorPriority: Comparable, Sendable {
 
     /// 优先级层级（internal，不暴露给用户）
     /// outer > standard > inner，不同层级之间不可跨越
     enum Tier: Int, Comparable, Sendable {
-        /// 最靠近网络调用的框架拦截器（DataParsing, Cache）
+        /// 请求流中最后执行，响应流中最先返回
         case inner = 0
-        /// 用户级别拦截器（默认）
+        /// 请求流中居中执行，响应流中居中返回
         case standard = 1
-        /// 最外层的框架拦截器（Dedup）
+        /// 请求流中最先执行，响应流中最后返回
         case outer = 2
 
         static func < (lhs: Tier, rhs: Tier) -> Bool {
@@ -41,16 +61,23 @@ public struct NtkInterceptorPriority: Comparable, Sendable {
     public static let medium = Self(tier: .standard, value: 750)
     /// 高优先级（1000）
     public static let high   = Self(tier: .standard, value: 1000)
+    
+    public static let dataParsing = Self(tier: .inner, value: 750)
 
     // ── 框架内部常量 ──
     /// Dedup 使用：最外层
-    static let coreOuterHighest = Self(tier: .outer,    value: 1000)
-    /// DataParsing 使用：内层高位
-    static let coreInnerHigh    = Self(tier: .inner,    value: 750)
-    /// Cache 使用：内层低位
-    static let coreInnerLow     = Self(tier: .inner,    value: 250)
-    /// DataParsing 拦截器跨模块专用（package 级别，AlamofireClient 可见）
-    package static let dataParsing = Self(tier: .inner, value: 750)
+    static let outerHighest = Self(tier: .outer,    value: 1000)
+    /// 外层高位
+    static let outerHigh    = Self(tier: .outer,    value: 750)
+    /// 外层低位
+    static let outerLow     = Self(tier: .outer,    value: 250)
+    
+    /// 最内层
+    static let innerHighest = Self(tier: .inner,    value: 1000)
+    /// 内层高位
+    static let innerHigh    = Self(tier: .inner,    value: 750)
+    /// 内层低位
+    static let innerLow     = Self(tier: .inner,    value: 250)
 
     /// 默认初始化：standard tier，value 750（与原行为一致）
     public init() {
