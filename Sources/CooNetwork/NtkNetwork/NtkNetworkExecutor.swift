@@ -25,7 +25,6 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
         let client: any iNtkClient
         let request: NtkMutableRequest
         let interceptors: [iNtkInterceptor]
-        var coreInterceptors: [iNtkInterceptor]
         let validation: iNtkResponseValidation
         let dataParsingInterceptor: iNtkInterceptor
     }
@@ -53,12 +52,11 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
     func execute() async throws -> NtkResponse<ResponseData> {
         let context = NtkInterceptorContext(mutableRequest: mutableRequest, validation: config.validation, client: config.client)
 
-        // 动态添加核心拦截器
-        var executionCoreInterceptors = config.coreInterceptors
-        executionCoreInterceptors.append(NtkDeduplicationInterceptor())
-        executionCoreInterceptors.append(config.dataParsingInterceptor)
-
-        let allInterceptors = sortInterceptors(config.interceptors + executionCoreInterceptors)
+        // 动态添加核心拦截器（Tier 保证正确排序）
+        var interceptorsToRun = config.interceptors
+        interceptorsToRun.append(NtkDeduplicationInterceptor())
+        interceptorsToRun.append(config.dataParsingInterceptor)
+        let allInterceptors = sortInterceptors(interceptorsToRun)
         
         let realChainManager = NtkInterceptorChainManager(interceptors: allInterceptors) { [weak self] context in
             // 在执行链末端更新请求对象
@@ -83,9 +81,7 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
         }
         let context = NtkInterceptorContext(mutableRequest: mutableRequest, validation: config.validation, client: config.client)
 
-        var executionCoreInterceptors = config.coreInterceptors
-        executionCoreInterceptors.append(config.dataParsingInterceptor)
-        let tmpInterceptors = sortInterceptors(executionCoreInterceptors)
+        let tmpInterceptors = [config.dataParsingInterceptor]
 
         let realChainManager = NtkInterceptorChainManager(interceptors: tmpInterceptors) { [weak self] context in
             self?.mutableRequest = context.mutableRequest
@@ -108,25 +104,7 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
     }
 
     func hasCacheData() async -> Bool where ResponseData == Bool {
-        guard let cacheProvider else {
-            return false
-        }
-        let context = NtkInterceptorContext(mutableRequest: mutableRequest, validation: config.validation, client: config.client)
-
-        let sortedInterceptors = sortInterceptors(config.interceptors)
-
-        let realChainManager = NtkInterceptorChainManager(interceptors: sortedInterceptors) { [weak self] context in
-            self?.mutableRequest = context.mutableRequest
-            let result = await cacheProvider.hasCacheData(for: context.mutableRequest)
-            let response = NtkResponse(code: .init(200), data: result, msg: nil, response: result, request: context.mutableRequest, isCache: true)
-            return response
-        }
-
-        do {
-            let response = try await realChainManager.execute(context: context) as? NtkResponse<Bool>
-            return response?.data ?? false
-        } catch {
-            return false
-        }
+        guard let cacheProvider else { return false }
+        return await cacheProvider.hasCacheData(for: mutableRequest)
     }
 }
