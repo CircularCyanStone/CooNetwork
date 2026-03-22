@@ -22,7 +22,7 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
     /// 执行器配置快照
     /// 由 NtkNetwork 在 getOrCreateExecutor() 时冻结，执行期间不可变
     struct Configuration {
-        let client: any iNtkClient
+        let client: iNtkClient
         let request: NtkMutableRequest
         let interceptors: [iNtkInterceptor]
     }

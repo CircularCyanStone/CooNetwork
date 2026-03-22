@@ -20,7 +20,7 @@ import Foundation
 public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
 
     /// 网络客户端实现
-    private var client: any iNtkClient
+    private var client: iNtkClient
 
     internal var mutableRequest: NtkMutableRequest
 
@@ -56,7 +56,7 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
     ///   - responseParser: 响应解析插件
     ///   - interceptors: 初始拦截器列表
     public required init(
-        _ client: any iNtkClient,
+        _ client: iNtkClient,
         request: iNtkRequest, responseParser: any iNtkResponseParser,
         interceptors: [iNtkInterceptor] = []
     ) {
@@ -77,7 +77,7 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
     ///   - interceptors: 初始拦截器列表
     /// - Returns: 配置好的网络请求管理器实例
     public class func with(
-        _ client: any iNtkClient,
+        _ client: iNtkClient,
         request: iNtkRequest, responseParser: any iNtkResponseParser,
         interceptors: [iNtkInterceptor] = []
     ) -> Self {

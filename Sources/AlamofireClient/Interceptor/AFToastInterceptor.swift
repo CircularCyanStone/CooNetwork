@@ -33,7 +33,7 @@ public struct AFToastInterceptor: iNtkInterceptor {
     }
     
     /// 拦截请求并处理错误 Toast 提示
-    public func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
+    public func intercept(context: NtkInterceptorContext, next: iNtkRequestHandler) async throws -> any iNtkResponse {
         guard let afRequest = context.mutableRequest.originalRequest as? iAFRequest else {
             return try await next.handle(context: context)
         }

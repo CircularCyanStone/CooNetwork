@@ -27,7 +27,7 @@ public struct AFDataParsingInterceptor<ResponseData: Sendable & Decodable, Keys:
     /// 拦截响应并解析原始 Data 为目标类型
     public func intercept(
         context: NtkInterceptorContext,
-        next: any iNtkRequestHandler) async throws -> any iNtkResponse {
+        next: iNtkRequestHandler) async throws -> any iNtkResponse {
         let response = try await next.handle(context: context)
 
         // 如果已经是目标类型，直接返回

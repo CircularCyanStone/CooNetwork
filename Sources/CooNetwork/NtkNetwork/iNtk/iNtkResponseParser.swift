@@ -19,7 +19,7 @@ import Foundation
 /// ```swift
 /// struct MyResponseParser: iNtkResponseParser {
 ///     func intercept(context: NtkInterceptorContext,
-///                    next: any iNtkRequestHandler) async throws -> any iNtkResponse {
+///                    next: iNtkRequestHandler) async throws -> any iNtkResponse {
 ///         let response = try await next.handle(context: context)
 ///         // 解析逻辑...
 ///         return parsedResponse
@@ -39,14 +39,14 @@ public protocol iNtkResponseParser: Sendable {
 /// 将 iNtkResponseParser 包装为 iNtkInterceptor，优先级通过存储常量锁死，不存在覆写路径
 struct NtkResponseParserBox: iNtkInterceptor, Sendable {
     let priority: NtkInterceptorPriority = .innerHigh
-    private let wrapped: any iNtkResponseParser
+    private let wrapped: iNtkResponseParser
 
     init(_ parser: any iNtkResponseParser) {
         self.wrapped = parser
     }
 
     @NtkActor
-    func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
+    func intercept(context: NtkInterceptorContext, next: iNtkRequestHandler) async throws -> any iNtkResponse {
         try await wrapped.intercept(context: context, next: next)
     }
 }

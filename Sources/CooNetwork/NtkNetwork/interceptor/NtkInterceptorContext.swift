@@ -16,12 +16,12 @@ public final class NtkInterceptorContext: Sendable {
     public var mutableRequest: NtkMutableRequest
 
     /// 网络客户端
-    public let client: any iNtkClient
+    public let client: iNtkClient
 
     /// 拦截器间传递的额外数据
     public var extraData: [String: Sendable] = [:]
 
-    init(mutableRequest: NtkMutableRequest, client: any iNtkClient) {
+    init(mutableRequest: NtkMutableRequest, client: iNtkClient) {
         self.mutableRequest = mutableRequest
         self.client = client
     }

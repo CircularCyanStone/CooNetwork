@@ -38,7 +38,7 @@ public struct AFJsonObjectParsingInterceptor<
     }
     
     /// 拦截响应并解析 JSON 字典为目标类型
-    public func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler)
+    public func intercept(context: NtkInterceptorContext, next: iNtkRequestHandler)
         async throws -> any iNtkResponse
     {
         let response = try await next.handle(context: context)

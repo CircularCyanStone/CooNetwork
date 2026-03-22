@@ -21,13 +21,13 @@ public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
     public let priority: NtkInterceptorPriority = .innerLow
 
     /// 缓存存储器
-    private let storage: any iNtkCacheStorage
+    private let storage: iNtkCacheStorage
 
     /// 响应提取器，用于从响应中提取需要缓存的数据
     private let responseExtractor: ResponseExtractor
 
     /// 默认初始化方法，使用默认的响应提取器
-    public init(storage: any iNtkCacheStorage) {
+    public init(storage: iNtkCacheStorage) {
         self.storage = storage
         self.responseExtractor = Self.defaultResponseExtractor
     }
@@ -36,7 +36,7 @@ public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
     /// - Parameters:
     ///   - storage: 缓存存储器
     ///   - responseExtractor: 自定义的响应提取器闭包
-    public init(storage: any iNtkCacheStorage, responseExtractor: @escaping ResponseExtractor) {
+    public init(storage: iNtkCacheStorage, responseExtractor: @escaping ResponseExtractor) {
         self.storage = storage
         self.responseExtractor = responseExtractor
     }
@@ -52,7 +52,7 @@ public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
     ///   - next: 下一个请求处理器
     /// - Returns: 处理后的响应对象
     /// - Throws: 处理过程中的错误
-    public func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
+    public func intercept(context: NtkInterceptorContext, next: iNtkRequestHandler) async throws -> any iNtkResponse {
         let response = try await next.handle(context: context)
         // 能走到这里说明已经通过了NtkValidationInterceptor的校验
         guard let requestPolicy = context.mutableRequest.requestConfiguration else { return response }
