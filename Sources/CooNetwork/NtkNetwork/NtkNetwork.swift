@@ -32,9 +32,6 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
 
     /// 存储所有注册的自定义拦截器
     private var _interceptors: [iNtkInterceptor] = []
-    
-    /// 存储所有核心拦截器
-    private var _coreInterceptors: [iNtkInterceptor] = []
 
     // 注意：由于是 Sendable 类且有可变属性，理论上需要锁保护。
     // 但作为 Builder，通常在单线程构建。
@@ -103,14 +100,7 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
 
 }
 extension NtkNetwork {
-    /// 添加核心拦截器
-    /// - Parameter i: 拦截器实现
-    fileprivate func addCoreInterceptor(_ i: iNtkInterceptor) {
-        lock.withLock {
-            _coreInterceptors.append(i)
-        }
-    }
-    
+
     /// 标记 request() 已消费，若重复调用则抛错并在开发期强提醒
     func markRequestConsumedOrThrow() throws {
         let allowed = lock.withLock {
@@ -170,7 +160,6 @@ extension NtkNetwork {
                 client: client,
                 request: mutableRequest,
                 interceptors: _interceptors,
-                coreInterceptors: _coreInterceptors,
                 validation: validation,
                 dataParsingInterceptor: dataParsingInterceptor
             )
