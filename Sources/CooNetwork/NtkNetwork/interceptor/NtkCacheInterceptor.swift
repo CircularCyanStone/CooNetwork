@@ -27,20 +27,19 @@ public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
     private let responseExtractor: ResponseExtractor
 
     /// 默认初始化方法，使用默认的响应提取器
-    public init(storage: any iNtkCacheStorage, priority: NtkInterceptorPriority = .priority(0)) {
+    public init(storage: any iNtkCacheStorage) {
         self.storage = storage
-        self.priority = priority
+        self.priority = .coreInnerLow
         self.responseExtractor = Self.defaultResponseExtractor
     }
 
     /// 自定义初始化方法，允许传入自定义的响应提取器
     /// - Parameters:
     ///   - storage: 缓存存储器
-    ///   - priority: 拦截器优先级
     ///   - responseExtractor: 自定义的响应提取器闭包
-    public init(storage: any iNtkCacheStorage, priority: NtkInterceptorPriority = .priority(0), responseExtractor: @escaping ResponseExtractor) {
+    public init(storage: any iNtkCacheStorage, responseExtractor: @escaping ResponseExtractor) {
         self.storage = storage
-        self.priority = priority
+        self.priority = .coreInnerLow
         self.responseExtractor = responseExtractor
     }
 

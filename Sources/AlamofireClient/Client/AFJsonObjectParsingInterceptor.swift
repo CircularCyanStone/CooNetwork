@@ -24,7 +24,9 @@ public struct AFJsonObjectParsingInterceptor<
     ResponseData: Sendable,
     Keys: iNtkResponseMapKeys
 >: iNtkInterceptor {
-    
+
+    public var priority: NtkInterceptorPriority { .dataParsing }
+
     /// AFJsonObjectParsingInterceptor默认只处理标准的{code, data, msg}格式的json。
     /// 对于非标准的json，该属性用于自定义的前置处理。
     /// 统一为标准json格式后，方可继续使用handleNormal方法处理。

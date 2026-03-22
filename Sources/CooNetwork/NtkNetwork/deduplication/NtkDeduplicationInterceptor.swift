@@ -9,6 +9,8 @@ import Foundation
 
 struct NtkDeduplicationInterceptor: iNtkInterceptor {
 
+    var priority: NtkInterceptorPriority { .coreOuterHighest }
+
     func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
         let response = try await NtkTaskManager.shared.executeWithDeduplication(request: context.mutableRequest) {
             let response = try await next.handle(context: context)
