@@ -53,7 +53,7 @@ public final class AFClient: iNtkClient {
         let finalRequestModifier = createRequestModifier(for: ntkRequest)
 
         // 检查任务取消
-        try Task.checkCancellation()
+        if Task.isCancelled { throw NtkError.requestCancelled }
 
         // 创建请求任务
         var afRequest: DataRequest
