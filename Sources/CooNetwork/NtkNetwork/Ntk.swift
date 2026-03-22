@@ -32,11 +32,11 @@ public final class Ntk<ResponseData: Sendable> {
         }
 
         var interceptors: [iNtkInterceptor] = []
-        if let storage = cacheStorage, request.requestConfiguration != nil {
-            interceptors.append(NtkCacheSaveInterceptor(storage: storage))
+        if let storage = cacheStorage {
+            interceptors.append(NtkCacheInterceptor(storage: storage))
         }
 
-        let net = NtkNetwork<ResponseData>.with(client, cacheStorage: cacheStorage, request: request, dataParsingInterceptor: dataParsingInterceptor, validation: _validation, interceptors: interceptors)
+        let net = NtkNetwork<ResponseData>.with(client, request: request, dataParsingInterceptor: dataParsingInterceptor, validation: _validation, interceptors: interceptors)
         return net
     }
 

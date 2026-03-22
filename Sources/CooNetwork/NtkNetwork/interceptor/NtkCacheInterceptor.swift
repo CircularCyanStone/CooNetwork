@@ -14,7 +14,8 @@ public typealias ResponseExtractor = @Sendable (any iNtkResponse) -> Sendable?
 
 /// 默认缓存拦截器实现
 /// 提供基础的响应缓存功能，支持自定义缓存策略
-public struct NtkCacheSaveInterceptor: iNtkInterceptor {
+/// 同时遵循 iNtkCacheProvider，使 executor 可通过协议发现获取缓存读取能力
+public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
     /// 拦截器优先级
     /// 使用最低优先级（0），确保在所有其他拦截器之后执行
     public var priority: NtkInterceptorPriority
@@ -67,5 +68,17 @@ public struct NtkCacheSaveInterceptor: iNtkInterceptor {
             }
         }
         return response
+    }
+
+    // MARK: - iNtkCacheProvider
+
+    public func loadCacheData(for request: NtkMutableRequest) async throws -> (any Sendable)? {
+        let cache = NtkNetworkCache(storage: storage)
+        return try await cache.loadData(for: request)
+    }
+
+    public func hasCacheData(for request: NtkMutableRequest) async -> Bool {
+        let cache = NtkNetworkCache(storage: storage)
+        return await cache.hasData(for: request)
     }
 }

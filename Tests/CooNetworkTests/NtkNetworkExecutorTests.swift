@@ -27,7 +27,6 @@ struct NtkNetworkExecutorTests {
         request.responseType = String(describing: Bool.self)
         let config = NtkNetworkExecutor<Bool>.Configuration(
             client: ExecMockClient(result: .failure(NtkError.requestTimeout)),
-            cacheStorage: nil,
             request: request,
             interceptors: [],
             coreInterceptors: [],
@@ -56,7 +55,6 @@ struct NtkNetworkExecutorTests {
         request.responseType = String(describing: Bool.self)
         let config = NtkNetworkExecutor<Bool>.Configuration(
             client: ExecMockClient(result: .success(())),
-            cacheStorage: nil,
             request: request,
             interceptors: [lowPriority],
             coreInterceptors: [highPriority],
@@ -78,7 +76,7 @@ struct NtkNetworkExecutorTests {
         let storage = ExecMockCacheStorage(cacheData: true, hasCacheResult: false)
         let executor = makeExecutor(
             client: ExecMockClient(result: .success(())),
-            cacheStorage: storage,
+            cacheInterceptor: NtkCacheInterceptor(storage: storage),
             parsingInterceptor: ExecMockParsingInterceptor()
         )
         let response = try await executor.loadCache()
@@ -94,7 +92,7 @@ struct NtkNetworkExecutorTests {
         let storage = ExecMockCacheStorage(cacheData: nil, hasCacheResult: false)
         let executor = makeExecutor(
             client: ExecMockClient(result: .success(())),
-            cacheStorage: storage,
+            cacheInterceptor: NtkCacheInterceptor(storage: storage),
             parsingInterceptor: ExecMockParsingInterceptor()
         )
         let response = try await executor.loadCache()
@@ -108,7 +106,6 @@ struct NtkNetworkExecutorTests {
     func loadCacheReturnsNilWithoutCacheStorage() async throws {
         let executor = makeExecutor(
             client: ExecMockClient(result: .success(())),
-            cacheStorage: nil,
             parsingInterceptor: ExecMockParsingInterceptor()
         )
         let response = try await executor.loadCache()
@@ -123,7 +120,7 @@ struct NtkNetworkExecutorTests {
         let storage = ExecMockCacheStorage(cacheData: nil, hasCacheResult: true)
         let executor = makeBoolExecutor(
             client: ExecMockClient(result: .success(())),
-            cacheStorage: storage
+            cacheInterceptor: NtkCacheInterceptor(storage: storage)
         )
         let result = await executor.hasCacheData()
         #expect(result == true)
@@ -133,8 +130,7 @@ struct NtkNetworkExecutorTests {
     @NtkActor
     func hasCacheDataReturnsFalseWithoutCacheStorage() async throws {
         let executor = makeBoolExecutor(
-            client: ExecMockClient(result: .success(())),
-            cacheStorage: nil
+            client: ExecMockClient(result: .success(()))
         )
         let result = await executor.hasCacheData()
         #expect(result == false)
@@ -146,16 +142,17 @@ struct NtkNetworkExecutorTests {
 @NtkActor
 private func makeExecutor(
     client: ExecMockClient,
-    cacheStorage: (any iNtkCacheStorage)? = nil,
+    cacheInterceptor: NtkCacheInterceptor? = nil,
     parsingInterceptor: iNtkInterceptor
 ) -> NtkNetworkExecutor<Bool> {
     var request = NtkMutableRequest(ExecDummyRequest())
     request.responseType = String(describing: Bool.self)
+    var interceptors: [iNtkInterceptor] = []
+    if let cacheInterceptor { interceptors.append(cacheInterceptor) }
     let config = NtkNetworkExecutor<Bool>.Configuration(
         client: client,
-        cacheStorage: cacheStorage,
         request: request,
-        interceptors: [],
+        interceptors: interceptors,
         coreInterceptors: [],
         validation: ExecDummyValidation(),
         dataParsingInterceptor: parsingInterceptor
@@ -166,15 +163,16 @@ private func makeExecutor(
 @NtkActor
 private func makeBoolExecutor(
     client: ExecMockClient,
-    cacheStorage: (any iNtkCacheStorage)? = nil
+    cacheInterceptor: NtkCacheInterceptor? = nil
 ) -> NtkNetworkExecutor<Bool> {
     var request = NtkMutableRequest(ExecDummyRequest())
     request.responseType = String(describing: Bool.self)
+    var interceptors: [iNtkInterceptor] = []
+    if let cacheInterceptor { interceptors.append(cacheInterceptor) }
     let config = NtkNetworkExecutor<Bool>.Configuration(
         client: client,
-        cacheStorage: cacheStorage,
         request: request,
-        interceptors: [],
+        interceptors: interceptors,
         coreInterceptors: [],
         validation: ExecDummyValidation(),
         dataParsingInterceptor: ExecMockParsingInterceptor()

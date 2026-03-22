@@ -116,12 +116,16 @@ private func makeNetwork(
     client: IntegMockClient,
     cacheStorage: IntegMockCacheStorage? = nil
 ) -> NtkNetwork<Bool> {
-    NtkNetwork<Bool>.with(
+    var interceptors: [iNtkInterceptor] = []
+    if let cacheStorage {
+        interceptors.append(NtkCacheInterceptor(storage: cacheStorage))
+    }
+    return NtkNetwork<Bool>.with(
         client,
-        cacheStorage: cacheStorage,
         request: IntegDummyRequest(),
         dataParsingInterceptor: IntegMockParsingInterceptor(),
-        validation: IntegDummyValidation()
+        validation: IntegDummyValidation(),
+        interceptors: interceptors
     )
 }
 
