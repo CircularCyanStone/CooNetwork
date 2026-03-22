@@ -167,7 +167,7 @@ class MemoryMonitor {
 
         let before = measurements.first!
         let after = measurements.last!
-        let delta = after.memoryUsage - before.memoryUsage
+        let delta = Int64(after.memoryUsage) - Int64(before.memoryUsage)
         let percentage = before.memoryUsage > 0 ? Double(delta) / Double(before.memoryUsage) * 100 : 0
 
         return MemoryComparison(
@@ -182,7 +182,7 @@ class MemoryMonitor {
     }
 
     struct MemoryComparison {
-        let delta: UInt64
+        let delta: Int64
         let increased: Bool
         let percentage: Double
 
