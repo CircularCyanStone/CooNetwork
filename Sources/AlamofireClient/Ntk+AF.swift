@@ -26,22 +26,16 @@ public extension Ntk {
     /// - Parameters:
     ///   - request: AF请求对象
     ///   - responseParser: 响应解析器，默认为 AFDataParsingInterceptor
-    ///   - validation: 响应校验器，默认为 nil (使用默认校验逻辑)
     ///   - cacheStorage: 缓存存储策略，默认为 nil（不缓存）
     /// - Returns: 配置好的网络请求管理器
     nonisolated
     static func withAF(
         _ request: iAFRequest,
-        responseParser: any iNtkResponseParser = AFDataParsingInterceptor<ResponseData, AFResponseMapKeys>(),
         validation: iNtkResponseValidation = AFDefaultResponseValidation(),
+        responseParser: iNtkResponseParser?,
         storage: iNtkCacheStorage? = nil
     ) -> NtkNetwork<ResponseData> where ResponseData: Decodable {
-        let client = AFClient()
-        let net = with(client, request: request, responseParser: responseParser, validation: validation, cacheStorage: storage)
-        if request is iAFUploadRequest {
-            net.disableDeduplication()
-        }
-        return net
+        return Ntk.withAF(request, keys: AFResponseMapKeys.self, responseParser: responseParser, storage: storage)
     }
 
     /// 创建AF网络请求（使用自定义 Keys 映射）
@@ -49,19 +43,22 @@ public extension Ntk {
     ///   - request: AF请求对象
     ///   - keys: 响应字段映射类型
     ///   - responseParser: 响应解析器
-    ///   - validation: 响应校验器
     ///   - cacheStorage: 缓存存储策略
     /// - Returns: 配置好的网络请求管理器
     nonisolated
     static func withAF<Keys: iNtkResponseMapKeys>(
         _ request: iAFRequest,
         keys: Keys.Type,
-        responseParser: any iNtkResponseParser = AFDataParsingInterceptor<ResponseData, Keys>(),
         validation: iNtkResponseValidation = AFDefaultResponseValidation(),
+        responseParser: iNtkResponseParser? = nil,
         storage: iNtkCacheStorage? = nil
     ) -> NtkNetwork<ResponseData> where ResponseData: Decodable {
         let client = AFClient()
-        let net = with(client, request: request, responseParser: responseParser, validation: validation, cacheStorage: storage)
+        var _responseParser = responseParser
+        if _responseParser == nil {
+            _responseParser = AFDataParsingInterceptor<ResponseData, Keys>(validation:validation)
+        }
+        let net = with(client, request: request, responseParser: _responseParser!, cacheStorage: storage)
         if request is iAFUploadRequest {
             net.disableDeduplication()
         }

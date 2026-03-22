@@ -17,8 +17,12 @@ import Alamofire
 /// 结合 TFNDataParsingInterceptor 的直解优点与 AF 响应校验/键映射能力
 public struct AFDataParsingInterceptor<ResponseData: Sendable & Decodable, Keys: iNtkResponseMapKeys>: iNtkResponseParser {
 
+    public let validation: iNtkResponseValidation
+
     /// 初始化 Data 解析拦截器
-    public init() {}
+    public init(validation: iNtkResponseValidation) {
+        self.validation = validation
+    }
 
     /// 拦截响应并解析原始 Data 为目标类型
     public func intercept(
@@ -38,6 +42,10 @@ public struct AFDataParsingInterceptor<ResponseData: Sendable & Decodable, Keys:
         guard let afRequest = context.mutableRequest.originalRequest as? iAFRequest else {
             fatalError("request must be iAFRequest type")
         }
+
+        // per-request validation 覆写：若 request 自身实现了 iNtkResponseValidation，优先使用
+        let effectiveValidation: iNtkResponseValidation =
+            (context.mutableRequest.originalRequest as? iNtkResponseValidation) ?? validation
 
         // 兼容两种携带位置：优先使用 response，其次使用 data
         let rawData: Data
@@ -88,7 +96,7 @@ public struct AFDataParsingInterceptor<ResponseData: Sendable & Decodable, Keys:
                     request: afRequest,
                     isCache: clientResponse.isCache
                 )
-                try validate(fixResponse, request: afRequest, validation: context.validation)
+                try validate(fixResponse, request: afRequest, validation: effectiveValidation)
                 return fixResponse
             }
 
@@ -104,7 +112,7 @@ public struct AFDataParsingInterceptor<ResponseData: Sendable & Decodable, Keys:
                     isCache: clientResponse.isCache
                 )
                 // 校验不通过直接抛 validation 错误
-                try validate(optionalResponse, request: afRequest, validation: context.validation)
+                try validate(optionalResponse, request: afRequest, validation: effectiveValidation)
                 
                 // 校验通过但没有数据，抛出数据为空错误
                 throw NtkError.serviceDataEmpty
@@ -119,7 +127,7 @@ public struct AFDataParsingInterceptor<ResponseData: Sendable & Decodable, Keys:
                 request: afRequest,
                 isCache: clientResponse.isCache
             )
-            try validate(fixResponse, request: afRequest, validation: context.validation)
+            try validate(fixResponse, request: afRequest, validation: effectiveValidation)
             return fixResponse
         } catch let error as DecodingError {
             // 字段解析错误

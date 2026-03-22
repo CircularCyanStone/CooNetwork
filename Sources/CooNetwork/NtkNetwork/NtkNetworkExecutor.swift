@@ -25,7 +25,6 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
         let client: any iNtkClient
         let request: NtkMutableRequest
         let interceptors: [iNtkInterceptor]
-        let validation: iNtkResponseValidation
     }
 
     private let config: Configuration
@@ -49,7 +48,7 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
     // MARK: - Core Execution
 
     func execute() async throws -> NtkResponse<ResponseData> {
-        let context = NtkInterceptorContext(mutableRequest: mutableRequest, validation: config.validation, client: config.client)
+        let context = NtkInterceptorContext(mutableRequest: mutableRequest, client: config.client)
 
         // 动态添加核心拦截器（Tier 保证正确排序）
         var interceptorsToRun = config.interceptors
@@ -77,7 +76,7 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
         guard let cacheProvider else {
             return nil
         }
-        let context = NtkInterceptorContext(mutableRequest: mutableRequest, validation: config.validation, client: config.client)
+        let context = NtkInterceptorContext(mutableRequest: mutableRequest, client: config.client)
 
         let tmpInterceptors = config.interceptors.filter { $0 is NtkResponseParserBox }
 

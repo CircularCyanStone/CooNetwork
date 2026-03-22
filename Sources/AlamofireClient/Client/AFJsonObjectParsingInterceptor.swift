@@ -29,9 +29,12 @@ public struct AFJsonObjectParsingInterceptor<
     /// 对于非标准的json，该属性用于自定义的前置处理。
     /// 统一为标准json格式后，方可继续使用handleNormal方法处理。
     let customHandler: AFJsonObjectParsingCustomHander?
-    
-    init(customHandler: AFJsonObjectParsingCustomHander? = nil) {
+
+    public let validation: iNtkResponseValidation
+
+    init(customHandler: AFJsonObjectParsingCustomHander? = nil, validation: iNtkResponseValidation = AFDefaultResponseValidation()) {
         self.customHandler = customHandler
+        self.validation = validation
     }
     
     /// 拦截响应并解析 JSON 字典为目标类型
@@ -52,6 +55,10 @@ public struct AFJsonObjectParsingInterceptor<
             fatalError("request must be iAFRequest type")
         }
 
+        // per-request validation 覆写：若 request 自身实现了 iNtkResponseValidation，优先使用
+        let effectiveValidation: iNtkResponseValidation =
+            (context.mutableRequest.originalRequest as? iNtkResponseValidation) ?? validation
+
         guard
             let sendableResponse = clientResponse.response
                 as? [String: Sendable]
@@ -65,7 +72,7 @@ public struct AFJsonObjectParsingInterceptor<
                 customResponse,
                 response: &clientResponse,
                 request: afRequest,
-                validation: context.validation
+                validation: effectiveValidation
             )
         }
         
@@ -73,7 +80,7 @@ public struct AFJsonObjectParsingInterceptor<
             sendableResponse,
             response: &clientResponse,
             request: afRequest,
-            validation: context.validation
+            validation: effectiveValidation
         )
     }
 }

@@ -24,9 +24,6 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
 
     internal var mutableRequest: NtkMutableRequest
 
-    /// 响应验证器
-    private var validation: iNtkResponseValidation?
-
     /// 存储所有注册的自定义拦截器
     private var _interceptors: [iNtkInterceptor] = []
 
@@ -57,12 +54,11 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
     ///   - client: 网络客户端实现
     ///   - request: 网络请求对象
     ///   - responseParser: 响应解析插件
-    ///   - validation: 响应验证器
     ///   - interceptors: 初始拦截器列表
     public required init(
         _ client: any iNtkClient,
         request: iNtkRequest, responseParser: any iNtkResponseParser,
-        validation: iNtkResponseValidation, interceptors: [iNtkInterceptor] = []
+        interceptors: [iNtkInterceptor] = []
     ) {
         self.client = client
         self.mutableRequest = NtkMutableRequest(request)
@@ -70,7 +66,6 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
         self.mutableRequest.responseType = String(describing: ResponseData.self)
         // 创建取消状态引用
         self.mutableRequest.isCancelledRef = NtkCancellableState()
-        self.validation = validation
         self._interceptors = [NtkResponseParserBox(responseParser)] + interceptors
     }
 
@@ -79,18 +74,17 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
     ///   - client: 网络客户端实现
     ///   - request: 网络请求对象
     ///   - responseParser: 响应解析插件
-    ///   - validation: 响应验证器
     ///   - interceptors: 初始拦截器列表
     /// - Returns: 配置好的网络请求管理器实例
     public class func with(
         _ client: any iNtkClient,
         request: iNtkRequest, responseParser: any iNtkResponseParser,
-        validation: iNtkResponseValidation, interceptors: [iNtkInterceptor] = []
+        interceptors: [iNtkInterceptor] = []
     ) -> Self {
         let net = self.init(
             client, request: request,
             responseParser: responseParser,
-            validation: validation, interceptors: interceptors)
+            interceptors: interceptors)
         return net
     }
 
@@ -147,16 +141,10 @@ extension NtkNetwork {
             if let existing = _executor {
                 return existing
             }
-            guard let validation else {
-                fatalError(
-                    "iNtkResponseValidation must not be nil, you should call method 'func validation(_ validation: iNtkResponseValidation) -> Self' first"
-                )
-            }
             let config = NtkNetworkExecutor<ResponseData>.Configuration(
                 client: client,
                 request: mutableRequest,
-                interceptors: _interceptors,
-                validation: validation
+                interceptors: _interceptors
             )
             let executor = NtkNetworkExecutor<ResponseData>(config: config)
             _executor = executor
@@ -175,16 +163,6 @@ extension NtkNetwork {
         return self
     }
 
-    /// 设置响应验证器
-    /// - Parameter validation: 响应验证实现
-    /// - Returns: 当前实例，支持链式调用
-    @discardableResult
-    public func validation(_ validation: iNtkResponseValidation) -> Self {
-        lock.withLock {
-            self.validation = validation
-        }
-        return self
-    }
 
     /// 取消当前请求
     public func cancel() async {

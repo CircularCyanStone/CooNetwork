@@ -27,8 +27,12 @@ import Foundation
 /// }
 /// ```
 public protocol iNtkResponseParser: Sendable {
+    /// 响应验证器
+    /// parser 持有自己的 validation，无需通过 context 传递
+    var validation: iNtkResponseValidation { get }
+
     @NtkActor
-    func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse
+    func intercept(context: NtkInterceptorContext, next: iNtkRequestHandler) async throws -> any iNtkResponse
 }
 
 /// 响应解析器包装器（框架内部使用）
