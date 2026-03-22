@@ -275,7 +275,9 @@ struct IPv6Request: iAFRequest {
     }
 }
 
-struct IPv6ParsingInterceptor: iNtkInterceptor {
+struct IPv6ParsingInterceptor: iNtkResponseParser {
+
+    var validation: iNtkResponseValidation { IPv6Validation() }
 
     func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
         let response = try await next.handle(context: context)
@@ -336,8 +338,8 @@ func testIPv6() {
         do {
             let result1 = try await NtkAF<IPv6Response>.withAF(
                 req1,
-                dataParsingInterceptor: IPv6ParsingInterceptor(),
-                validation: IPv6Validation()
+                validation: IPv6Validation(),
+                responseParser: IPv6ParsingInterceptor()
             ).request()
             print("✅ IPv4 Result: IP=\(result1.data.ip), Type=\(result1.data.type)")
         } catch {
@@ -351,8 +353,8 @@ func testIPv6() {
         do {
             let result2 = try await NtkAF<IPv6Response>.withAF(
                 req2,
-                dataParsingInterceptor: IPv6ParsingInterceptor(),
-                validation: IPv6Validation()
+                validation: IPv6Validation(),
+                responseParser: IPv6ParsingInterceptor()
             ).request()
             print("✅ IPv6 Result: IP=\(result2.data.ip), Type=\(result2.data.type)")
         } catch {

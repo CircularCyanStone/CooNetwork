@@ -124,7 +124,9 @@ struct StandardValidation: iNtkResponseValidation {
 /// 直接解析响应数据的拦截器
 /// 适用于 JSONPlaceholder、HTTPBin 等直接返回 JSON 数据的 API
 /// 不期望 `{code, data, msg}` 格式的包装结构
-struct DirectDataParsingInterceptor<ResponseData: Decodable & Sendable>: iNtkInterceptor {
+struct DirectDataParsingInterceptor<ResponseData: Decodable & Sendable>: iNtkResponseParser {
+
+    var validation: iNtkResponseValidation { StandardValidation() }
 
     func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
         let response = try await next.handle(context: context)

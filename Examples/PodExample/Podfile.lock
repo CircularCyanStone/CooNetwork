@@ -1,11 +1,11 @@
 PODS:
   - Alamofire (5.11.0)
-  - CooNetwork (0.0.9):
-    - CooNetwork/Core (= 0.0.9)
-  - CooNetwork/Alamofire (0.0.9):
+  - CooNetwork (0.0.10):
+    - CooNetwork/Core (= 0.0.10)
+  - CooNetwork/Alamofire (0.0.10):
     - Alamofire (~> 5.10)
     - CooNetwork/Core
-  - CooNetwork/Core (0.0.9)
+  - CooNetwork/Core (0.0.10)
 
 DEPENDENCIES:
   - CooNetwork (from `../../`)
@@ -21,7 +21,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   Alamofire: bd5e7b23a1a750975288482c1831d71e74415f86
-  CooNetwork: 8df7aecb6feb9f9bbf4ba304c64c9d0a47858ce4
+  CooNetwork: 7d3c9de49b311c5cf9e245ff1c51fe7bb6aa1f4f
 
 PODFILE CHECKSUM: b26a1f07c583955e93c066b93e4ef01f47869d2d
 

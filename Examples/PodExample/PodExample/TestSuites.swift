@@ -27,8 +27,8 @@ func testT1_BasicRequest() -> TestSuite {
         do {
             let result = try await NtkAF<Post>.withAF(
                 request,
-                dataParsingInterceptor: DirectDataParsingInterceptor<Post>(),
-                validation: StandardValidation()
+                validation: StandardValidation(),
+                responseParser: DirectDataParsingInterceptor<Post>()
             ).request()
 
             let duration = Date().timeIntervalSince(startTime)
@@ -88,7 +88,7 @@ func testT2_NewAPITest() -> TestSuite {
         do {
             let response = try await NtkAF<Post>.withAF(
                 request,
-                dataParsingInterceptor: DirectDataParsingInterceptor<Post>()
+                responseParser: DirectDataParsingInterceptor<Post>()
             ).request()
 
             let duration = Date().timeIntervalSince(startTime)
@@ -144,8 +144,8 @@ func testT3_LoggingTest() -> TestSuite {
 
             let _ = try await NtkAF<HttpBinResponse>.withAF(
                 request,
-                dataParsingInterceptor: DirectDataParsingInterceptor<HttpBinResponse>(),
-                validation: StandardValidation()
+                validation: StandardValidation(),
+                responseParser: DirectDataParsingInterceptor<HttpBinResponse>()
             ).request()
 
             let duration = Date().timeIntervalSince(startTime)
@@ -210,8 +210,8 @@ func testT4_DeduplicationTest() -> TestSuite {
                         do {
                             let result = try await NtkAF<[Post]>.withAF(
                                 request,
-                                dataParsingInterceptor: DirectDataParsingInterceptor<[Post]>(),
-                                validation: StandardValidation()
+                                validation: StandardValidation(),
+                                responseParser: DirectDataParsingInterceptor<[Post]>()
                             ).request()
                             return .success(result.data)
                         } catch {
@@ -313,8 +313,8 @@ func testT5_CacheTest() -> TestSuite {
             // 第一次请求（缓存未命中）
             let result1 = try await NtkAF<Post>.withAF(
                 request,
-                dataParsingInterceptor: DirectDataParsingInterceptor<Post>(),
-                validation: StandardValidation()
+                validation: StandardValidation(),
+                responseParser: DirectDataParsingInterceptor<Post>()
             ).request()
 
             if result1.isCache { cacheHits += 1 } else { cacheMisses += 1 }
@@ -322,8 +322,8 @@ func testT5_CacheTest() -> TestSuite {
             // 第二次请求（缓存命中）
             let result2 = try await NtkAF<Post>.withAF(
                 request,
-                dataParsingInterceptor: DirectDataParsingInterceptor<Post>(),
-                validation: StandardValidation()
+                validation: StandardValidation(),
+                responseParser: DirectDataParsingInterceptor<Post>()
             ).request()
 
             if result2.isCache { cacheHits += 1 } else { cacheMisses += 1 }
@@ -384,8 +384,8 @@ func testT6_RetryTest() -> TestSuite {
 
             let _ = try await NtkAF<HttpBinResponse>.withAF(
                 request,
-                dataParsingInterceptor: DirectDataParsingInterceptor<HttpBinResponse>(),
-                validation: StandardValidation()
+                validation: StandardValidation(),
+                responseParser: DirectDataParsingInterceptor<HttpBinResponse>()
             ).request()
 
             let duration = Date().timeIntervalSince(startTime)
@@ -438,8 +438,8 @@ func testT7_ConcurrencyTest() -> TestSuite {
                             )
                             let result = try await NtkAF<Post>.withAF(
                                 request,
-                                dataParsingInterceptor: DirectDataParsingInterceptor<Post>(),
-                                validation: StandardValidation()
+                                validation: StandardValidation(),
+                                responseParser: DirectDataParsingInterceptor<Post>()
                             ).request()
                             return .success(result.data)
                         } catch {
@@ -521,8 +521,8 @@ func testT8_MemoryLeakTest() -> TestSuite {
                 let task = Task {
                     _ = try? await NtkAF<HttpBinResponse>.withAF(
                         request,
-                        dataParsingInterceptor: DirectDataParsingInterceptor<HttpBinResponse>(),
-                        validation: StandardValidation()
+                        validation: StandardValidation(),
+                        responseParser: DirectDataParsingInterceptor<HttpBinResponse>()
                     ).request()
                 }
 

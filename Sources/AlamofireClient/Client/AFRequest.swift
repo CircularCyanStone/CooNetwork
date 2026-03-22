@@ -65,6 +65,7 @@ public protocol iAFRequest: iNtkRequest, iAFRequestToast {
     /// 支持AF Request 类型的链式调用，用于配置请求
     func chainConfigureAFRequest(for request: DataRequest) -> DataRequest
 
+
     // MARK: - 响应序列化配置
 
     /// 配置响应序列化，用于构建最终的Data类型的请求任务
@@ -123,7 +124,7 @@ extension iAFRequest  {
         return nil
     }
 
-    func chainConfigureAFRequest(for request: DataRequest) -> DataRequest {
+    public func chainConfigureAFRequest(for request: DataRequest) -> DataRequest {
         request
     }
     // MARK: - 响应序列化默认实现
