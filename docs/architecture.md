@@ -17,7 +17,17 @@
 
 ## 拦截器优先级
 
-高优先级 (1000) 先执行请求流 / 后执行响应流，中等 (750) 默认，低 (250) 反之。统一使用 `NtkInterceptorPriority` 结构体。
+使用三层 Tier 结构（`outer` > `standard` > `inner`）控制拦截器执行顺序，构成洋葱模型。同 Tier 内再比 value（降序）。统一使用 `NtkInterceptorPriority` 结构体。
+
+- **outer tier**：最外层，请求流最先执行，响应流最晚返回。框架专用（Dedup 用 `outerHighest`）。
+- **standard tier**：业务拦截器默认层级，暴露 `low(250)` / `medium(750)` / `high(1000)` 给用户使用。
+- **inner tier**：最内层，请求流最晚执行，响应流最先返回。框架专用（ResponseParser 用 `innerHigh`，CacheInterceptor 用 `innerLow`）。
+
+业务拦截器只应使用 `standard` tier 的常量（`.low` / `.medium` / `.high`），`outer`/`inner` 为框架内部保留。
+
+## iNtkResponseParser 协议
+
+响应解析与拦截器解耦：`iNtkResponseParser` 不直接实现 `iNtkInterceptor`，由框架通过 `NtkResponseParserBox` 包装为优先级锁定为 `innerHigh` 的拦截器注入链中。实现者无需也无法干预优先级。
 
 ## fatalError 策略
 

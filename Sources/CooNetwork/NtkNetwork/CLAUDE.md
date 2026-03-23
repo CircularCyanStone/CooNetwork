@@ -12,15 +12,15 @@ CooNetwork 核心模块。
 
 ## 核心类型
 
-- `NtkNetwork` - 请求管理器（配置层）
-- `NtkNetworkExecutor` - 请求执行器（执行层）
+- `NtkNetwork` - 请求管理器（配置层，`@unchecked Sendable`）
+- `NtkNetworkExecutor` - 请求执行器（执行层，`@NtkActor`）
 - `Ntk` - 便捷入口点
 
 ## 子模块
 
-- `iNtk/` - 核心协议定义
+- `iNtk/` - 核心协议定义（含 `iNtkDecoderBuilding`、`iNtkParsingHooks`、`iNtkCacheProvider`、`iNtkResponseParser`）
 - `model/` - 数据模型
-- `interceptor/` - 拦截器基础设施
+- `interceptor/` - 拦截器基础设施（含 `NtkDataParsingInterceptor`、`NtkCacheInterceptor`）
 - `cache/` - 缓存系统
 - `retry/` - 重试机制
 - `deduplication/` - 去重机制

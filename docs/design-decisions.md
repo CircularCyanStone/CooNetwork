@@ -16,6 +16,9 @@
 
 ## 架构模式
 
+- **拦截器三层 Tier 优先级（outer / standard / inner）** — 框架核心逻辑（Dedup、ResponseParser、Cache）需要与业务拦截器严格隔离，不能依赖 value 数值约定；三层 Tier 在编译期区分身份，业务层只能使用 `standard`，框架层使用 `outer`/`inner`，任何越界一看即知
+- **iNtkResponseParser 与 iNtkInterceptor 解耦** — 解析器是框架感知的核心组件，优先级必须由框架控制（`innerHigh`）；若直接实现 `iNtkInterceptor`，使用者可任意覆写 priority，破坏执行顺序保证；通过 `NtkResponseParserBox` 包装后优先级锁死，实现者无需也无法干预
+- **NtkDataParsingInterceptor 位于 CooNetwork 而非 AlamofireClient** — 解析逻辑（iNtkDecoderBuilding 策略 + iNtkParsingHooks 钩子）与具体网络库无关；放在核心层让非 AF 客户端（如 mPaaS）也可复用，只需提供自定义 builder
 - **AFClient 依赖 Alamofire 类型** — 适配器模式的正确应用，`iNtkClient` 协议是抽象层，AFClient 负责翻译为具体调用，再加一层才是过度抽象
 - **NtkError.AF 嵌套枚举** — Swift enum 无法在 extension 中加 case，嵌套枚举让每个 client 有独立错误空间，是多来源错误的标准模式
 - **NtkNetworkExecutor 三个方法的拦截器链构建"重复"** — 组合策略和错误处理完全不同，仅排序逻辑重复（已提取为 `sortInterceptors`），强行统一降低可读性

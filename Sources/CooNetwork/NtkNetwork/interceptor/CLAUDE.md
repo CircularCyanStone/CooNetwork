@@ -10,4 +10,6 @@
 
 - `NtkInterceptorChainManager` - 拦截器链管理器
 - `NtkInterceptorContext` - 请求上下文
-- `iNtkRequestHandler` - 请求处理器协议
+- `NtkRequestHandler` - 请求处理器协议实现
+- `NtkDataParsingInterceptor` - 通用响应解析拦截器，实现 `iNtkResponseParser`，支持多数据源（通过 `iNtkDecoderBuilding` 适配）
+- `NtkCacheInterceptor` - 缓存拦截器，同时遵循 `iNtkCacheProvider`，优先级为 `innerLow`
