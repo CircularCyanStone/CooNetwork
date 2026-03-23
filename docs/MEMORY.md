@@ -27,7 +27,7 @@
 - **结论**: 仅 3 处（NtkUnfairLock、NtkNetwork、NtkCancellableState），均通过内部锁保证线程安全，每处都有必要，无需修改
 
 ### 6. 文档不完整 ✅
-- **解决**: 补全了所有缺失的 public API 文档注释，涉及 NtkClientResponse、NtkInterceptorContext、iNtkRequestHandler、NtkConfiguration、Ntk、NtkLogger、NtkResponse、NtkNetwork+loading、AFNoCacheStorage、AFResponseMapKeys、AFToastInterceptor、AFJsonObjectParsingInterceptor、AFDataParsingInterceptor、AFDetaultResponseValidation、重试策略等
+- **解决**: 补全了所有缺失的 public API 文档注释，涉及 NtkClientResponse、NtkInterceptorContext、iNtkRequestHandler、NtkConfiguration、Ntk、NtkLogger、NtkResponse、NtkNetwork+loading、AFNoCacheStorage、AFResponseMapKeys、AFToastInterceptor、AFJsonObjectParsingInterceptor、NtkDataParsingInterceptor、AFDetaultResponseValidation、重试策略等
 
 ---
 

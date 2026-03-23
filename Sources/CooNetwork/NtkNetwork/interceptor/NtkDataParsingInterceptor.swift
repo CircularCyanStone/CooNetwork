@@ -1,0 +1,173 @@
+//
+//  NtkDataParsingInterceptor.swift
+//  CooNetwork
+//
+//  Created by CooNetwork on 2026/01/10.
+//
+
+// 用于解析网络工具返回的直接就是 Data 类型的数据解析工具。
+// 通过 decoderBuilder 支持多种数据源（Data、NSDictionary 等）。
+
+import Foundation
+
+/// 通用响应解析拦截器
+///
+/// 将 `NtkClientResponse.data`（`any Sendable`）解析为强类型 `NtkResponse<ResponseData>`。
+///
+/// ## 多数据源支持
+///
+/// 通过 `iNtkDecoderBuilding` 协议适配不同 `iNtkClient` 的数据格式：
+/// - 默认使用 `NtkDataDecoderBuilder`：`data as? Data` → `JSONDecoder`
+/// - 自定义：实现 `iNtkDecoderBuilding` 直接从 `NSDictionary` 等构建，零转换开销
+///
+/// ## 生命周期扩展
+///
+/// 通过 `hooks` 注入自定义逻辑（token 校验、埋点等），详见 `iNtkParsingHooks`。
+public struct NtkDataParsingInterceptor<
+    ResponseData: Sendable & Decodable,
+    Keys: iNtkResponseMapKeys
+>: iNtkResponseParser {
+
+    public let validation: iNtkResponseValidation
+    private let hooks: [any iNtkParsingHooks]
+    private let builder: any iNtkDecoderBuilding<ResponseData, Keys>
+
+    /// 初始化解析拦截器（使用默认 Data 数据源）
+    public init(
+        validation: iNtkResponseValidation,
+        hooks: [any iNtkParsingHooks] = []
+    ) {
+        self.validation = validation
+        self.hooks = hooks
+        self.builder = NtkDataDecoderBuilder<ResponseData, Keys>()
+    }
+
+    /// 初始化解析拦截器（自定义数据源）
+    /// - Parameters:
+    ///   - validation: 业务校验器
+    ///   - hooks: 生命周期钩子，按顺序依次执行
+    ///   - builder: 自定义数据源适配器，实现 `iNtkDecoderBuilding`
+    public init(
+        validation: iNtkResponseValidation,
+        hooks: [any iNtkParsingHooks] = [],
+        builder: any iNtkDecoderBuilding<ResponseData, Keys>
+    ) {
+        self.validation = validation
+        self.hooks = hooks
+        self.builder = builder
+    }
+
+    /// 拦截响应并解析为目标类型
+    public func intercept(
+        context: NtkInterceptorContext,
+        next: iNtkRequestHandler
+    ) async throws -> any iNtkResponse {
+        let response = try await next.handle(context: context)
+
+        // 如果已经是目标类型，直接返回
+        if let ntkResponse = response as? NtkResponse<ResponseData> {
+            return ntkResponse
+        }
+
+        // 期待拿到客户端原始响应
+        guard let clientResponse = response as? NtkClientResponse else {
+            throw NtkError.typeMismatch
+        }
+        let request = context.mutableRequest.originalRequest
+
+        let effectiveValidation: iNtkResponseValidation = validation
+
+        do {
+            // 通过 builderClosure 将任意数据源转为 NtkResponseDecoder
+            let decoderResponse = try await builder.build(clientResponse.data, context: context)
+
+            logger.debug(
+                """
+                ---------------------Data response start-------------------------
+                \(request)
+                参数：\(request.parameters as [String: any Sendable]? ?? [:])
+                code: \(decoderResponse.code)  msg: \(decoderResponse.msg ?? "")
+                ---------------------Data response end-------------------------
+                """,
+                category: .network
+            )
+
+            // [H2] retCode / msg hook
+            for hook in hooks {
+                try await hook.didDecodeHeader(
+                    retCode: decoderResponse.code.intValue,
+                    msg: decoderResponse.msg,
+                    context: context
+                )
+            }
+
+            // 1. NtkNever：不需要数据内容
+            if ResponseData.self is NtkNever.Type {
+                let fixResponse = NtkResponse(
+                    code: decoderResponse.code,
+                    data: NtkNever() as! ResponseData,
+                    msg: decoderResponse.msg,
+                    response: clientResponse,
+                    request: request,
+                    isCache: clientResponse.isCache
+                )
+                for hook in hooks { try await hook.willValidate(fixResponse, context: context) }
+                try await validate(fixResponse, request: request, validation: effectiveValidation, hooks: hooks, context: context)
+                for hook in hooks { try await hook.didComplete(fixResponse, context: context) }
+                return fixResponse
+            }
+
+            guard let retData = decoderResponse.data else {
+                // 2. 常规数据：data 为 nil，先以 Optional 形态做业务校验
+                let optionalResponse = NtkResponse<ResponseData?>(
+                    code: decoderResponse.code,
+                    data: nil,
+                    msg: decoderResponse.msg,
+                    response: clientResponse,
+                    request: request,
+                    isCache: clientResponse.isCache
+                )
+                for hook in hooks { try await hook.willValidate(optionalResponse, context: context) }
+                try await validate(optionalResponse, request: request, validation: effectiveValidation, hooks: hooks, context: context)
+                throw NtkError.serviceDataEmpty
+            }
+
+            // 3. 常规数据：data 不为空
+            let fixResponse = NtkResponse(
+                code: decoderResponse.code,
+                data: retData,
+                msg: decoderResponse.msg,
+                response: clientResponse,
+                request: request,
+                isCache: clientResponse.isCache
+            )
+            for hook in hooks { try await hook.willValidate(fixResponse, context: context) }
+            try await validate(fixResponse, request: request, validation: effectiveValidation, hooks: hooks, context: context)
+            for hook in hooks { try await hook.didComplete(fixResponse, context: context) }
+            return fixResponse
+
+        } catch let error as DecodingError {
+            throw NtkError.decodeInvalid(error, clientResponse.data, request)
+        } catch {
+            throw error
+        }
+    }
+
+    // MARK: - Private Helper
+
+    private func validate(
+        _ response: any iNtkResponse,
+        request: iNtkRequest,
+        validation: iNtkResponseValidation,
+        hooks: [any iNtkParsingHooks],
+        context: NtkInterceptorContext
+    ) async throws {
+        guard validation.isServiceSuccess(response) else {
+            // [H4] validation 失败通知所有 hook
+            for hook in hooks {
+                try await hook.didValidateFail(response, context: context)
+            }
+            throw NtkError.validation(request, response)
+        }
+    }
+}

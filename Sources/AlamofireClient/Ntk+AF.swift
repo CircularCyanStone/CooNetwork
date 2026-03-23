@@ -25,13 +25,14 @@ public extension Ntk {
     /// 自动配置AF客户端
     /// - Parameters:
     ///   - request: AF请求对象
-    ///   - responseParser: 响应解析器，默认为 AFDataParsingInterceptor
+    ///   - validation: 验证对象
+    ///   - responseParser: 响应解析器，默认为 NtkDataParsingInterceptor
     ///   - cacheStorage: 缓存存储策略，默认为 nil（不缓存）
     /// - Returns: 配置好的网络请求管理器
     nonisolated
     static func withAF(
         _ request: iAFRequest,
-        validation: iNtkResponseValidation = AFDefaultResponseValidation(),
+        validation: iNtkResponseValidation? = nil,
         responseParser: iNtkResponseParser? = nil,
         storage: iNtkCacheStorage? = nil
     ) -> NtkNetwork<ResponseData> where ResponseData: Decodable {
@@ -49,14 +50,18 @@ public extension Ntk {
     static func withAF<Keys: iNtkResponseMapKeys>(
         _ request: iAFRequest,
         keys: Keys.Type,
-        validation: iNtkResponseValidation = AFDefaultResponseValidation(),
+        validation: iNtkResponseValidation? = nil,
         responseParser: iNtkResponseParser? = nil,
         storage: iNtkCacheStorage? = nil
     ) -> NtkNetwork<ResponseData> where ResponseData: Decodable {
         let client = AFClient()
+        var _validation = validation
+        if _validation == nil {
+            _validation = (request as? iNtkResponseValidation) ?? AFDefaultResponseValidation()
+        }
         var _responseParser = responseParser
         if _responseParser == nil {
-            _responseParser = AFDataParsingInterceptor<ResponseData, Keys>(validation:validation)
+            _responseParser = NtkDataParsingInterceptor<ResponseData, Keys>(validation: _validation!)
         }
         let net = with(client, request: request, responseParser: _responseParser!, cacheStorage: storage)
         if request is iAFUploadRequest {

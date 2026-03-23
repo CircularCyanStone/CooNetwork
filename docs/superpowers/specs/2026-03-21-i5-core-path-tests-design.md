@@ -6,7 +6,7 @@
 - NtkInterceptorChainManager 链式执行
 - NtkNetworkExecutor execute/loadCache 流程
 - NtkNetwork.request()/requestWithCache() 端到端流程
-- AFDataParsingInterceptor 各种解析路径
+- NtkDataParsingInterceptor 各种解析路径
 
 ## 策略
 
@@ -19,7 +19,7 @@
 | `NtkInterceptorChainManagerTests.swift` | 拦截器链执行顺序、短路、错误传播、context 传递 |
 | `NtkNetworkExecutorTests.swift` | execute/loadCache/hasCacheData 各路径 |
 | `NtkNetworkIntegrationTests.swift` | NtkNetwork.request()/requestWithCache() 端到端 |
-| `AFDataParsingInterceptorTests.swift` | NtkNever/常规模型/nil data/空响应/解码失败 |
+| `NtkDataParsingInterceptorTests.swift` | NtkNever/常规模型/nil data/空响应/解码失败 |
 
 ## 测试用例
 
@@ -51,7 +51,7 @@
 5. requestWithCache() 网络先返回则跳过缓存
 6. cancel() 传播 isCancelled 状态
 
-### AFDataParsingInterceptorTests
+### NtkDataParsingInterceptorTests
 
 1. NtkNever 类型正常返回
 2. 常规 Decodable 模型解析

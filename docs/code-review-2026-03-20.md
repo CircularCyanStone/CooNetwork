@@ -61,7 +61,7 @@
 - **状态**: ✅ 已修复 — `Ntk` 简化为 `Ntk<ResponseData>`，`iNtkClient` 移除 `associatedtype Keys`，`AFClient` 和 `AFCacheClient` 移除 `Keys` 泛型参数，`Keys` 仅在 `withAF` 的数据解析拦截器中使用
 
 #### I-5: 核心路径测试覆盖不足
-- **问题**: 缺少 `NtkInterceptorChainManager` 链式执行、`NtkNetworkExecutor` execute/loadCache 流程、`NtkNetwork.request()` / `requestWithCache()` 端到端流程、`AFDataParsingInterceptor` 各种解析路径的测试。
+- **问题**: 缺少 `NtkInterceptorChainManager` 链式执行、`NtkNetworkExecutor` execute/loadCache 流程、`NtkNetwork.request()` / `requestWithCache()` 端到端流程、`NtkDataParsingInterceptor` 各种解析路径的测试。
 - **修复方向**: 优先补充拦截器链集成测试和 NtkNetwork 端到端测试。
 - **状态**: ⬜ 待修复（工作量较大，建议单独迭代）
 

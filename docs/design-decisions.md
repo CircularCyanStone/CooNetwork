@@ -12,7 +12,7 @@
 
 - **NtkReturnCode.encode 使用 `try?`** — 防御性设计，`_type`/`rawValue` 由同一 init 设置不会不一致，生产环境不崩溃优先于严格错误传播
 - **NtkDynamicData 中的 `as! T`** — switch type 已约束 T 的类型，不存在失败路径；rawValue/valueType 私有存储，构造方法同步设置
-- **AFDataParsingInterceptor 的 `NtkNever() as! ResponseData`** — 前置 `is NtkNever.Type` 检查已确认类型，Swift 泛型不支持类型精化，`as!` 是标准做法
+- **NtkDataParsingInterceptor 的 `NtkNever() as! ResponseData`** — 前置 `is NtkNever.Type` 检查已确认类型，Swift 泛型不支持类型精化，`as!` 是标准做法
 
 ## 架构模式
 

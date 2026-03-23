@@ -11,5 +11,4 @@ Alamofire 客户端实现。
 - `AFClient<Keys>` - Alamofire 客户端
 - `iAFRequest` - Alamofire 请求协议
 - `AFResponseMapKeys` - 响应映射键
-- `AFDataParsingInterceptor` - 基于Data的响应解析拦截器
-- `AFJsonObjectParsingInterceptor` - 基于JsonObject的响应解析拦截器
+- `NtkDataParsingInterceptor` - 通用响应解析拦截器（支持 Data / JsonObject 等多种数据源）

@@ -59,7 +59,7 @@ public struct NtkCodingKeys: CodingKey {
 
 /// 网络响应解码器
 /// 用于将JSON响应数据解码为结构化的响应对象
-public struct NtkResponseDecoder<ResponseData: Decodable, Keys: iNtkResponseMapKeys>: Decodable {
+public struct NtkResponseDecoder<ResponseData: Decodable, Keys: iNtkResponseMapKeys>: Decodable, Sendable where ResponseData: Sendable {
     
     /// 响应状态码
     public let code: NtkReturnCode
@@ -72,6 +72,13 @@ public struct NtkResponseDecoder<ResponseData: Decodable, Keys: iNtkResponseMapK
     /// 响应消息（可选）
     public let msg: String?
     
+    /// 直接从字段初始化（用于非 Data 数据源，如 NSDictionary，避免二次序列化）
+    public init(code: NtkReturnCode, data: ResponseData?, msg: String?) {
+        self.code = code
+        self.data = data
+        self.msg = msg
+    }
+
     /// 从解码器初始化响应对象
     /// - Parameter decoder: JSON解码器
     /// - Throws: 解码过程中的错误

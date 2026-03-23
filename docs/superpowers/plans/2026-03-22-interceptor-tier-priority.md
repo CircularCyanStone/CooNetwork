@@ -19,7 +19,7 @@
 | `Sources/CooNetwork/NtkNetwork/interceptor/NtkCacheInterceptor.swift` | Remove `priority` param from `init`, fix to `.innerLow` |
 | `Sources/CooNetwork/NtkNetwork/NtkNetworkExecutor.swift` | Remove `coreInterceptors` from `Configuration`; simplify `execute()`, `loadCache()`, `hasCacheData()` |
 | `Sources/CooNetwork/NtkNetwork/NtkNetwork.swift` | Remove `_coreInterceptors` and `addCoreInterceptor(_:)` |
-| `Sources/AlamofireClient/Client/AFDataParsingInterceptor.swift` | Add `priority: .dataParsing` |
+| `Sources/AlamofireClient/Client/NtkDataParsingInterceptor.swift` | Add `priority: .dataParsing` |
 | `Sources/AlamofireClient/Client/AFJsonObjectParsingInterceptor.swift` | Add `priority: .dataParsing` |
 | `Tests/CooNetworkTests/NtkInterceptorPriorityTests.swift` | New file: unit tests for tier comparison, operators, factory methods |
 | `Tests/CooNetworkTests/NtkInterceptorChainManagerTests.swift` | Add tier-ordering integration test |
@@ -272,7 +272,7 @@ git commit -m "feat: add three-tier priority to NtkInterceptorPriority"
 **Files:**
 - Modify: `Sources/CooNetwork/NtkNetwork/deduplication/NtkDeduplicationInterceptor.swift`
 - Modify: `Sources/CooNetwork/NtkNetwork/interceptor/NtkCacheInterceptor.swift`
-- Modify: `Sources/AlamofireClient/Client/AFDataParsingInterceptor.swift`
+- Modify: `Sources/AlamofireClient/Client/NtkDataParsingInterceptor.swift`
 - Modify: `Sources/AlamofireClient/Client/AFJsonObjectParsingInterceptor.swift`
 
 - [ ] **Step 2.1: Update NtkDeduplicationInterceptor**
@@ -315,12 +315,12 @@ public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
 }
 ```
 
-- [ ] **Step 2.3: Update AFDataParsingInterceptor**
+- [ ] **Step 2.3: Update NtkDataParsingInterceptor**
 
-In `AFDataParsingInterceptor.swift`, add a `priority` property to the struct:
+In `NtkDataParsingInterceptor.swift`, add a `priority` property to the struct:
 
 ```swift
-public struct AFDataParsingInterceptor<ResponseData: Sendable & Decodable, Keys: iNtkResponseMapKeys>: iNtkInterceptor {
+public struct NtkDataParsingInterceptor<ResponseData: Sendable & Decodable, Keys: iNtkResponseMapKeys>: iNtkInterceptor {
     public var priority: NtkInterceptorPriority { .dataParsing }
     // ... existing init and intercept unchanged
 }
@@ -358,7 +358,7 @@ Expected: All tests PASS.
 ```bash
 git add Sources/CooNetwork/NtkNetwork/deduplication/NtkDeduplicationInterceptor.swift \
         Sources/CooNetwork/NtkNetwork/interceptor/NtkCacheInterceptor.swift \
-        Sources/AlamofireClient/Client/AFDataParsingInterceptor.swift \
+        Sources/AlamofireClient/Client/NtkDataParsingInterceptor.swift \
         Sources/AlamofireClient/Client/AFJsonObjectParsingInterceptor.swift
 git commit -m "feat: assign correct tier priorities to core interceptors"
 ```

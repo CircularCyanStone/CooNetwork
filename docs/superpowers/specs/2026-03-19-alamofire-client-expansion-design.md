@@ -468,7 +468,7 @@ func uploadAvatar(imageData: Data, userId: String) async {
 Upload 的错误处理完全复用现有逻辑：
 - 超时 → `NtkError.requestTimeout`
 - Alamofire 错误 → `NtkError.AF.afError`
-- 响应解析 → `AFDataParsingInterceptor` 处理
+- 响应解析 → `NtkDataParsingInterceptor` 处理
 
 无需新增错误类型。
 
@@ -502,7 +502,7 @@ Upload 的错误处理完全复用现有逻辑：
 - 断点续传需要额外的 `resumeData` 存储机制
 
 **与 Upload 的关键差异：**
-- 响应不是 `Data` 而是文件 `URL`，`AFDataParsingInterceptor` 可能需要适配
+- 响应不是 `Data` 而是文件 `URL`，`NtkDataParsingInterceptor` 可能需要适配
 - 断点续传引入状态管理（resumeData 的保存和恢复）
 - `configureSerialization(for: DataRequest)` 方法签名不兼容 `DownloadRequest` — Alamofire 中 `DownloadRequest` 和 `DataRequest` 都直接继承 `Request`，不是父子关系。接入 Download 时需要在 `iAFRequest` 中新增 `configureDownloadSerialization(for: DownloadRequest)` 方法，或将现有方法签名泛化
 

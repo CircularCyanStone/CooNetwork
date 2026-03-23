@@ -3,14 +3,14 @@ import Foundation
 @testable import CooNetwork
 @testable import AlamofireClient
 
-struct AFDataParsingInterceptorTests {
+struct NtkDataParsingInterceptorTests {
 
     // MARK: - 已是目标类型直接返回
 
     @Test
     @NtkActor
     func alreadyTypedResponsePassesThrough() async throws {
-        let interceptor = AFDataParsingInterceptor<Bool, AFTestKeys>()
+        let interceptor = NtkDataParsingInterceptor<Bool, AFTestKeys>()
         let existing = NtkResponse<Bool>(
             code: NtkReturnCode(0), data: true, msg: "ok",
             response: true, request: AFTestRequest(), isCache: false
@@ -29,7 +29,7 @@ struct AFDataParsingInterceptorTests {
     func ntkNeverTypeReturnsSuccessfully() async throws {
         let json: [String: Any] = ["retCode": 0, "data": NSNull(), "retMsg": "ok"]
         let data = try JSONSerialization.data(withJSONObject: json)
-        let interceptor = AFDataParsingInterceptor<NtkNever, AFTestKeys>()
+        let interceptor = NtkDataParsingInterceptor<NtkNever, AFTestKeys>()
         let handler = AFTestDataHandler(data: data, request: AFTestRequest())
         let context = makeAFContext()
         let result = try await interceptor.intercept(context: context, next: handler)
@@ -44,7 +44,7 @@ struct AFDataParsingInterceptorTests {
     func decodableModelParsesCorrectly() async throws {
         let json: [String: Any] = ["retCode": 0, "data": ["id": 1, "name": "test"], "retMsg": "ok"]
         let data = try JSONSerialization.data(withJSONObject: json)
-        let interceptor = AFDataParsingInterceptor<AFTestModel, AFTestKeys>()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>()
         let handler = AFTestDataHandler(data: data, request: AFTestRequest())
         let context = makeAFContext()
         let result = try await interceptor.intercept(context: context, next: handler)
@@ -64,7 +64,7 @@ struct AFDataParsingInterceptorTests {
     func nilDataWithValidationPassThrowsServiceDataEmpty() async throws {
         let json: [String: Any] = ["retCode": 0, "retMsg": "ok"]
         let data = try JSONSerialization.data(withJSONObject: json)
-        let interceptor = AFDataParsingInterceptor<AFTestModel, AFTestKeys>()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>()
         let handler = AFTestDataHandler(data: data, request: AFTestRequest())
         let context = makeAFContext()
         do {
@@ -86,7 +86,7 @@ struct AFDataParsingInterceptorTests {
     func nilDataWithValidationFailThrowsValidationError() async throws {
         let json: [String: Any] = ["retCode": 999, "retMsg": "fail"]
         let data = try JSONSerialization.data(withJSONObject: json)
-        let interceptor = AFDataParsingInterceptor<AFTestModel, AFTestKeys>()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>()
         let handler = AFTestDataHandler(data: data, request: AFTestRequest())
         let context = makeAFContext(validation: AFTestFailValidation())
         do {
@@ -107,7 +107,7 @@ struct AFDataParsingInterceptorTests {
     @NtkActor
     func emptyResponseBodyThrowsResponseBodyEmpty() async throws {
         let data = Data()
-        let interceptor = AFDataParsingInterceptor<AFTestModel, AFTestKeys>()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>()
         let handler = AFTestDataHandler(data: data, request: AFTestRequest())
         let context = makeAFContext()
         do {
@@ -130,7 +130,7 @@ struct AFDataParsingInterceptorTests {
         // data 字段类型不匹配：期望对象但给了字符串
         let json: [String: Any] = ["retCode": 0, "data": "not_an_object", "retMsg": "ok"]
         let data = try JSONSerialization.data(withJSONObject: json)
-        let interceptor = AFDataParsingInterceptor<AFTestModel, AFTestKeys>()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>()
         let handler = AFTestDataHandler(data: data, request: AFTestRequest())
         let context = makeAFContext()
         do {

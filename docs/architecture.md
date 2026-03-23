@@ -23,7 +23,7 @@
 
 仅用于开发期契约错误（无法恢复 + 状态不可信 + 内部强约束）。运行期可恢复异常一律 `throw`。
 
-当前保留项：`AFClient.execute`、`AFDataParsingInterceptor`（请求类型必须是 iAFRequest）、`iNtkClient.cancel` 默认实现。
+当前保留项：`AFClient.execute`、`NtkDataParsingInterceptor`（请求类型必须是 iAFRequest）、`iNtkClient.cancel` 默认实现。
 
 新增需 PR 写明契约定义、为何不能 throw、失败后状态影响。
 
