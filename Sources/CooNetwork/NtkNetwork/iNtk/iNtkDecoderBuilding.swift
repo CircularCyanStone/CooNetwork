@@ -33,6 +33,17 @@ import Foundation
 ///     }
 /// }
 /// ```
+/// `build()` 抛出时用于错误路径的 header 信息
+///
+/// 包含 `code`、`msg` 以及反序列化后的原始 `data`（以 `NtkDynamicData` 承载），
+/// 供业务端在 `NtkError.validation` 时直接访问，无需二次序列化。
+public struct NtkExtractedHeader: Sendable {
+    public let code: NtkReturnCode
+    public let msg: String?
+    /// 反序列化后的原始数据
+    public let data: NtkDynamicData?
+}
+
 public protocol iNtkDecoderBuilding<ResponseData, Keys>: Sendable {
     associatedtype ResponseData: Sendable & Decodable
     associatedtype Keys: iNtkResponseMapKeys
@@ -41,6 +52,25 @@ public protocol iNtkDecoderBuilding<ResponseData, Keys>: Sendable {
         _ sourceData: any Sendable,
         context: NtkInterceptorContext
     ) async throws -> NtkResponseDecoder<ResponseData, Keys>
+
+    /// `build()` 抛出时调用，轻量提取 header（code / msg / 原始 data），
+    /// 用于在 error path 优先判断 validation 失败，并将原始数据透传给业务端。
+    ///
+    /// - 默认实现返回 `nil`，降级为 `NtkError.decodeInvalid`，不影响现有自定义实现
+    /// - 仅在 error path 调用，不影响正常请求性能
+    func extractHeader(
+        _ sourceData: any Sendable,
+        context: NtkInterceptorContext
+    ) throws -> NtkExtractedHeader?
+}
+
+extension iNtkDecoderBuilding {
+    public func extractHeader(
+        _ sourceData: any Sendable,
+        context: NtkInterceptorContext
+    ) throws -> NtkExtractedHeader? {
+        return nil
+    }
 }
 
 /// `[String: any Sendable]` / `NSDictionary` 数据源适配
@@ -80,6 +110,26 @@ public struct NtkJsonObjectDecoderBuilder<
         let decodedData = try JSONDecoder().decode(ResponseData.self, from: dataBytes)
         return NtkResponseDecoder(code: code, data: decodedData, msg: msg)
     }
+
+    public func extractHeader(
+        _ sourceData: any Sendable,
+        context: NtkInterceptorContext
+    ) throws -> NtkExtractedHeader? {
+        let dict: [AnyHashable: any Sendable]
+        if let d = sourceData as? [AnyHashable: any Sendable] {
+            dict = d
+        } else if let d = sourceData as? NSDictionary, let cast = d as? [String: any Sendable] {
+            dict = cast
+        } else {
+            return nil
+        }
+        let rawData: NtkDynamicData? = (dict[Keys.data]).map { NtkDynamicData.from($0) }
+        return NtkExtractedHeader(
+            code: NtkReturnCode(dict[Keys.code]),
+            msg: dict[Keys.msg] as? String,
+            data: rawData
+        )
+    }
 }
 
 /// 默认 `Data` 数据源适配（适用于 Alamofire 等返回 `Data` 的客户端）
@@ -97,5 +147,19 @@ public struct NtkDataDecoderBuilder<
     ) throws -> NtkResponseDecoder<ResponseData, Keys> {
         guard let data = sourceData as? Data else { throw NtkError.typeMismatch }
         return try JSONDecoder().decode(NtkResponseDecoder<ResponseData, Keys>.self, from: data)
+    }
+
+    public func extractHeader(
+        _ sourceData: any Sendable,
+        context: NtkInterceptorContext
+    ) throws -> NtkExtractedHeader? {
+        guard let data = sourceData as? Data,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: any Sendable]
+        else { return nil }
+        return NtkExtractedHeader(
+            code: NtkReturnCode(json[Keys.code]),
+            msg: json[Keys.msg] as? String,
+            data: (json[Keys.data]).map { NtkDynamicData.from($0) }
+        )
     }
 }

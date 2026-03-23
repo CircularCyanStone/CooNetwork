@@ -94,6 +94,7 @@ class ViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        testJSONSerializationCast()
         setupUI()
     }
 
@@ -326,6 +327,39 @@ struct IPv6ParsingInterceptor: iNtkResponseParser {
 struct IPv6Validation: iNtkResponseValidation {
     func isServiceSuccess(_ response: any iNtkResponse) -> Bool {
         return true
+    }
+}
+
+func testJSONSerializationCast() {
+    let jsonString = "{\"code\":0,\"msg\":\"error\",\"data\":{\"id\":1,\"name\":\"test\"}}"
+    let data = jsonString.data(using: .utf8)!
+
+    // 测试1: as? [AnyHashable: any Sendable]
+    if let result = try? JSONSerialization.jsonObject(with: data) as? [AnyHashable: any Sendable] {
+        print("✅ [AnyHashable: any Sendable] 转换成功: \(result)")
+    } else {
+        print("❌ [AnyHashable: any Sendable] 转换失败")
+    }
+
+    // 测试2: as? [String: any Sendable]
+    if let result = try? JSONSerialization.jsonObject(with: data) as? [String: any Sendable] {
+        print("✅ [String: any Sendable] 转换成功: \(result)")
+    } else {
+        print("❌ [String: any Sendable] 转换失败")
+    }
+
+    // 测试3: as? NSDictionary（基准）
+    if let result = try? JSONSerialization.jsonObject(with: data) as? NSDictionary {
+        print("✅ NSDictionary 转换成功: \(result)")
+    } else {
+        print("❌ NSDictionary 转换失败")
+    }
+
+    // 测试4: as? [String: Any]（基准）
+    if let result = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+        print("✅ [String: Any] 转换成功: \(result)")
+    } else {
+        print("❌ [String: Any] 转换失败")
     }
 }
 

@@ -147,6 +147,20 @@ public struct NtkDataParsingInterceptor<
             return fixResponse
 
         } catch let error as DecodingError {
+            // 尝试轻量提取 header，优先判断是否为业务 validation 失败
+            // 避免将 retcode 失败时 data 结构不匹配误报为 decodeInvalid
+            // 同时将反序列化后的原始 data 透传，业务端无需二次序列化
+            if let header = try? builder.extractHeader(clientResponse.data, context: context) {
+                let errResponse = NtkResponse<NtkDynamicData?>(
+                    code: header.code,
+                    data: header.data,
+                    msg: header.msg,
+                    response: clientResponse,
+                    request: request,
+                    isCache: clientResponse.isCache
+                )
+                try await validate(errResponse, request: request, validation: effectiveValidation, hooks: hooks, context: context)
+            }
             throw NtkError.decodeInvalid(error, clientResponse.data, request)
         } catch {
             throw error

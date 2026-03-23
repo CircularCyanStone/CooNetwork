@@ -25,6 +25,15 @@ public struct NtkReturnCode: Codable, Sendable {
     /// 状态码的内部存储
     private let storage: Storage
     
+    /// 从 `Any?`（如 `JSONSerialization` 产出）初始化，类型不匹配时返回 `nil`
+    public init?(_ value: Any?) {
+        if let v = value as? String       { storage = .string(v) }
+        else if let v = value as? Int     { storage = .int(v) }
+        else if let v = value as? Bool    { storage = .bool(v) }
+        else if let v = value as? Double  { storage = .double(v) }
+        else { return nil }
+    }
+
     /// 通过值初始化状态码
     /// 根据传入值的类型自动识别并设置内部类型标识
     /// - Parameter value: 状态码值，支持String、Int、Bool、Double类型
