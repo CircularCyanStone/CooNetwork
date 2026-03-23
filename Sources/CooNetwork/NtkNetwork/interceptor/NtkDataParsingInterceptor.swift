@@ -108,8 +108,7 @@ public struct NtkDataParsingInterceptor<
                     request: request,
                     isCache: clientResponse.isCache
                 )
-                for hook in hooks { try await hook.willValidate(fixResponse, context: context) }
-                try await validate(fixResponse, request: request, validation: validation, hooks: hooks, context: context)
+                try await runValidation(fixResponse, request: request, context: context)
                 for hook in hooks { try await hook.didComplete(fixResponse, context: context) }
                 return fixResponse
             }
@@ -124,8 +123,7 @@ public struct NtkDataParsingInterceptor<
                     request: request,
                     isCache: clientResponse.isCache
                 )
-                for hook in hooks { try await hook.willValidate(optionalResponse, context: context) }
-                try await validate(optionalResponse, request: request, validation: validation, hooks: hooks, context: context)
+                try await runValidation(optionalResponse, request: request, context: context)
                 throw NtkError.serviceDataEmpty
             }
 
@@ -138,8 +136,7 @@ public struct NtkDataParsingInterceptor<
                 request: request,
                 isCache: clientResponse.isCache
             )
-            for hook in hooks { try await hook.willValidate(fixResponse, context: context) }
-            try await validate(fixResponse, request: request, validation: validation, hooks: hooks, context: context)
+            try await runValidation(fixResponse, request: request, context: context)
             for hook in hooks { try await hook.didComplete(fixResponse, context: context) }
             return fixResponse
 
@@ -156,24 +153,29 @@ public struct NtkDataParsingInterceptor<
                     request: request,
                     isCache: clientResponse.isCache
                 )
-                for hook in hooks { try await hook.willValidate(errResponse, context: context) }
-                try await validate(errResponse, request: request, validation: validation, hooks: hooks, context: context)
+                try await runValidation(errResponse, request: request, context: context)
             }
             throw NtkError.decodeInvalid(error, clientResponse.data, request)
         }
     }
 
-    // MARK: - Private Helper
+    // MARK: - Private Helpers
+
+    private func runValidation(
+        _ response: any iNtkResponse,
+        request: iNtkRequest,
+        context: NtkInterceptorContext
+    ) async throws {
+        for hook in hooks { try await hook.willValidate(response, context: context) }
+        try await validate(response, request: request, context: context)
+    }
 
     private func validate(
         _ response: any iNtkResponse,
         request: iNtkRequest,
-        validation: iNtkResponseValidation,
-        hooks: [any iNtkParsingHooks],
         context: NtkInterceptorContext
     ) async throws {
         guard validation.isServiceSuccess(response) else {
-            // [H4] validation 失败通知所有 hook
             for hook in hooks {
                 try await hook.didValidateFail(response, context: context)
             }
