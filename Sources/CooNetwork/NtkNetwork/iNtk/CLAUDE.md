@@ -15,6 +15,6 @@
 - `iNtkResponseValidation` - 响应验证
 - `iNtkResponseMapKeys` - 响应映射键
 - `iNtkResponseParser` - 响应解析器（框架通过 `NtkResponseParserBox` 包装为 `innerHigh` 拦截器）
-- `iNtkDecoderBuilding` - 数据源适配策略（`Data`、`NSDictionary` 等 → `NtkResponseDecoder`）
+- `iNtkDecoderBuilding` - 数据源适配策略（`Data`、`NSDictionary` 等 → `NtkResponseDecoder`）；内置实现（`NtkDataDecoderBuilder`、`NtkJsonObjectDecoderBuilder`）已移至 `interceptor/NtkDecoderBuilders.swift`
 - `iNtkParsingHooks` - 解析生命周期钩子（`didDecodeHeader` / `willValidate` / `didValidateFail` / `didComplete`）
 - `iNtkCacheProvider` - 缓存能力提供者（拦截器遵循后 executor 可通过协议发现获取缓存读取能力）
