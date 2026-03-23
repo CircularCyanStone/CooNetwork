@@ -33,6 +33,7 @@ import Foundation
 ///     }
 /// }
 /// ```
+
 /// `build()` 抛出时用于错误路径的 header 信息
 ///
 /// 包含 `code`、`msg` 以及反序列化后的原始 `data`（以 `NtkDynamicData` 承载），
@@ -85,18 +86,17 @@ public struct NtkJsonObjectDecoderBuilder<
 
     public init() {}
 
+    private func extractDict(_ sourceData: any Sendable) -> [AnyHashable: any Sendable]? {
+        if let d = sourceData as? [AnyHashable: any Sendable] { return d }
+        if let d = sourceData as? NSDictionary, let cast = d as? [String: any Sendable] { return cast }
+        return nil
+    }
+
     public func build(
         _ sourceData: any Sendable,
         context: NtkInterceptorContext
     ) throws -> NtkResponseDecoder<ResponseData, Keys> {
-        let dict: [AnyHashable: any Sendable]
-        if let d = sourceData as? [AnyHashable: any Sendable] {
-            dict = d
-        } else if let d = sourceData as? NSDictionary, let cast = d as? [String: any Sendable] {
-            dict = cast
-        } else {
-            throw NtkError.typeMismatch
-        }
+        guard let dict = extractDict(sourceData) else { throw NtkError.typeMismatch }
 
         let code = NtkReturnCode(dict[Keys.code])
         let msg = dict[Keys.msg] as? String
@@ -115,14 +115,7 @@ public struct NtkJsonObjectDecoderBuilder<
         _ sourceData: any Sendable,
         context: NtkInterceptorContext
     ) throws -> NtkExtractedHeader? {
-        let dict: [AnyHashable: any Sendable]
-        if let d = sourceData as? [AnyHashable: any Sendable] {
-            dict = d
-        } else if let d = sourceData as? NSDictionary, let cast = d as? [String: any Sendable] {
-            dict = cast
-        } else {
-            return nil
-        }
+        guard let dict = extractDict(sourceData) else { return nil }
         let rawData: NtkDynamicData? = (dict[Keys.data]).map { NtkDynamicData.from($0) }
         return NtkExtractedHeader(
             code: NtkReturnCode(dict[Keys.code]),

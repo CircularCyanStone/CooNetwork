@@ -5,8 +5,7 @@
 //  Created by CooNetwork on 2026/01/10.
 //
 
-// 用于解析网络工具返回的直接就是 Data 类型的数据解析工具。
-// 通过 decoderBuilder 支持多种数据源（Data、NSDictionary 等）。
+// 通用响应解析拦截器，通过 iNtkDecoderBuilding 支持多种数据源（Data、NSDictionary 等）。
 
 import Foundation
 
@@ -75,8 +74,6 @@ public struct NtkDataParsingInterceptor<
         }
         let request = context.mutableRequest.originalRequest
 
-        let effectiveValidation: iNtkResponseValidation = validation
-
         do {
             // 通过 builderClosure 将任意数据源转为 NtkResponseDecoder
             let decoderResponse = try await builder.build(clientResponse.data, context: context)
@@ -112,7 +109,7 @@ public struct NtkDataParsingInterceptor<
                     isCache: clientResponse.isCache
                 )
                 for hook in hooks { try await hook.willValidate(fixResponse, context: context) }
-                try await validate(fixResponse, request: request, validation: effectiveValidation, hooks: hooks, context: context)
+                try await validate(fixResponse, request: request, validation: validation, hooks: hooks, context: context)
                 for hook in hooks { try await hook.didComplete(fixResponse, context: context) }
                 return fixResponse
             }
@@ -128,7 +125,7 @@ public struct NtkDataParsingInterceptor<
                     isCache: clientResponse.isCache
                 )
                 for hook in hooks { try await hook.willValidate(optionalResponse, context: context) }
-                try await validate(optionalResponse, request: request, validation: effectiveValidation, hooks: hooks, context: context)
+                try await validate(optionalResponse, request: request, validation: validation, hooks: hooks, context: context)
                 throw NtkError.serviceDataEmpty
             }
 
@@ -142,7 +139,7 @@ public struct NtkDataParsingInterceptor<
                 isCache: clientResponse.isCache
             )
             for hook in hooks { try await hook.willValidate(fixResponse, context: context) }
-            try await validate(fixResponse, request: request, validation: effectiveValidation, hooks: hooks, context: context)
+            try await validate(fixResponse, request: request, validation: validation, hooks: hooks, context: context)
             for hook in hooks { try await hook.didComplete(fixResponse, context: context) }
             return fixResponse
 
@@ -159,11 +156,10 @@ public struct NtkDataParsingInterceptor<
                     request: request,
                     isCache: clientResponse.isCache
                 )
-                try await validate(errResponse, request: request, validation: effectiveValidation, hooks: hooks, context: context)
+                for hook in hooks { try await hook.willValidate(errResponse, context: context) }
+                try await validate(errResponse, request: request, validation: validation, hooks: hooks, context: context)
             }
             throw NtkError.decodeInvalid(error, clientResponse.data, request)
-        } catch {
-            throw error
         }
     }
 
