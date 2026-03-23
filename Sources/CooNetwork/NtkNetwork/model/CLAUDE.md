@@ -14,3 +14,4 @@
 - `NtkDynamicData` - 动态数据类型
 - `NtkReturnCode` - 返回码类型
 - `NtkNever` - 无响应数据标记
+- `NtkResponseDecoder` - 泛型 JSON 解码器，依赖 `iNtkResponseMapKeys` 和 `NtkCodingKeys`

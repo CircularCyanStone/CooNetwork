@@ -13,7 +13,7 @@
 - `iNtkResponse` - 响应抽象
 - `iNtkInterceptor` - 拦截器接口（含 `NtkInterceptorPriority` 三层 Tier 优先级）
 - `iNtkResponseValidation` - 响应验证
-- `iNtkResponseMapKeys` - 响应映射键
+- `iNtkResponseMapKeys` - 响应键映射协议（定义在 model/NtkResponseDecoder.swift，因与 NtkResponseDecoder 强绑定）
 - `iNtkResponseParser` - 响应解析器（框架通过 `NtkResponseParserBox` 包装为 `innerHigh` 拦截器）
 - `iNtkDecoderBuilding` - 数据源适配策略（`Data`、`NSDictionary` 等 → `NtkResponseDecoder`）；内置实现（`NtkDataDecoderBuilder`、`NtkJsonObjectDecoderBuilder`）已移至 `interceptor/NtkDecoderBuilders.swift`
 - `iNtkParsingHooks` - 解析生命周期钩子（`didDecodeHeader` / `willValidate` / `didValidateFail` / `didComplete`）
