@@ -13,7 +13,9 @@ import Foundation
 @objcMembers
 @dynamicMemberLookup
 public final class NtkDynamicData: NSObject, Sendable, Codable {
-    
+
+    // MARK: - Core Storage
+
     /// 内部存储枚举
     /// 将类型标记与值绑定在一起，确保类型与值始终一致
     private enum Storage: Sendable {
@@ -29,7 +31,7 @@ public final class NtkDynamicData: NSObject, Sendable, Codable {
     /// 状态码的内部存储
     private let storage: Storage
 
-    // MARK: - 初始化方法
+    // MARK: - Initializers
 
     /// 从字典初始化
     public init(dictionary: [String: any Sendable]) {
@@ -67,6 +69,37 @@ public final class NtkDynamicData: NSObject, Sendable, Codable {
         super.init()
     }
 
+    /// 空值初始化
+    public override init() {
+        self.storage = .null
+        super.init()
+    }
+
+    // MARK: - Static Factories
+
+    /// 从任意Sendable值创建NtkDynamicData
+    public static func from(_ value: any Sendable) -> NtkDynamicData {
+        switch value {
+        case let dict as [String: any Sendable]:
+            return NtkDynamicData(dictionary: dict)
+        case let array as [any Sendable]:
+            return NtkDynamicData(array: array)
+        case let string as String:
+            return NtkDynamicData(string: string)
+        case let int as Int:
+            return NtkDynamicData(int: int)
+        case let double as Double:
+            return NtkDynamicData(double: double)
+        case let bool as Bool:
+            return NtkDynamicData(bool: bool)
+        case is NSNull:
+            return NtkDynamicData()
+        default:
+            // 对于其他类型，尝试转换为字符串
+            return NtkDynamicData(string: String(describing: value))
+        }
+    }
+
     static func strictObject(_ dictionary: [String: NtkDynamicData]) -> NtkDynamicData {
         var converted: [String: any Sendable] = [:]
         for (key, value) in dictionary {
@@ -80,14 +113,8 @@ public final class NtkDynamicData: NSObject, Sendable, Codable {
         return NtkDynamicData(array: converted)
     }
 
-    /// 空值初始化
-    public override init() {
-        self.storage = .null
-        super.init()
-    }
-    
-    // MARK: - Codable实现
-    
+    // MARK: - Codable
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
 
@@ -165,8 +192,8 @@ public final class NtkDynamicData: NSObject, Sendable, Codable {
             try container.encodeNil()
         }
     }
-    
-    // MARK: - 辅助方法
+
+    // MARK: - Internal Bridging
 
     /// 获取内部存储的 Sendable 值
     private var sendableValue: any Sendable {
@@ -180,35 +207,12 @@ public final class NtkDynamicData: NSObject, Sendable, Codable {
         case .null:              return NSNull()
         }
     }
-
-    /// 从任意Sendable值创建NtkDynamicData
-    public static func from(_ value: any Sendable) -> NtkDynamicData {
-        switch value {
-        case let dict as [String: any Sendable]:
-            return NtkDynamicData(dictionary: dict)
-        case let array as [any Sendable]:
-            return NtkDynamicData(array: array)
-        case let string as String:
-            return NtkDynamicData(string: string)
-        case let int as Int:
-            return NtkDynamicData(int: int)
-        case let double as Double:
-            return NtkDynamicData(double: double)
-        case let bool as Bool:
-            return NtkDynamicData(bool: bool)
-        case is NSNull:
-            return NtkDynamicData()
-        default:
-            // 对于其他类型，尝试转换为字符串
-            return NtkDynamicData(string: String(describing: value))
-        }
-    }
 }
 
-// MARK: - 类型安全的访问接口
+// MARK: - Typed Accessors
 
 extension NtkDynamicData {
-    
+
     /// 获取字典值
     /// - Returns: 字典值或nil
     public func getDictionary() -> [String: any Sendable]? {
@@ -320,10 +324,10 @@ extension NtkDynamicData {
     }
 }
 
-// MARK: - 下标语法支持
+// MARK: - Subscripts
 
 extension NtkDynamicData {
-    
+
     /// 字典类型的字符串下标访问
     /// - Parameter key: 字典键
     /// - Returns: 对应的NtkDynamicData值或nil
@@ -332,7 +336,7 @@ extension NtkDynamicData {
         guard let value = dict[key] else { return nil }
         return NtkDynamicData.from(value)
     }
-    
+
     /// 数组类型的整数下标访问
     /// - Parameter index: 数组索引
     /// - Returns: 对应的NtkDynamicData值或nil
@@ -341,7 +345,7 @@ extension NtkDynamicData {
         guard index >= 0 && index < array.count else { return nil }
         return NtkDynamicData.from(array[index])
     }
-    
+
     /// 支持链式访问的下标方法
     /// 例如: data["user"]["name"] 或 data["items"][0]
     /// - Parameter keyPath: 键路径（字符串或整数）
@@ -352,43 +356,43 @@ extension NtkDynamicData {
     }
 }
 
-// MARK: - 便利扩展
+// MARK: - Convenience Navigation
 
 extension NtkDynamicData {
-    
+
     /// 获取嵌套字典中的值
     /// - Parameter keyPath: 点分隔的键路径，如 "user.profile.name"
     /// - Returns: 对应的NtkDynamicData值或nil
     public func getValue(forKeyPath keyPath: String) -> NtkDynamicData? {
         let keys = keyPath.split(separator: ".").map(String.init)
         var current: NtkDynamicData? = self
-        
+
         for key in keys {
             current = current?[key]
             if current == nil {
                 return nil
             }
         }
-        
+
         return current
     }
-    
+
     /// 获取嵌套数组中的值
     /// - Parameter indexPath: 索引路径数组，如 [0, 1, 2]
     /// - Returns: 对应的NtkDynamicData值或nil
     public func getValue(forIndexPath indexPath: [Int]) -> NtkDynamicData? {
         var current: NtkDynamicData? = self
-        
+
         for index in indexPath {
             current = current?[index]
             if current == nil {
                 return nil
             }
         }
-        
+
         return current
     }
-    
+
     /// 安全获取值的便利方法
     /// - Parameters:
     ///   - key: 键名
@@ -398,7 +402,7 @@ extension NtkDynamicData {
         guard let value = self[key] else { return defaultValue }
         return (try? value.getValue(as: T.self)) ?? defaultValue
     }
-    
+
     /// 安全获取数组元素的便利方法
     /// - Parameters:
     ///   - index: 索引
