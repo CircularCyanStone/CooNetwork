@@ -67,6 +67,19 @@ public final class NtkDynamicData: NSObject, Sendable, Codable {
         super.init()
     }
 
+    static func strictObject(_ dictionary: [String: NtkDynamicData]) -> NtkDynamicData {
+        var converted: [String: any Sendable] = [:]
+        for (key, value) in dictionary {
+            converted[key] = value.sendableValue
+        }
+        return NtkDynamicData(dictionary: converted)
+    }
+
+    static func strictArray(_ array: [NtkDynamicData]) -> NtkDynamicData {
+        let converted = array.map(\.sendableValue)
+        return NtkDynamicData(array: converted)
+    }
+
     /// 空值初始化
     public override init() {
         self.storage = .null
