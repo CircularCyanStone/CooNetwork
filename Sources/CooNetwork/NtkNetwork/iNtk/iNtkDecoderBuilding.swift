@@ -43,6 +43,12 @@ public struct NtkExtractedHeader: Sendable {
     public let msg: String?
     /// 反序列化后的原始数据
     public let data: NtkDynamicData?
+    
+    public init(code: NtkReturnCode, msg: String?, data: NtkDynamicData?) {
+        self.code = code
+        self.msg = msg
+        self.data = data
+    }
 }
 
 public protocol iNtkDecoderBuilding<ResponseData, Keys>: Sendable {
