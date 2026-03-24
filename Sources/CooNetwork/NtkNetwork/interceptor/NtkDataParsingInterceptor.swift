@@ -5,7 +5,7 @@
 //  Created by CooNetwork on 2026/01/10.
 //
 
-// 通用响应解析拦截器，通过 iNtkDecoderBuilding 支持多种数据源（Data、NSDictionary 等）。
+// 通用响应解析拦截器，通过 iNtkResponsePayloadBuilding 支持多种数据源（Data、NSDictionary 等）。
 
 import Foundation
 
@@ -15,9 +15,9 @@ import Foundation
 ///
 /// ## 多数据源支持
 ///
-/// 通过 `iNtkDecoderBuilding` 协议适配不同 `iNtkClient` 的数据格式：
-/// - 默认使用 `NtkDataDecoderBuilder`：`data as? Data` → `JSONDecoder`
-/// - 自定义：实现 `iNtkDecoderBuilding` 直接从 `NSDictionary` 等构建，零转换开销
+/// 通过 `iNtkResponsePayloadBuilding` 协议适配不同 `iNtkClient` 的数据格式：
+/// - 默认使用 `NtkDataPayloadBuilder`：`data as? Data` → `JSONDecoder`
+/// - 自定义：实现 `iNtkResponsePayloadBuilding` 直接从 `NSDictionary` 等构建，零转换开销
 ///
 /// ## 生命周期扩展
 ///
@@ -29,7 +29,7 @@ public struct NtkDataParsingInterceptor<
 
     public let validation: iNtkResponseValidation
     private let hooks: [any iNtkParsingHooks]
-    private let builder: any iNtkDecoderBuilding<ResponseData, Keys>
+    private let builder: any iNtkResponsePayloadBuilding<ResponseData, Keys>
 
     /// 初始化解析拦截器（使用默认 Data 数据源）
     public init(
@@ -38,18 +38,18 @@ public struct NtkDataParsingInterceptor<
     ) {
         self.validation = validation
         self.hooks = hooks
-        self.builder = NtkDataDecoderBuilder<ResponseData, Keys>()
+        self.builder = NtkDataPayloadBuilder<ResponseData, Keys>()
     }
 
     /// 初始化解析拦截器（自定义数据源）
     /// - Parameters:
     ///   - validation: 业务校验器
     ///   - hooks: 生命周期钩子，按顺序依次执行
-    ///   - builder: 自定义数据源适配器，实现 `iNtkDecoderBuilding`
+    ///   - builder: 自定义数据源适配器，实现 `iNtkResponsePayloadBuilding`
     public init(
         validation: iNtkResponseValidation,
         hooks: [any iNtkParsingHooks] = [],
-        builder: any iNtkDecoderBuilding<ResponseData, Keys>
+        builder: any iNtkResponsePayloadBuilding<ResponseData, Keys>
     ) {
         self.validation = validation
         self.hooks = hooks
@@ -144,7 +144,7 @@ public struct NtkDataParsingInterceptor<
             // 尝试轻量提取 header，优先判断是否为业务 validation 失败
             // 避免将 retcode 失败时 data 结构不匹配误报为 decodeInvalid
             // 同时将反序列化后的原始 data 透传，业务端无需二次序列化
-            if let header = try? builder.extractHeader(clientResponse.data, context: context) {
+            if let header = try? builder.extractHeader(clientResponse.data, request: request) {
                 let errResponse = NtkResponse<NtkDynamicData?>(
                     code: header.code,
                     data: header.data,

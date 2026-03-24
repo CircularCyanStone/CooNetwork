@@ -141,6 +141,30 @@ struct NtkDataParsingInterceptorTests {
             }
         }
     }
+
+    // MARK: - 自定义 builder 可读取 request 配置提取 header
+
+    @Test
+    @NtkActor
+    func customBuilderCanExtractHeaderWithRequest() async throws {
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
+            validation: AFTestFailValidation(),
+            builder: AFTestHeaderOnlyBuilder()
+        )
+        let handler = AFTestDataHandler(data: Data("ignored".utf8), request: AFConfiguredTestRequest())
+        let context = makeConfiguredAFContext()
+
+        do {
+            _ = try await interceptor.intercept(context: context, next: handler)
+            Issue.record("期望抛出 validation 错误")
+        } catch let error as NtkError {
+            if case .validation = error {
+                #expect(Bool(true))
+            } else {
+                Issue.record("错误类型不符: \(error)")
+            }
+        }
+    }
 }
 
 // MARK: - Helpers
@@ -149,6 +173,14 @@ struct NtkDataParsingInterceptorTests {
 private func makeAFContext() -> NtkInterceptorContext {
     NtkInterceptorContext(
         mutableRequest: NtkMutableRequest(AFTestRequest()),
+        client: AFTestDummyClient()
+    )
+}
+
+@NtkActor
+private func makeConfiguredAFContext() -> NtkInterceptorContext {
+    NtkInterceptorContext(
+        mutableRequest: NtkMutableRequest(AFConfiguredTestRequest()),
         client: AFTestDummyClient()
     )
 }
@@ -172,6 +204,13 @@ private struct AFTestRequest: iAFRequest {
     var method: NtkHTTPMethod { .get }
 }
 
+private struct AFConfiguredTestRequest: iAFRequest {
+    var baseURL: URL? { URL(string: "https://test.example.com") }
+    var path: String { "/af/test/configured" }
+    var method: NtkHTTPMethod { .get }
+    var requestConfiguration: NtkRequestConfiguration? { .default() }
+}
+
 private struct AFTestPassValidation: iNtkResponseValidation {
     func isServiceSuccess(_ response: any iNtkResponse) -> Bool { true }
 }
@@ -184,6 +223,26 @@ private struct AFTestDummyClient: iNtkClient {
     @NtkActor
     func execute(_ request: NtkMutableRequest) async throws -> NtkClientResponse {
         NtkClientResponse(data: true, msg: nil, response: true, request: request, isCache: false)
+    }
+}
+
+private struct AFTestHeaderOnlyBuilder: iNtkResponsePayloadBuilding {
+    func build(
+        _ sourceData: any Sendable,
+        context: NtkInterceptorContext
+    ) async throws -> NtkResponseDecoder<AFTestModel, AFTestKeys> {
+        throw DecodingError.dataCorrupted(
+            .init(codingPath: [], debugDescription: "expected failure for header extraction")
+        )
+    }
+
+    func extractHeader(_ sourceData: any Sendable, request: iNtkRequest) throws -> NtkExtractedHeader? {
+        guard request.requestConfiguration != nil else { return nil }
+        return NtkExtractedHeader(
+            code: NtkReturnCode(999),
+            msg: "fail",
+            data: NtkDynamicData(dictionary: ["reason": "mock"])
+        )
     }
 }
 
