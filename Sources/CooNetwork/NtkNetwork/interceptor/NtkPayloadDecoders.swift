@@ -2,6 +2,11 @@ import Foundation
 
 // NtkDataPayloadDecoder 和 NtkJSONObjectPayloadDecoder
 // iNtkResponsePayloadDecoding 协议的内置实现，与新的 payload pipeline 配套
+//
+// 注意：`NtkPayload` 接受顶层 object / array 作为结构化 payload，
+// 但默认 header extraction / 业务 validation 更偏向 object / envelope 风格响应。
+// 顶层 array 虽然是合法 payload，通常仍需要自定义 decoder（必要时自定义 validation）
+// 才能被正确消费。
 
 public struct NtkJSONObjectPayloadDecoder<
     ResponseData: Sendable & Decodable,
