@@ -41,6 +41,16 @@ private struct SingleUseDummyRequest: iNtkRequest {
     var path: String { "/single-use/test" }
 }
 
+private struct SingleUseDummyValidation: iNtkResponseValidation {
+    func isServiceSuccess(_ response: any iNtkResponse) -> Bool { true }
+}
+
+private struct SingleUseDummyKeys: iNtkResponseMapKeys {
+    static let code = "code"
+    static let data = "data"
+    static let msg = "msg"
+}
+
 private struct SingleUseDummyClient: iNtkClient {
     typealias Keys = SingleUseDummyKeys
 
@@ -60,7 +70,9 @@ private struct SingleUseDummyClient: iNtkClient {
     }
 }
 
-private struct SingleUseDummyParsingInterceptor: iNtkInterceptor {
+private struct SingleUseDummyParsingInterceptor: iNtkResponseParser {
+    let validation: iNtkResponseValidation = SingleUseDummyValidation()
+
     @NtkActor
     func intercept(context: NtkInterceptorContext, next: iNtkRequestHandler) async throws -> any iNtkResponse {
         let response = try await next.handle(context: context)

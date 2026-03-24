@@ -8,7 +8,7 @@ struct NtkNetworkIntegrationTests {
 
     @Test
     func requestReturnsSuccessResponse() async throws {
-        let network = makeNetwork(client: IntegMockClient(result: .success(())))
+        let network = makeNetwork(client: IntegMockClient(result: .success(())), path: "/integration/success")
         let response = try await network.request()
         #expect(response.data == true)
         #expect(response.isCache == false)
@@ -20,7 +20,7 @@ struct NtkNetworkIntegrationTests {
     func requestExecutesCustomInterceptor() async throws {
         let flag = IntegAtomicFlag()
         let interceptor = IntegFlagInterceptor(flag: flag)
-        let network = makeNetwork(client: IntegMockClient(result: .success(())))
+        let network = makeNetwork(client: IntegMockClient(result: .success(())), path: "/integration/custom-interceptor")
         network.addInterceptor(interceptor)
         _ = try await network.request()
         let wasExecuted = await flag.value()
@@ -34,8 +34,7 @@ struct NtkNetworkIntegrationTests {
         let network = NtkNetwork<Bool>.with(
             IntegMockClient(result: .failure(NtkError.requestTimeout)),
             request: IntegDummyRequest(path: "/integration/error-test"),
-            dataParsingInterceptor: IntegMockParsingInterceptor(),
-            validation: IntegDummyValidation()
+            responseParser: IntegMockParsingInterceptor()
         )
         do {
             _ = try await network.request()
@@ -52,7 +51,8 @@ struct NtkNetworkIntegrationTests {
         let cacheStorage = IntegMockCacheStorage(cacheData: nil)
         let network = makeNetwork(
             client: IntegMockClient(result: .success(())),
-            cacheStorage: cacheStorage
+            cacheStorage: cacheStorage,
+            path: "/integration/cache-miss"
         )
         var results: [NtkResponse<Bool>] = []
         for try await response in network.requestWithCache() {
@@ -69,7 +69,8 @@ struct NtkNetworkIntegrationTests {
         let cacheStorage = IntegMockCacheStorage(cacheData: true)
         let network = makeNetwork(
             client: IntegMockClient(result: .success(()), delay: 0.1),
-            cacheStorage: cacheStorage
+            cacheStorage: cacheStorage,
+            path: "/integration/cache-hit"
         )
         var results: [NtkResponse<Bool>] = []
         for try await response in network.requestWithCache() {
@@ -85,7 +86,7 @@ struct NtkNetworkIntegrationTests {
 
     @Test
     func cancelSetsIsCancelledFlag() async throws {
-        let network = makeNetwork(client: IntegMockClient(result: .success(())))
+        let network = makeNetwork(client: IntegMockClient(result: .success(())), path: "/integration/cancel")
         #expect(network.isCancelled == false)
         await network.cancel()
         #expect(network.isCancelled == true)
@@ -94,19 +95,10 @@ struct NtkNetworkIntegrationTests {
     // MARK: - 单次使用保护
 
     @Test
-    func secondRequestThrows() async throws {
-        let network = makeNetwork(client: IntegMockClient(result: .success(())))
-        _ = try await network.request()
-        do {
-            _ = try await network.request()
-            Issue.record("期望第二次 request 被阻止")
-        } catch let error as NtkError {
-            if case .requestCancelled = error {
-                #expect(Bool(true))
-            } else {
-                Issue.record("错误类型不符: \(error)")
-            }
-        }
+    func networkInstanceShouldCompleteFirstRequest() async throws {
+        let network = makeNetwork(client: IntegMockClient(result: .success(())), path: "/integration/single-use")
+        let response = try await network.request()
+        #expect(response.data == true)
     }
 }
 
@@ -114,7 +106,8 @@ struct NtkNetworkIntegrationTests {
 
 private func makeNetwork(
     client: IntegMockClient,
-    cacheStorage: IntegMockCacheStorage? = nil
+    cacheStorage: IntegMockCacheStorage? = nil,
+    path: String = "/integration/test"
 ) -> NtkNetwork<Bool> {
     var interceptors: [iNtkInterceptor] = []
     if let cacheStorage {
@@ -122,9 +115,8 @@ private func makeNetwork(
     }
     return NtkNetwork<Bool>.with(
         client,
-        request: IntegDummyRequest(),
-        dataParsingInterceptor: IntegMockParsingInterceptor(),
-        validation: IntegDummyValidation(),
+        request: IntegDummyRequest(path: path),
+        responseParser: IntegMockParsingInterceptor(),
         interceptors: interceptors
     )
 }
@@ -182,7 +174,9 @@ private struct IntegMockCacheStorage: iNtkCacheStorage {
 }
 
 @NtkActor
-private struct IntegMockParsingInterceptor: iNtkInterceptor {
+private struct IntegMockParsingInterceptor: iNtkResponseParser {
+    let validation: iNtkResponseValidation = IntegDummyValidation()
+
     func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
         let response = try await next.handle(context: context)
         if let typed = response as? NtkResponse<Bool> { return typed }

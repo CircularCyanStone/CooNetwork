@@ -57,7 +57,7 @@
 2. 常规 Decodable 模型解析
 3. data 为 nil + validation 通过 → serviceDataEmpty
 4. data 为 nil + validation 失败 → validation 错误
-5. 空响应体 → responseBodyEmpty
+5. 空响应体 → decodeInvalid
 6. JSON 解码失败 → decodeInvalid
 7. 已是目标类型直接返回
 

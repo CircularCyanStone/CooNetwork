@@ -9,7 +9,6 @@ struct NtkRetryInterceptorTests {
         let interceptor = NtkRetryInterceptor(retryPolicy: ZeroRetryPolicy())
         let context = NtkInterceptorContext(
             mutableRequest: NtkMutableRequest(DummyRequest()),
-            validation: DummyValidation(),
             client: DummyClient()
         )
         
@@ -36,7 +35,6 @@ struct NtkRetryInterceptorTests {
             retryPolicy: CountingRetryPolicy(maxRetryCount: 3))
         let context = NtkInterceptorContext(
             mutableRequest: NtkMutableRequest(DummyRequest()),
-            validation: DummyValidation(),
             client: DummyClient()
         )
 
@@ -61,7 +59,6 @@ struct NtkRetryInterceptorTests {
             retryPolicy: CountingRetryPolicy(maxRetryCount: 1))
         let context = NtkInterceptorContext(
             mutableRequest: NtkMutableRequest(DummyRequest()),
-            validation: DummyValidation(),
             client: DummyClient()
         )
 
@@ -85,7 +82,6 @@ struct NtkRetryInterceptorTests {
             retryPolicy: CountingRetryPolicy(maxRetryCount: 3))
         let context = NtkInterceptorContext(
             mutableRequest: NtkMutableRequest(DummyRequest()),
-            validation: DummyValidation(),
             client: DummyClient()
         )
 
@@ -107,7 +103,6 @@ struct NtkRetryInterceptorTests {
             retryPolicy: CountingRetryPolicy(maxRetryCount: 5))
         let context = NtkInterceptorContext(
             mutableRequest: NtkMutableRequest(DummyRequest()),
-            validation: DummyValidation(),
             client: DummyClient()
         )
 

@@ -13,7 +13,7 @@ import Foundation
 ///
 /// ## 内置实现（位于 `interceptor/NtkDecoderBuilders.swift`）
 /// - `NtkDataDecoderBuilder`：默认实现，适配 `Data` 数据源（如 Alamofire）
-/// - `NtkJsonObjectDecoderBuilder`：适配 `[String: any Sendable]` / `NSDictionary` 数据源（如 mPaaS）
+/// - `NtkJsonObjectDecoderBuilder`：适配顶层可按字符串键读取的字典对象，以及可安全桥接为字符串键字典的 `NSDictionary`（如 mPaaS）
 ///
 /// ## 自定义示例
 /// ```swift

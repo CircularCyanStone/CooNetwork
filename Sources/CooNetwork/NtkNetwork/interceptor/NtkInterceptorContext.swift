@@ -8,7 +8,7 @@
 import Foundation
 
 /// 拦截器上下文
-/// 在拦截器链中传递，携带请求、验证器、客户端等共享信息
+/// 在拦截器链中传递，携带请求、客户端以及拦截器间共享的额外数据
 @NtkActor
 public final class NtkInterceptorContext: Sendable {
 

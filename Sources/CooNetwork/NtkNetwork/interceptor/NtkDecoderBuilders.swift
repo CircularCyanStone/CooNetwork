@@ -8,10 +8,10 @@ import Foundation
 // NtkDataDecoderBuilder 和 NtkJsonObjectDecoderBuilder
 // iNtkDecoderBuilding 协议的内置实现，与 NtkDataParsingInterceptor 配套
 
-/// `[String: any Sendable]` / `NSDictionary` 数据源适配
+/// 顶层可按字符串键读取的字典对象 / 可安全桥接为字符串键字典的 `NSDictionary` 数据源适配
 ///
 /// 适用于内部已完成 JSON 反序列化、直接返回字典的客户端（如 mPaaS）。
-/// `code` / `msg` 直接从字典提取，零额外开销；
+/// `code` / `msg` 直接从顶层字符串键读取，零额外开销；
 /// `data` 字段需经过一次 `JSONSerialization` + `JSONDecoder` 以支持 `Codable` 解码。
 public struct NtkJsonObjectDecoderBuilder<
     ResponseData: Sendable & Decodable,
@@ -29,7 +29,7 @@ public struct NtkJsonObjectDecoderBuilder<
     public func build(
         _ sourceData: any Sendable,
         context: NtkInterceptorContext
-    ) throws -> NtkResponseDecoder<ResponseData, Keys> {
+    ) async throws -> NtkResponseDecoder<ResponseData, Keys> {
         guard let dict = extractDict(sourceData) else { throw NtkError.typeMismatch }
 
         let code = NtkReturnCode(dict[Keys.code])
@@ -71,7 +71,7 @@ public struct NtkDataDecoderBuilder<
     public func build(
         _ sourceData: any Sendable,
         context: NtkInterceptorContext
-    ) throws -> NtkResponseDecoder<ResponseData, Keys> {
+    ) async throws -> NtkResponseDecoder<ResponseData, Keys> {
         guard let data = sourceData as? Data else { throw NtkError.typeMismatch }
         return try JSONDecoder().decode(NtkResponseDecoder<ResponseData, Keys>.self, from: data)
     }

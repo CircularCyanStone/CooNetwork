@@ -10,7 +10,7 @@ struct NtkDataParsingInterceptorTests {
     @Test
     @NtkActor
     func alreadyTypedResponsePassesThrough() async throws {
-        let interceptor = NtkDataParsingInterceptor<Bool, AFTestKeys>()
+        let interceptor = NtkDataParsingInterceptor<Bool, AFTestKeys>(validation: AFTestPassValidation())
         let existing = NtkResponse<Bool>(
             code: NtkReturnCode(0), data: true, msg: "ok",
             response: true, request: AFTestRequest(), isCache: false
@@ -29,7 +29,7 @@ struct NtkDataParsingInterceptorTests {
     func ntkNeverTypeReturnsSuccessfully() async throws {
         let json: [String: Any] = ["retCode": 0, "data": NSNull(), "retMsg": "ok"]
         let data = try JSONSerialization.data(withJSONObject: json)
-        let interceptor = NtkDataParsingInterceptor<NtkNever, AFTestKeys>()
+        let interceptor = NtkDataParsingInterceptor<NtkNever, AFTestKeys>(validation: AFTestPassValidation())
         let handler = AFTestDataHandler(data: data, request: AFTestRequest())
         let context = makeAFContext()
         let result = try await interceptor.intercept(context: context, next: handler)
@@ -44,16 +44,13 @@ struct NtkDataParsingInterceptorTests {
     func decodableModelParsesCorrectly() async throws {
         let json: [String: Any] = ["retCode": 0, "data": ["id": 1, "name": "test"], "retMsg": "ok"]
         let data = try JSONSerialization.data(withJSONObject: json)
-        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(validation: AFTestPassValidation())
         let handler = AFTestDataHandler(data: data, request: AFTestRequest())
         let context = makeAFContext()
         let result = try await interceptor.intercept(context: context, next: handler)
-        // 注意：NtkResponseDecoder<ResponseData?, Keys> 导致 data 解码为 ResponseData??
-        // if let 解包后 retData 是 ResponseData?，所以返回 NtkResponse<ResponseData?>
-        // 这意味着 NtkNetworkExecutor.execute() 中 as? NtkResponse<ResponseData> 会失败
-        let typed = try #require(result as? NtkResponse<AFTestModel?>)
-        #expect(typed.data?.id == 1)
-        #expect(typed.data?.name == "test")
+        let typed = try #require(result as? NtkResponse<AFTestModel>)
+        #expect(typed.data.id == 1)
+        #expect(typed.data.name == "test")
         #expect(typed.code.intValue == 0)
     }
 
@@ -64,7 +61,7 @@ struct NtkDataParsingInterceptorTests {
     func nilDataWithValidationPassThrowsServiceDataEmpty() async throws {
         let json: [String: Any] = ["retCode": 0, "retMsg": "ok"]
         let data = try JSONSerialization.data(withJSONObject: json)
-        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(validation: AFTestPassValidation())
         let handler = AFTestDataHandler(data: data, request: AFTestRequest())
         let context = makeAFContext()
         do {
@@ -86,9 +83,9 @@ struct NtkDataParsingInterceptorTests {
     func nilDataWithValidationFailThrowsValidationError() async throws {
         let json: [String: Any] = ["retCode": 999, "retMsg": "fail"]
         let data = try JSONSerialization.data(withJSONObject: json)
-        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(validation: AFTestFailValidation())
         let handler = AFTestDataHandler(data: data, request: AFTestRequest())
-        let context = makeAFContext(validation: AFTestFailValidation())
+        let context = makeAFContext()
         do {
             _ = try await interceptor.intercept(context: context, next: handler)
             Issue.record("期望抛出 validation 错误")
@@ -101,20 +98,20 @@ struct NtkDataParsingInterceptorTests {
         }
     }
 
-    // MARK: - 空响应体 → responseBodyEmpty
+    // MARK: - 空响应体 → decodeInvalid
 
     @Test
     @NtkActor
-    func emptyResponseBodyThrowsResponseBodyEmpty() async throws {
+    func emptyResponseBodyThrowsDecodeInvalid() async throws {
         let data = Data()
-        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(validation: AFTestPassValidation())
         let handler = AFTestDataHandler(data: data, request: AFTestRequest())
         let context = makeAFContext()
         do {
             _ = try await interceptor.intercept(context: context, next: handler)
-            Issue.record("期望抛出 responseBodyEmpty")
+            Issue.record("期望抛出 decodeInvalid")
         } catch let error as NtkError {
-            if case .responseBodyEmpty = error {
+            if case .decodeInvalid = error {
                 #expect(Bool(true))
             } else {
                 Issue.record("错误类型不符: \(error)")
@@ -130,7 +127,7 @@ struct NtkDataParsingInterceptorTests {
         // data 字段类型不匹配：期望对象但给了字符串
         let json: [String: Any] = ["retCode": 0, "data": "not_an_object", "retMsg": "ok"]
         let data = try JSONSerialization.data(withJSONObject: json)
-        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(validation: AFTestPassValidation())
         let handler = AFTestDataHandler(data: data, request: AFTestRequest())
         let context = makeAFContext()
         do {
@@ -149,10 +146,9 @@ struct NtkDataParsingInterceptorTests {
 // MARK: - Helpers
 
 @NtkActor
-private func makeAFContext(validation: iNtkResponseValidation = AFTestPassValidation()) -> NtkInterceptorContext {
+private func makeAFContext() -> NtkInterceptorContext {
     NtkInterceptorContext(
         mutableRequest: NtkMutableRequest(AFTestRequest()),
-        validation: validation,
         client: AFTestDummyClient()
     )
 }

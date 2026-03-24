@@ -28,9 +28,7 @@ struct NtkNetworkExecutorTests {
         let config = NtkNetworkExecutor<Bool>.Configuration(
             client: ExecMockClient(result: .failure(NtkError.requestTimeout)),
             request: request,
-            interceptors: [],
-            validation: ExecDummyValidation(),
-            dataParsingInterceptor: ExecMockParsingInterceptor()
+            interceptors: [NtkResponseParserBox(ExecMockParsingInterceptor())]
         )
         let executor = NtkNetworkExecutor<Bool>(config: config)
         do {
@@ -50,14 +48,12 @@ struct NtkNetworkExecutorTests {
         let lowPriority = ExecPriorityRecordingInterceptor(id: "low", prio: .low, counter: counter)
         let highPriority = ExecPriorityRecordingInterceptor(id: "high", prio: .high, counter: counter)
 
-        var request = NtkMutableRequest(ExecDummyRequest())
+        var request = NtkMutableRequest(ExecDummyRequest(path: "/executor/priority-order"))
         request.responseType = String(describing: Bool.self)
         let config = NtkNetworkExecutor<Bool>.Configuration(
             client: ExecMockClient(result: .success(())),
             request: request,
-            interceptors: [lowPriority, highPriority],
-            validation: ExecDummyValidation(),
-            dataParsingInterceptor: ExecMockParsingInterceptor()
+            interceptors: [NtkResponseParserBox(ExecMockParsingInterceptor()), lowPriority, highPriority]
         )
         let executor = NtkNetworkExecutor<Bool>(config: config)
         _ = try await executor.execute()
@@ -141,18 +137,16 @@ struct NtkNetworkExecutorTests {
 private func makeExecutor(
     client: ExecMockClient,
     cacheInterceptor: NtkCacheInterceptor? = nil,
-    parsingInterceptor: iNtkInterceptor
+    parsingInterceptor: any iNtkResponseParser
 ) -> NtkNetworkExecutor<Bool> {
     var request = NtkMutableRequest(ExecDummyRequest())
     request.responseType = String(describing: Bool.self)
-    var interceptors: [iNtkInterceptor] = []
+    var interceptors: [iNtkInterceptor] = [NtkResponseParserBox(parsingInterceptor)]
     if let cacheInterceptor { interceptors.append(cacheInterceptor) }
     let config = NtkNetworkExecutor<Bool>.Configuration(
         client: client,
         request: request,
-        interceptors: interceptors,
-        validation: ExecDummyValidation(),
-        dataParsingInterceptor: parsingInterceptor
+        interceptors: interceptors
     )
     return NtkNetworkExecutor<Bool>(config: config)
 }
@@ -164,14 +158,12 @@ private func makeBoolExecutor(
 ) -> NtkNetworkExecutor<Bool> {
     var request = NtkMutableRequest(ExecDummyRequest())
     request.responseType = String(describing: Bool.self)
-    var interceptors: [iNtkInterceptor] = []
+    var interceptors: [iNtkInterceptor] = [NtkResponseParserBox(ExecMockParsingInterceptor())]
     if let cacheInterceptor { interceptors.append(cacheInterceptor) }
     let config = NtkNetworkExecutor<Bool>.Configuration(
         client: client,
         request: request,
-        interceptors: interceptors,
-        validation: ExecDummyValidation(),
-        dataParsingInterceptor: ExecMockParsingInterceptor()
+        interceptors: interceptors
     )
     return NtkNetworkExecutor<Bool>(config: config)
 }
@@ -229,7 +221,9 @@ private struct ExecMockCacheStorage: iNtkCacheStorage {
 
 /// 将 NtkClientResponse 转为 NtkResponse<Bool> 的 mock 解析拦截器
 @NtkActor
-private struct ExecMockParsingInterceptor: iNtkInterceptor {
+private struct ExecMockParsingInterceptor: iNtkResponseParser {
+    let validation: iNtkResponseValidation = ExecDummyValidation()
+
     func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
         let response = try await next.handle(context: context)
         if let typed = response as? NtkResponse<Bool> { return typed }
