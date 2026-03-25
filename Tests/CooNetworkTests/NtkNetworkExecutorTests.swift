@@ -106,6 +106,52 @@ struct NtkNetworkExecutorTests {
         #expect(response?.isCache == true)
     }
 
+    @Test
+    @NtkActor
+    func loadCacheWithRealParserAndThrowingHookStillReturnsTypedCachedResponse() async throws {
+        let cachePayload = try JSONSerialization.data(withJSONObject: [
+            "retCode": 0,
+            "data": true,
+            "retMsg": "ok"
+        ])
+        let baselineStorage = ExecMockCacheStorage(cacheData: cachePayload, hasCacheResult: false)
+        let hookedStorage = ExecMockCacheStorage(cacheData: cachePayload, hasCacheResult: false)
+        let hook = ExecThrowingHook()
+
+        var baselineRequest = NtkMutableRequest(ExecDummyRequest(path: "/executor/cache-baseline"))
+        baselineRequest.responseType = String(describing: Bool.self)
+        let baselineParser = NtkDataParsingInterceptor<Bool, ExecTestKeys>(validation: ExecDummyValidation())
+        let baselineConfig = NtkNetworkExecutor<Bool>.Configuration(
+            client: ExecMockClient(result: .success(())),
+            request: baselineRequest,
+            interceptors: [NtkResponseParserBox(baselineParser), NtkCacheInterceptor(storage: baselineStorage)]
+        )
+        let baselineExecutor = NtkNetworkExecutor<Bool>(config: baselineConfig)
+
+        var hookedRequest = NtkMutableRequest(ExecDummyRequest(path: "/executor/cache-hook"))
+        hookedRequest.responseType = String(describing: Bool.self)
+        let hookedParser = NtkDataParsingInterceptor<Bool, ExecTestKeys>(
+            validation: ExecDummyValidation(),
+            hooks: [hook]
+        )
+        let hookedConfig = NtkNetworkExecutor<Bool>.Configuration(
+            client: ExecMockClient(result: .success(())),
+            request: hookedRequest,
+            interceptors: [NtkResponseParserBox(hookedParser), NtkCacheInterceptor(storage: hookedStorage)]
+        )
+        let hookedExecutor = NtkNetworkExecutor<Bool>(config: hookedConfig)
+
+        let baselineResponse = try #require(await baselineExecutor.loadCache())
+        let hookedResponse = try #require(await hookedExecutor.loadCache())
+        #expect(hookedResponse.data == baselineResponse.data)
+        #expect(hookedResponse.code.intValue == baselineResponse.code.intValue)
+        #expect(hookedResponse.code.stringValue == baselineResponse.code.stringValue)
+        #expect(hookedResponse.msg == baselineResponse.msg)
+        #expect(hookedResponse.isCache == baselineResponse.isCache)
+        #expect(hookedResponse.msg == "ok")
+        #expect(hook.events == ["didDecodeHeader", "willValidate", "didComplete"])
+    }
+
     // MARK: - loadCache() 无缓存返回 nil
 
     @Test
@@ -251,6 +297,29 @@ private struct ExecMockCacheStorage: iNtkCacheStorage {
         )
     }
     @NtkActor func hasData(key: String, for request: NtkMutableRequest) async -> Bool { hasCacheResult }
+}
+
+private final class ExecThrowingHook: iNtkParsingHooks, @unchecked Sendable {
+    var events: [String] = []
+
+    func didDecodeHeader(retCode: Int, msg: String?, context: NtkInterceptorContext) async throws {
+        events.append("didDecodeHeader")
+        throw ExecHookObserverError.point("didDecodeHeader")
+    }
+
+    func willValidate(_ response: any iNtkResponse, context: NtkInterceptorContext) async throws {
+        events.append("willValidate")
+        throw ExecHookObserverError.point("willValidate")
+    }
+
+    func didComplete(_ response: any iNtkResponse, context: NtkInterceptorContext) async throws {
+        events.append("didComplete")
+        throw ExecHookObserverError.point("didComplete")
+    }
+}
+
+private enum ExecHookObserverError: Error, Equatable {
+    case point(String)
 }
 
 /// 将 NtkClientResponse 转为 NtkResponse<Bool> 的 mock 解析拦截器
