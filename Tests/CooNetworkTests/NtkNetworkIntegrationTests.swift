@@ -65,6 +65,22 @@ struct NtkNetworkIntegrationTests {
         #expect(hook.events == ["didDecodeHeader", "willValidate", "didComplete"])
     }
 
+    @Test
+    func customParserWithoutValidationRequirementStillWorks() async throws {
+        let network = NtkNetwork<Bool>.with(
+            IntegJSONClient(data: try JSONSerialization.data(withJSONObject: [
+                "retCode": 0,
+                "data": true,
+                "retMsg": "ok"
+            ])),
+            request: IntegDummyRequest(path: "/integration/custom-parser-no-validation"),
+            responseParser: IntegNoValidationParsingInterceptor()
+        )
+
+        let response = try await network.request()
+        #expect(response.data == true)
+    }
+
     // MARK: - request() 自定义拦截器被执行
 
     @Test
@@ -264,11 +280,24 @@ private enum IntegHookObserverError: Error, Equatable {
 
 @NtkActor
 private struct IntegMockParsingInterceptor: iNtkResponseParser {
-    let validation: iNtkResponseValidation = IntegDummyValidation()
-
     func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
         let response = try await next.handle(context: context)
         if let typed = response as? NtkResponse<Bool> { return typed }
+        return NtkResponse<Bool>(
+            code: response.code,
+            data: true,
+            msg: response.msg,
+            response: response.response,
+            request: response.request,
+            isCache: response.isCache
+        )
+    }
+}
+
+@NtkActor
+private struct IntegNoValidationParsingInterceptor: iNtkResponseParser {
+    func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
+        let response = try await next.handle(context: context)
         return NtkResponse<Bool>(
             code: response.code,
             data: true,

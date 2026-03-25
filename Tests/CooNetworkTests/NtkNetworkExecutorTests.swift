@@ -325,8 +325,6 @@ private enum ExecHookObserverError: Error, Equatable {
 /// 将 NtkClientResponse 转为 NtkResponse<Bool> 的 mock 解析拦截器
 @NtkActor
 private struct ExecMockParsingInterceptor: iNtkResponseParser {
-    let validation: iNtkResponseValidation = ExecDummyValidation()
-
     func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
         let response = try await next.handle(context: context)
         if let typed = response as? NtkResponse<Bool> { return typed }

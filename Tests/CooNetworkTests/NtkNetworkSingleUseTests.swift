@@ -71,8 +71,6 @@ private struct SingleUseDummyClient: iNtkClient {
 }
 
 private struct SingleUseDummyParsingInterceptor: iNtkResponseParser {
-    let validation: iNtkResponseValidation = SingleUseDummyValidation()
-
     @NtkActor
     func intercept(context: NtkInterceptorContext, next: iNtkRequestHandler) async throws -> any iNtkResponse {
         let response = try await next.handle(context: context)

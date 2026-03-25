@@ -14,7 +14,6 @@ public struct NtkDataParsingInterceptor<
     Keys: iNtkResponseMapKeys
 >: iNtkResponseParser {
 
-    public let validation: iNtkResponseValidation
     private let dispatcher: NtkParsingHookDispatcher
     private let transformers: [any iNtkResponsePayloadTransforming]
     private let decoder: any iNtkResponsePayloadDecoding<ResponseData, Keys>
@@ -27,7 +26,6 @@ public struct NtkDataParsingInterceptor<
         transformers: [any iNtkResponsePayloadTransforming] = []
     ) {
         let dispatcher = NtkParsingHookDispatcher(hooks: hooks)
-        self.validation = validation
         self.dispatcher = dispatcher
         self.transformers = transformers
         self.decoder = NtkDataPayloadDecoder<ResponseData, Keys>()
@@ -45,7 +43,6 @@ public struct NtkDataParsingInterceptor<
         decoder: any iNtkResponsePayloadDecoding<ResponseData, Keys>
     ) {
         let dispatcher = NtkParsingHookDispatcher(hooks: hooks)
-        self.validation = validation
         self.dispatcher = dispatcher
         self.transformers = transformers
         self.decoder = decoder
