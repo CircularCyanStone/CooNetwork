@@ -11,15 +11,15 @@ public enum NtkPayload: Sendable {
     /// - 接受顶层 object / array 这类结构化 payload
     /// - 拒绝顶层 scalar（`String` / `number` / `bool` / `null`）这类 leaf value
     ///
-    /// 该步骤只保证输入在结构上可进入 normalize → transform → decode 流程，
-    /// 不保证 payload 符合某个业务 envelope。header 提取、decode 与 validation
-    /// 由后续阶段决定。
+    /// 该步骤只保证输入在结构上可进入 normalize → transform → decode 流程。
+    /// 对结构化 payload，仅校验顶层 root 为 object / array；不对整棵树做递归归一化。
+    /// 更深层的结构解释，以及字段语义的收敛，由后续 transformer / decoder 决定。
     public static func normalize(from raw: Any) throws -> NtkPayload {
         if let data = raw as? Data {
             return .data(data)
         }
 
-        guard let dynamic = try StrictPayloadNormalizer.normalizeRoot(raw) else {
+        guard let dynamic = try PayloadRootGate.normalizeRoot(raw) else {
             throw NtkError.typeMismatch
         }
 

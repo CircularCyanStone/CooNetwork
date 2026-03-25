@@ -67,11 +67,14 @@ struct NtkPayloadNormalizationTests {
     }
 
     @Test
-    func normalizeDistinguishesNSNumberKindsInNestedStructure() throws {
-        let source: NSDictionary = [
+    func normalizeKeepsNestedFoundationContainersUntouched() throws {
+        let nested = NSMutableDictionary(dictionary: [
             "bool": NSNumber(value: true),
             "int": NSNumber(value: 1),
             "double": NSNumber(value: 1.5)
+        ])
+        let source: NSDictionary = [
+            "data": nested
         ]
 
         let payload = try NtkPayload.normalize(from: source)
@@ -80,13 +83,13 @@ struct NtkPayloadNormalizationTests {
             return
         }
 
-        #expect(dynamic["bool"]?.getBool() == true)
-        #expect(dynamic["int"]?.getInt() == 1)
-        #expect(dynamic["double"]?.getDouble() == 1.5)
+        let root = try #require(dynamic.getDictionary())
+        let nestedObject = try #require(root["data"] as? NSMutableDictionary)
+        #expect(ObjectIdentifier(nestedObject) == ObjectIdentifier(nested))
     }
 
     @Test
-    func normalizeRejectsDeepInvalidNestedNode() throws {
+    func normalizeAcceptsDeepUnknownNestedNodeWithoutPrevalidation() throws {
         final class UnknownBox: NSObject, @unchecked Sendable {}
         let source: [String: any Sendable] = [
             "outer": [
@@ -94,27 +97,72 @@ struct NtkPayloadNormalizationTests {
             ] as [String: any Sendable]
         ]
 
-        #expect(throws: NtkError.self) {
-            _ = try NtkPayload.normalize(from: source)
+        let payload = try NtkPayload.normalize(from: source)
+        guard case .dynamic(let dynamic) = payload else {
+            Issue.record("期望 dynamic payload")
+            return
         }
+
+        let root = try #require(dynamic.getDictionary())
+        let outer = try #require(root["outer"] as? [String: any Sendable])
+        #expect(outer["inner"] is UnknownBox)
     }
 
     @Test
-    func normalizeRejectsNSArrayContainingInvalidNode() throws {
+    func normalizeAcceptsNSArrayContainingUnknownNestedNodeWithoutPrevalidation() throws {
         final class UnknownBox: NSObject, @unchecked Sendable {}
         let source: NSArray = ["ok", UnknownBox()]
 
-        #expect(throws: NtkError.self) {
-            _ = try NtkPayload.normalize(from: source)
+        let payload = try NtkPayload.normalize(from: source)
+        guard case .dynamic(let dynamic) = payload else {
+            Issue.record("期望 dynamic payload")
+            return
         }
+
+        let array = try #require(dynamic.getArray())
+        #expect(array.count == 2)
+        #expect(array[0] as? String == "ok")
+        #expect(array[1] is UnknownBox)
+    }
+
+
+    @Test
+    func normalizeStillAllowsLazyNestedDictionaryNavigation() throws {
+        let source: NSDictionary = [
+            "data": [
+                "user": [
+                    "id": 1,
+                    "name": "coo"
+                ]
+            ]
+        ]
+
+        let payload = try NtkPayload.normalize(from: source)
+        guard case .dynamic(let dynamic) = payload else {
+            Issue.record("期望 dynamic payload")
+            return
+        }
+
+        #expect(dynamic["data"]?["user"]?["id"]?.getInt() == 1)
+        #expect(dynamic["data"]?["user"]?["name"]?.getString() == "coo")
     }
 
     @Test
-    func normalizeRejectsUnknownNSObject() throws {
-        final class UnknownBox: NSObject, @unchecked Sendable {}
+    func normalizeStillAllowsLazyNestedArrayNavigation() throws {
+        let source: NSDictionary = [
+            "data": [
+                ["id": 1],
+                ["id": 2]
+            ]
+        ]
 
-        #expect(throws: NtkError.self) {
-            _ = try NtkPayload.normalize(from: UnknownBox())
+        let payload = try NtkPayload.normalize(from: source)
+        guard case .dynamic(let dynamic) = payload else {
+            Issue.record("期望 dynamic payload")
+            return
         }
+
+        #expect(dynamic["data"]?[0]?["id"]?.getInt() == 1)
+        #expect(dynamic["data"]?[1]?["id"]?.getInt() == 2)
     }
 }

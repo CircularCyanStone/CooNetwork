@@ -84,34 +84,36 @@ public final class NtkDynamicData: NSObject, Sendable, Codable {
             return NtkDynamicData(dictionary: dict)
         case let array as [any Sendable]:
             return NtkDynamicData(array: array)
-        case let string as String:
-            return NtkDynamicData(string: string)
-        case let int as Int:
-            return NtkDynamicData(int: int)
-        case let double as Double:
-            return NtkDynamicData(double: double)
-        case let bool as Bool:
-            return NtkDynamicData(bool: bool)
-        case is NSNull:
-            return NtkDynamicData()
+        case let dict as NSDictionary:
+            if let bridged = dict as? [String: any Sendable] {
+                return NtkDynamicData(dictionary: bridged)
+            }
+            return NtkDynamicData(string: String(describing: dict))
+        case let array as NSArray:
+            if let bridged = array as? [any Sendable] {
+                return NtkDynamicData(array: bridged)
+            }
+            return NtkDynamicData(string: String(describing: array))
+        case let string as NSString:
+            return NtkDynamicData(string: String(string))
+        case let number as NSNumber:
+            if CFGetTypeID(number) == CFBooleanGetTypeID() {
+                return NtkDynamicData(bool: number.boolValue)
+            }
+
+            let doubleValue = number.doubleValue
+            if floor(doubleValue) == doubleValue,
+               doubleValue >= Double(Int.min),
+               doubleValue <= Double(Int.max) {
+                return NtkDynamicData(int: Int(doubleValue))
+            }
+            return NtkDynamicData(double: doubleValue)
         default:
             // 对于其他类型，尝试转换为字符串
             return NtkDynamicData(string: String(describing: value))
         }
     }
 
-    static func strictObject(_ dictionary: [String: NtkDynamicData]) -> NtkDynamicData {
-        var converted: [String: any Sendable] = [:]
-        for (key, value) in dictionary {
-            converted[key] = value.sendableValue
-        }
-        return NtkDynamicData(dictionary: converted)
-    }
-
-    static func strictArray(_ array: [NtkDynamicData]) -> NtkDynamicData {
-        let converted = array.map(\.sendableValue)
-        return NtkDynamicData(array: converted)
-    }
 
     // MARK: - Codable
 
