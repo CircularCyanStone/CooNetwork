@@ -171,6 +171,51 @@ struct NtkDataParsingInterceptorTests {
 
     @Test
     @NtkActor
+    func decodeFailureWithoutRecoveredHeaderThrowsDecodeInvalid() async throws {
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
+            validation: AFTestPassValidation(),
+            decoder: AFTestNoHeaderDecoder()
+        )
+        let data = try JSONSerialization.data(withJSONObject: [
+            "retCode": 0,
+            "data": ["id": 1, "name": "ok"],
+            "retMsg": "ok"
+        ])
+        let handler = AFTestDataHandler(data: data, request: AFTestRequest())
+
+        do {
+            _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
+            Issue.record("期望抛出 decodeInvalid")
+        } catch let error as NtkError {
+            if case .decodeInvalid = error {
+                #expect(Bool(true))
+            } else {
+                Issue.record("错误类型不符: \(error)")
+            }
+        }
+    }
+
+    @Test
+    @NtkActor
+    func ntkNeverStillTriggersWillValidateAndDidComplete() async throws {
+        let hook = AFTestRecordingHook()
+        let json: [String: Any] = ["retCode": 0, "data": NSNull(), "retMsg": "ok"]
+        let data = try JSONSerialization.data(withJSONObject: json)
+        let interceptor = NtkDataParsingInterceptor<NtkNever, AFTestKeys>(
+            validation: AFTestPassValidation(),
+            hooks: [hook]
+        )
+        let handler = AFTestDataHandler(data: data, request: AFTestRequest())
+
+        _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
+
+        #expect(hook.events.contains("didDecodeHeader"))
+        #expect(hook.events.contains("willValidate"))
+        #expect(hook.events.contains("didComplete"))
+    }
+
+    @Test
+    @NtkActor
     func transformErrorStopsBeforeDecodeAndHooks() async throws {
         let hook = AFTestRecordingHook()
         let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
@@ -325,6 +370,17 @@ private struct AFTestHeaderOnlyDecoder: iNtkResponsePayloadDecoding {
             code: NtkReturnCode(999),
             msg: "fail",
             data: NtkDynamicData(dictionary: ["reason": "mock"])
+        )
+    }
+}
+
+private struct AFTestNoHeaderDecoder: iNtkResponsePayloadDecoding {
+    func decode(
+        _ payload: NtkPayload,
+        context: NtkInterceptorContext
+    ) async throws -> NtkResponseDecoder<AFTestModel, AFTestKeys> {
+        throw DecodingError.dataCorrupted(
+            .init(codingPath: [], debugDescription: "expected failure without header extraction")
         )
     }
 }

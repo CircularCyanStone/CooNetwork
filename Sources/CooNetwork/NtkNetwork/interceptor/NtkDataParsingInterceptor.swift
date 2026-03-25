@@ -18,6 +18,7 @@ public struct NtkDataParsingInterceptor<
     private let hooks: [any iNtkParsingHooks]
     private let transformers: [any iNtkResponsePayloadTransforming]
     private let decoder: any iNtkResponsePayloadDecoding<ResponseData, Keys>
+    private let policy: NtkDefaultResponseParsingPolicy<ResponseData>
 
     /// 初始化解析拦截器（使用默认 Data payload decoder）
     public init(
@@ -29,6 +30,18 @@ public struct NtkDataParsingInterceptor<
         self.hooks = hooks
         self.transformers = transformers
         self.decoder = NtkDataPayloadDecoder<ResponseData, Keys>()
+        self.policy = NtkDefaultResponseParsingPolicy(
+            validation: validation,
+            notifyWillValidate: { response, context in
+                for hook in hooks { try await hook.willValidate(response, context: context) }
+            },
+            notifyDidValidateFail: { response, context in
+                for hook in hooks { try await hook.didValidateFail(response, context: context) }
+            },
+            notifyDidComplete: { response, context in
+                for hook in hooks { try await hook.didComplete(response, context: context) }
+            }
+        )
     }
 
     /// 初始化解析拦截器（自定义 payload decoder）
@@ -42,6 +55,18 @@ public struct NtkDataParsingInterceptor<
         self.hooks = hooks
         self.transformers = transformers
         self.decoder = decoder
+        self.policy = NtkDefaultResponseParsingPolicy(
+            validation: validation,
+            notifyWillValidate: { response, context in
+                for hook in hooks { try await hook.willValidate(response, context: context) }
+            },
+            notifyDidValidateFail: { response, context in
+                for hook in hooks { try await hook.didValidateFail(response, context: context) }
+            },
+            notifyDidComplete: { response, context in
+                for hook in hooks { try await hook.didComplete(response, context: context) }
+            }
+        )
     }
 
     public func intercept(
@@ -84,58 +109,37 @@ public struct NtkDataParsingInterceptor<
                 )
             }
 
-            if ResponseData.self is NtkNever.Type {
-                let fixResponse = NtkResponse(
-                    code: decoderResponse.code,
-                    data: NtkNever() as! ResponseData,
-                    msg: decoderResponse.msg,
-                    response: clientResponse,
-                    request: request,
-                    isCache: clientResponse.isCache
-                )
-                try await runValidation(fixResponse, request: request, context: context)
-                for hook in hooks { try await hook.didComplete(fixResponse, context: context) }
-                return fixResponse
-            }
-
-            guard let retData = decoderResponse.data else {
-                let optionalResponse = NtkResponse<ResponseData?>(
-                    code: decoderResponse.code,
-                    data: nil,
-                    msg: decoderResponse.msg,
-                    response: clientResponse,
-                    request: request,
-                    isCache: clientResponse.isCache
-                )
-                try await runValidation(optionalResponse, request: request, context: context)
-                throw NtkError.serviceDataEmpty
-            }
-
-            let fixResponse = NtkResponse(
+            let result = NtkParsingResult<ResponseData>.decoded(
                 code: decoderResponse.code,
-                data: retData,
                 msg: decoderResponse.msg,
-                response: clientResponse,
+                data: decoderResponse.data,
                 request: request,
+                clientResponse: clientResponse,
                 isCache: clientResponse.isCache
             )
-            try await runValidation(fixResponse, request: request, context: context)
-            for hook in hooks { try await hook.didComplete(fixResponse, context: context) }
-            return fixResponse
+            return try await policy.decide(from: result, context: context)
 
         } catch let error as DecodingError {
+            let result: NtkParsingResult<ResponseData>
             if let header = try? decoder.extractHeader(finalPayload, request: request) {
-                let errResponse = NtkResponse<NtkDynamicData?>(
-                    code: header.code,
-                    data: header.data,
-                    msg: header.msg,
-                    response: clientResponse,
+                result = .headerRecovered(
+                    decodeError: error,
+                    rawPayload: finalPayload,
+                    header: header,
                     request: request,
+                    clientResponse: clientResponse,
                     isCache: clientResponse.isCache
                 )
-                try await runValidation(errResponse, request: request, context: context)
+            } else {
+                result = .unrecoverableDecodeFailure(
+                    decodeError: error,
+                    rawPayload: finalPayload,
+                    request: request,
+                    clientResponse: clientResponse,
+                    isCache: clientResponse.isCache
+                )
             }
-            throw NtkError.decodeInvalid(error, clientResponse.data, request)
+            return try await policy.decide(from: result, context: context)
         }
     }
 
@@ -150,25 +154,4 @@ public struct NtkDataParsingInterceptor<
         return current
     }
 
-    private func runValidation(
-        _ response: any iNtkResponse,
-        request: iNtkRequest,
-        context: NtkInterceptorContext
-    ) async throws {
-        for hook in hooks { try await hook.willValidate(response, context: context) }
-        try await validate(response, request: request, context: context)
-    }
-
-    private func validate(
-        _ response: any iNtkResponse,
-        request: iNtkRequest,
-        context: NtkInterceptorContext
-    ) async throws {
-        guard validation.isServiceSuccess(response) else {
-            for hook in hooks {
-                try await hook.didValidateFail(response, context: context)
-            }
-            throw NtkError.validation(request, response)
-        }
-    }
 }

@@ -78,6 +78,34 @@ struct NtkNetworkExecutorTests {
         #expect(response?.isCache == true)
     }
 
+    @Test
+    @NtkActor
+    func loadCacheWithRealParserStillReturnsTypedCachedResponse() async throws {
+        let storage = ExecMockCacheStorage(
+            cacheData: try JSONSerialization.data(withJSONObject: [
+                "retCode": 0,
+                "data": true,
+                "retMsg": "ok"
+            ]),
+            hasCacheResult: false
+        )
+
+        var request = NtkMutableRequest(ExecDummyRequest())
+        request.responseType = String(describing: Bool.self)
+
+        let parser = NtkDataParsingInterceptor<Bool, ExecTestKeys>(validation: ExecDummyValidation())
+        let config = NtkNetworkExecutor<Bool>.Configuration(
+            client: ExecMockClient(result: .success(())),
+            request: request,
+            interceptors: [NtkResponseParserBox(parser), NtkCacheInterceptor(storage: storage)]
+        )
+        let executor = NtkNetworkExecutor<Bool>(config: config)
+
+        let response = try await executor.loadCache()
+        #expect(response?.data == true)
+        #expect(response?.isCache == true)
+    }
+
     // MARK: - loadCache() 无缓存返回 nil
 
     @Test
@@ -186,6 +214,12 @@ private struct ExecDummyRequest: iNtkRequest {
 
 private struct ExecDummyValidation: iNtkResponseValidation {
     func isServiceSuccess(_ response: any iNtkResponse) -> Bool { true }
+}
+
+private struct ExecTestKeys: iNtkResponseMapKeys {
+    static let code = "retCode"
+    static let data = "data"
+    static let msg = "retMsg"
 }
 
 private struct ExecMockClient: iNtkClient {

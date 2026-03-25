@@ -14,6 +14,24 @@ struct NtkNetworkIntegrationTests {
         #expect(response.isCache == false)
     }
 
+    @Test
+    func requestWithRealParserReturnsDecodedBoolResponse() async throws {
+        let client = IntegJSONClient(data: try JSONSerialization.data(withJSONObject: [
+            "retCode": 0,
+            "data": true,
+            "retMsg": "ok"
+        ]))
+
+        let network = NtkNetwork<Bool>.with(
+            client,
+            request: IntegDummyRequest(path: "/integration/real-parser"),
+            responseParser: NtkDataParsingInterceptor<Bool, IntegTestKeys>(validation: IntegDummyValidation())
+        )
+
+        let response = try await network.request()
+        #expect(response.data == true)
+    }
+
     // MARK: - request() 自定义拦截器被执行
 
     @Test
@@ -134,6 +152,12 @@ private struct IntegDummyValidation: iNtkResponseValidation {
     func isServiceSuccess(_ response: any iNtkResponse) -> Bool { true }
 }
 
+private struct IntegTestKeys: iNtkResponseMapKeys {
+    static let code = "retCode"
+    static let data = "data"
+    static let msg = "retMsg"
+}
+
 private struct IntegMockClient: iNtkClient {
     let result: Result<Void, Error>
     let delay: TimeInterval
@@ -154,6 +178,15 @@ private struct IntegMockClient: iNtkClient {
         case .failure(let error):
             throw error
         }
+    }
+}
+
+private struct IntegJSONClient: iNtkClient {
+    let data: Data
+
+    @NtkActor
+    func execute(_ request: NtkMutableRequest) async throws -> NtkClientResponse {
+        NtkClientResponse(data: data, msg: nil, response: data, request: request, isCache: false)
     }
 }
 

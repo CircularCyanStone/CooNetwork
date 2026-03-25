@@ -7,15 +7,14 @@
 
 import Foundation
 
-/// 响应验证协议
-/// 定义了网络响应的业务逻辑验证规则
+/// 响应业务成功判定协议
+/// 供解析策略在形成 `NtkResponse` 后判断该响应是否表示业务成功
 public protocol iNtkResponseValidation: Sendable {
-    
-    /// 判断接口在服务端是否验证成功
-    /// 用于验证服务端返回的业务状态码是否表示成功
-    /// - Note: 针对个别接口如果需要使用response.data，可以进行强制类型转换
-    /// - Parameter response: 网络响应对象
-    /// - Returns: true表示服务端验证通过，false表示服务端验证失败
+
+    /// 判断接口在服务端是否业务成功
+    /// - Note: 如需依赖 `response.data`，可在实现中自行做类型转换
+    /// - Parameter response: 已构建完成的响应对象
+    /// - Returns: true 表示业务成功，false 表示业务失败
     func isServiceSuccess(_ response: any iNtkResponse) -> Bool
     
 }
