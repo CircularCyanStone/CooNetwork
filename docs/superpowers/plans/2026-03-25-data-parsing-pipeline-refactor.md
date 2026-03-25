@@ -66,7 +66,7 @@ These are the implementation realities the plan must respect:
 **Files:**
 - Modify: `Tests/CooNetworkTests/AFDataParsingInterceptorTests.swift`
 
-- [ ] **Step 1.1: Add missing regression test for decode failure without recovered header**
+- [x] **Step 1.1: Add missing regression test for decode failure without recovered header**
 
 Append to `Tests/CooNetworkTests/AFDataParsingInterceptorTests.swift`:
 
@@ -113,7 +113,7 @@ private struct AFTestNoHeaderDecoder: iNtkResponsePayloadDecoding {
 }
 ```
 
-- [ ] **Step 1.2: Add a regression test for `NtkNever` hook/validation behavior**
+- [x] **Step 1.2: Add a regression test for `NtkNever` hook/validation behavior**
 
 Append:
 
@@ -138,7 +138,7 @@ func ntkNeverStillTriggersWillValidateAndDidComplete() async throws {
 }
 ```
 
-- [ ] **Step 1.3: Run parser tests to confirm baseline is locked**
+- [x] **Step 1.3: Run parser tests to confirm baseline is locked**
 
 Run:
 
@@ -148,7 +148,7 @@ swift test --filter NtkDataParsingInterceptorTests
 
 Expected: all parser tests PASS, including the new baseline tests.
 
-- [ ] **Step 1.4: Commit baseline tests**
+- [x] **Step 1.4: Commit baseline tests**
 
 ```bash
 git add Tests/CooNetworkTests/AFDataParsingInterceptorTests.swift
@@ -164,7 +164,7 @@ git commit -m "test: lock real parser baseline behavior"
 - Create: `Sources/CooNetwork/NtkNetwork/interceptor/NtkDefaultResponseParsingPolicy.swift`
 - Modify: `Sources/CooNetwork/NtkNetwork/interceptor/NtkDataParsingInterceptor.swift`
 
-- [ ] **Step 2.1: Create a minimal closed `ParsingResult` model**
+- [x] **Step 2.1: Create a minimal closed `ParsingResult` model**
 
 Create `Sources/CooNetwork/NtkNetwork/interceptor/NtkParsingResult.swift`:
 
@@ -202,7 +202,7 @@ enum NtkParsingResult<ResponseData: Sendable>: Sendable {
 
 Keep it `internal`.
 
-- [ ] **Step 2.2: Create an internal default policy**
+- [x] **Step 2.2: Create an internal default policy**
 
 Create `Sources/CooNetwork/NtkNetwork/interceptor/NtkDefaultResponseParsingPolicy.swift`.
 
@@ -227,7 +227,7 @@ func decide(
 
 Do not pass decoder, transformer, hooks, or next handler into policy.
 
-- [ ] **Step 2.3: Refactor parser to build `ParsingResult` and delegate decisions**
+- [x] **Step 2.3: Refactor parser to build `ParsingResult` and delegate decisions**
 
 In `Sources/CooNetwork/NtkNetwork/interceptor/NtkDataParsingInterceptor.swift`:
 
@@ -245,7 +245,7 @@ Important:
 - Do **not** change hook failure behavior in this task
 - Do **not** change public initializer shape unless truly necessary
 
-- [ ] **Step 2.4: Run parser tests**
+- [x] **Step 2.4: Run parser tests**
 
 Run:
 
@@ -255,7 +255,7 @@ swift test --filter NtkDataParsingInterceptorTests
 
 Expected: PASS with no externally visible behavior changes.
 
-- [ ] **Step 2.5: Commit**
+- [x] **Step 2.5: Commit**
 
 ```bash
 git add Sources/CooNetwork/NtkNetwork/interceptor/NtkParsingResult.swift \
@@ -273,13 +273,13 @@ git commit -m "refactor: move parser branching into default parsing policy"
 - Modify: `Sources/CooNetwork/NtkNetwork/interceptor/NtkDataParsingInterceptor.swift`
 - Modify: `Sources/CooNetwork/NtkNetwork/iNtk/iNtkResponseValidation.swift`
 
-- [ ] **Step 3.1: Remove parser-owned validation helpers**
+- [x] **Step 3.1: Remove parser-owned validation helpers**
 
 In `NtkDataParsingInterceptor.swift`, remove `runValidation(...)` and `validate(...)` once policy fully owns validation calls.
 
 If a tiny helper remains needed for current hook notification only, keep it focused on notification and nothing else.
 
-- [ ] **Step 3.2: Keep validation as a checker, not a parallel decision center**
+- [x] **Step 3.2: Keep validation as a checker, not a parallel decision center**
 
 In `NtkDefaultResponseParsingPolicy.swift`, centralize all calls to `validation.isServiceSuccess(...)`.
 
@@ -288,13 +288,13 @@ Use small private helpers for:
 - running validation
 - converting validation failure to `NtkError.validation`
 
-- [ ] **Step 3.3: Update validation comments to reflect its new role**
+- [x] **Step 3.3: Update validation comments to reflect its new role**
 
 In `iNtkResponseValidation.swift`, revise comments so the protocol is described as a business-success checker used by parsing policy, not a parser-owned control point.
 
 Do not remove the protocol in this refactor.
 
-- [ ] **Step 3.4: Run parser tests**
+- [x] **Step 3.4: Run parser tests**
 
 Run:
 
@@ -304,7 +304,7 @@ swift test --filter NtkDataParsingInterceptorTests
 
 Expected: PASS.
 
-- [ ] **Step 3.5: Commit**
+- [x] **Step 3.5: Commit**
 
 ```bash
 git add Sources/CooNetwork/NtkNetwork/interceptor/NtkDefaultResponseParsingPolicy.swift \
@@ -321,7 +321,7 @@ git commit -m "refactor: centralize validation inside parsing policy"
 - Modify: `Tests/CooNetworkTests/NtkNetworkExecutorTests.swift`
 - Modify: `Tests/CooNetworkTests/NtkNetworkIntegrationTests.swift`
 
-- [ ] **Step 4.1: Add a dedicated JSON/Data executor test using real parser**
+- [x] **Step 4.1: Add a dedicated JSON/Data executor test using real parser**
 
 In `NtkNetworkExecutorTests.swift`, add a test that uses the actual parser instead of `ExecMockParsingInterceptor`.
 
@@ -359,7 +359,7 @@ func loadCacheWithRealParserStillReturnsTypedCachedResponse() async throws {
 }
 ```
 
-- [ ] **Step 4.2: Add a dedicated JSON/Data integration smoke test using real parser**
+- [x] **Step 4.2: Add a dedicated JSON/Data integration smoke test using real parser**
 
 In `NtkNetworkIntegrationTests.swift`, add one network-path test using real parser instead of `IntegMockParsingInterceptor`.
 
@@ -387,7 +387,7 @@ func requestWithRealParserReturnsDecodedBoolResponse() async throws {
 }
 ```
 
-- [ ] **Step 4.3: Run executor and integration test subsets**
+- [x] **Step 4.3: Run executor and integration test subsets**
 
 Run:
 
@@ -398,7 +398,7 @@ swift test --filter NtkNetworkIntegrationTests
 
 Expected: PASS.
 
-- [ ] **Step 4.4: Commit**
+- [x] **Step 4.4: Commit**
 
 ```bash
 git add Tests/CooNetworkTests/NtkNetworkExecutorTests.swift \
@@ -410,7 +410,7 @@ git commit -m "test: add real parser coverage for executor and integration paths
 
 ## Task 5: Final Verification
 
-- [ ] **Step 5.1: Run full test suite**
+- [x] **Step 5.1: Run full test suite**
 
 Run:
 
@@ -420,7 +420,7 @@ swift test
 
 Expected: all tests PASS.
 
-- [ ] **Step 5.2: Run full build**
+- [x] **Step 5.2: Run full build**
 
 Run:
 
@@ -430,7 +430,7 @@ swift build
 
 Expected: `Build complete!`
 
-- [ ] **Step 5.3: Commit final tested refactor**
+- [x] **Step 5.3: Commit final tested refactor**
 
 ```bash
 git status
@@ -455,14 +455,14 @@ The following are intentionally out of scope for this implementation plan and sh
 
 After all tasks complete, verify:
 
-- [ ] `NtkDataParsingInterceptor` no longer directly branches on `NtkNever`, `nil data`, or decode-fallback outcomes
-- [ ] a minimal closed `ParsingResult` model exists with only the states needed by current behavior
-- [ ] no extra `ParsingOutcome` wrapper was introduced
-- [ ] no public parsing policy protocol was introduced unless implementation proved it necessary
-- [ ] `extractHeader` remains decoder-owned interpretation logic and is not treated as implicit success
-- [ ] policy does not receive decoder/transformer/hooks/next-handler references
-- [ ] current hook failure behavior is unchanged in this plan
-- [ ] `validation` is no longer a parser-owned parallel decision path
-- [ ] at least one executor/cache test and one integration test exercise the real parser through `Data` payloads
-- [ ] `swift build` passes
-- [ ] `swift test` passes
+- [x] `NtkDataParsingInterceptor` no longer directly branches on `NtkNever`, `nil data`, or decode-fallback outcomes
+- [x] a minimal closed `ParsingResult` model exists with only the states needed by current behavior
+- [x] no extra `ParsingOutcome` wrapper was introduced
+- [x] no public parsing policy protocol was introduced unless implementation proved it necessary
+- [x] `extractHeader` remains decoder-owned interpretation logic and is not treated as implicit success
+- [x] policy does not receive decoder/transformer/hooks/next-handler references
+- [x] current hook failure behavior is unchanged in this plan
+- [x] `validation` is no longer a parser-owned parallel decision path
+- [x] at least one executor/cache test and one integration test exercise the real parser through `Data` payloads
+- [x] `swift build` passes
+- [x] `swift test` passes
