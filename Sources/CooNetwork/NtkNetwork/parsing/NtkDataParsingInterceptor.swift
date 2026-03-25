@@ -15,7 +15,7 @@ public struct NtkDataParsingInterceptor<
 >: iNtkResponseParser {
 
     public let validation: iNtkResponseValidation
-    private let hooks: [any iNtkParsingHooks]
+    private let dispatcher: NtkParsingHookDispatcher
     private let transformers: [any iNtkResponsePayloadTransforming]
     private let decoder: any iNtkResponsePayloadDecoding<ResponseData, Keys>
     private let policy: NtkDefaultResponseParsingPolicy<ResponseData>
@@ -26,21 +26,14 @@ public struct NtkDataParsingInterceptor<
         hooks: [any iNtkParsingHooks] = [],
         transformers: [any iNtkResponsePayloadTransforming] = []
     ) {
+        let dispatcher = NtkParsingHookDispatcher(hooks: hooks)
         self.validation = validation
-        self.hooks = hooks
+        self.dispatcher = dispatcher
         self.transformers = transformers
         self.decoder = NtkDataPayloadDecoder<ResponseData, Keys>()
         self.policy = NtkDefaultResponseParsingPolicy(
             validation: validation,
-            notifyWillValidate: { response, context in
-                for hook in hooks { try await hook.willValidate(response, context: context) }
-            },
-            notifyDidValidateFail: { response, context in
-                for hook in hooks { try await hook.didValidateFail(response, context: context) }
-            },
-            notifyDidComplete: { response, context in
-                for hook in hooks { try await hook.didComplete(response, context: context) }
-            }
+            dispatcher: dispatcher
         )
     }
 
@@ -51,21 +44,14 @@ public struct NtkDataParsingInterceptor<
         transformers: [any iNtkResponsePayloadTransforming] = [],
         decoder: any iNtkResponsePayloadDecoding<ResponseData, Keys>
     ) {
+        let dispatcher = NtkParsingHookDispatcher(hooks: hooks)
         self.validation = validation
-        self.hooks = hooks
+        self.dispatcher = dispatcher
         self.transformers = transformers
         self.decoder = decoder
         self.policy = NtkDefaultResponseParsingPolicy(
             validation: validation,
-            notifyWillValidate: { response, context in
-                for hook in hooks { try await hook.willValidate(response, context: context) }
-            },
-            notifyDidValidateFail: { response, context in
-                for hook in hooks { try await hook.didValidateFail(response, context: context) }
-            },
-            notifyDidComplete: { response, context in
-                for hook in hooks { try await hook.didComplete(response, context: context) }
-            }
+            dispatcher: dispatcher
         )
     }
 
@@ -73,74 +59,127 @@ public struct NtkDataParsingInterceptor<
         context: NtkInterceptorContext,
         next: iNtkRequestHandler
     ) async throws -> any iNtkResponse {
+        let acquired = try await acquire(context: context, next: next)
+        if let passthrough = acquired.typedPassthrough {
+            return passthrough
+        }
+
+        let prepared = try await prepare(acquired, context: context)
+        let interpreted = try await interpret(prepared, context: context)
+        return try await decide(interpreted, context: context)
+    }
+
+    @NtkActor
+    private func acquire(
+        context: NtkInterceptorContext,
+        next: iNtkRequestHandler
+    ) async throws -> AcquiredResponse {
         let response = try await next.handle(context: context)
 
-        if let ntkResponse = response as? NtkResponse<ResponseData> {
-            return ntkResponse
+        if let typedPassthrough = response as? NtkResponse<ResponseData> {
+            return AcquiredResponse(typedPassthrough: typedPassthrough)
         }
 
         guard let clientResponse = response as? NtkClientResponse else {
             throw NtkError.typeMismatch
         }
-        let request = context.mutableRequest.originalRequest
+
+        return AcquiredResponse(
+            request: context.mutableRequest.originalRequest,
+            clientResponse: clientResponse
+        )
+    }
+
+    private func prepare(
+        _ acquired: AcquiredResponse,
+        context: NtkInterceptorContext
+    ) async throws -> PreparedPayload {
+        guard let request = acquired.request,
+              let clientResponse = acquired.clientResponse else {
+            throw NtkError.typeMismatch
+        }
 
         let normalizedPayload = try NtkPayload.normalize(from: clientResponse.data)
         let finalPayload = try await transform(normalizedPayload, context: context)
+        return PreparedPayload(
+            request: request,
+            clientResponse: clientResponse,
+            payload: finalPayload
+        )
+    }
 
+    private func interpret(
+        _ prepared: PreparedPayload,
+        context: NtkInterceptorContext
+    ) async throws -> NtkParsingResult<ResponseData> {
         do {
-            let decoderResponse = try await decoder.decode(finalPayload, context: context)
+            let decoderResponse = try await decoder.decode(prepared.payload, context: context)
+            logDecodedHeader(decoderResponse, request: prepared.request)
 
-            logger.debug(
-                """
-                ---------------------Data response start-------------------------
-                \(request)
-                参数：\(request.parameters as [String: any Sendable]? ?? [:])
-                code: \(decoderResponse.code)  msg: \(decoderResponse.msg ?? "")
-                ---------------------Data response end-------------------------
-                """,
-                category: .network
+            await dispatcher.didDecodeHeader(
+                retCode: decoderResponse.code.intValue,
+                msg: decoderResponse.msg,
+                context: context
             )
 
-            for hook in hooks {
-                try await hook.didDecodeHeader(
-                    retCode: decoderResponse.code.intValue,
-                    msg: decoderResponse.msg,
-                    context: context
-                )
-            }
-
-            let result = NtkParsingResult<ResponseData>.decoded(
+            return .decoded(
                 code: decoderResponse.code,
                 msg: decoderResponse.msg,
                 data: decoderResponse.data,
-                request: request,
-                clientResponse: clientResponse,
-                isCache: clientResponse.isCache
+                request: prepared.request,
+                clientResponse: prepared.clientResponse,
+                isCache: prepared.clientResponse.isCache
             )
-            return try await policy.decide(from: result, context: context)
-
         } catch let error as DecodingError {
-            let result: NtkParsingResult<ResponseData>
-            if let header = try? decoder.extractHeader(finalPayload, request: request) {
-                result = .headerRecovered(
-                    decodeError: error,
-                    rawPayload: finalPayload,
-                    header: header,
-                    request: request,
-                    clientResponse: clientResponse,
-                    isCache: clientResponse.isCache
-                )
-            } else {
-                result = .unrecoverableDecodeFailure(
-                    decodeError: error,
-                    rawPayload: finalPayload,
-                    request: request,
-                    clientResponse: clientResponse,
-                    isCache: clientResponse.isCache
-                )
-            }
-            return try await policy.decide(from: result, context: context)
+            return recoverInterpretResult(from: error, prepared: prepared)
         }
+    }
+
+    private func decide(
+        _ result: NtkParsingResult<ResponseData>,
+        context: NtkInterceptorContext
+    ) async throws -> any iNtkResponse {
+        try await policy.decide(from: result, context: context)
+    }
+
+    private func logDecodedHeader(
+        _ decoderResponse: NtkResponseDecoder<ResponseData, Keys>,
+        request: iNtkRequest
+    ) {
+        logger.debug(
+            """
+            ---------------------Data response start-------------------------
+            \(request)
+            参数：\(request.parameters as [String: any Sendable]? ?? [:])
+            code: \(decoderResponse.code)  msg: \(decoderResponse.msg ?? "")
+            ---------------------Data response end-------------------------
+            """,
+            category: .network
+        )
+    }
+
+    private func recoverInterpretResult(
+        from error: DecodingError,
+        prepared: PreparedPayload
+    ) -> NtkParsingResult<ResponseData> {
+        if let header = try? decoder.extractHeader(prepared.payload, request: prepared.request) {
+            return .headerRecovered(
+                decodeError: error,
+                rawPayload: prepared.payload,
+                header: header,
+                request: prepared.request,
+                clientResponse: prepared.clientResponse,
+                isCache: prepared.clientResponse.isCache
+            )
+        }
+
+        return .unrecoverableDecodeFailure(
+            decodeError: error,
+            rawPayload: prepared.payload,
+            request: prepared.request,
+            clientResponse: prepared.clientResponse,
+            isCache: prepared.clientResponse.isCache
+        )
     }
 
     private func transform(
@@ -152,6 +191,30 @@ public struct NtkDataParsingInterceptor<
             current = try await transformer.transform(current, context: context)
         }
         return current
+    }
+
+    private struct AcquiredResponse {
+        let typedPassthrough: NtkResponse<ResponseData>?
+        let request: iNtkRequest?
+        let clientResponse: NtkClientResponse?
+
+        init(typedPassthrough: NtkResponse<ResponseData>) {
+            self.typedPassthrough = typedPassthrough
+            self.request = nil
+            self.clientResponse = nil
+        }
+
+        init(request: iNtkRequest, clientResponse: NtkClientResponse) {
+            self.typedPassthrough = nil
+            self.request = request
+            self.clientResponse = clientResponse
+        }
+    }
+
+    private struct PreparedPayload {
+        let request: iNtkRequest
+        let clientResponse: NtkClientResponse
+        let payload: NtkPayload
     }
 
 }

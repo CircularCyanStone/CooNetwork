@@ -267,6 +267,109 @@ struct NtkDataParsingInterceptorTests {
         #expect(hook.events.contains("didValidateFail"))
         #expect(!hook.events.contains("didComplete"))
     }
+
+    @Test
+    @NtkActor
+    func didDecodeHeaderHookErrorDoesNotAbortSuccessfulParse() async throws {
+        let throwingHook = AFThrowingHook(throwPoint: .didDecodeHeader)
+        let recordingHook = AFTestRecordingHook()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
+            validation: AFTestPassValidation(),
+            hooks: [throwingHook, recordingHook]
+        )
+        let data = try JSONSerialization.data(withJSONObject: ["retCode": 0, "data": ["id": 1, "name": "test"], "retMsg": "ok"])
+        let handler = AFTestDataHandler(data: data, request: AFTestRequest())
+
+        let result = try await interceptor.intercept(context: makeAFContext(), next: handler)
+        let typed = try #require(result as? NtkResponse<AFTestModel>)
+        #expect(typed.data.id == 1)
+        #expect(typed.data.name == "test")
+        #expect(throwingHook.events == ["didDecodeHeader", "willValidate", "didComplete"])
+        #expect(recordingHook.events == ["didDecodeHeader", "willValidate", "didComplete"])
+    }
+
+    @Test
+    @NtkActor
+    func willValidateHookErrorDoesNotAbortSuccessfulParse() async throws {
+        let throwingHook = AFThrowingHook(throwPoint: .willValidate)
+        let recordingHook = AFTestRecordingHook()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
+            validation: AFTestPassValidation(),
+            hooks: [throwingHook, recordingHook]
+        )
+        let data = try JSONSerialization.data(withJSONObject: ["retCode": 0, "data": ["id": 1, "name": "test"], "retMsg": "ok"])
+        let handler = AFTestDataHandler(data: data, request: AFTestRequest())
+
+        let result = try await interceptor.intercept(context: makeAFContext(), next: handler)
+        let typed = try #require(result as? NtkResponse<AFTestModel>)
+        #expect(typed.data.id == 1)
+        #expect(typed.data.name == "test")
+        #expect(throwingHook.events == ["didDecodeHeader", "willValidate", "didComplete"])
+        #expect(recordingHook.events == ["didDecodeHeader", "willValidate", "didComplete"])
+    }
+
+    @Test
+    @NtkActor
+    func didValidateFailHookErrorDoesNotReplaceValidationError() async throws {
+        let throwingHook = AFThrowingHook(throwPoint: .didValidateFail)
+        let recordingHook = AFTestRecordingHook()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
+            validation: AFTestFailValidation(),
+            hooks: [throwingHook, recordingHook]
+        )
+        let data = try JSONSerialization.data(withJSONObject: ["retCode": 999, "retMsg": "fail"])
+        let handler = AFTestDataHandler(data: data, request: AFTestRequest())
+
+        do {
+            _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
+            Issue.record("期望抛出 validation 错误")
+        } catch let error as NtkError {
+            if case .validation = error {
+                #expect(throwingHook.events == ["didDecodeHeader", "willValidate", "didValidateFail"])
+                #expect(recordingHook.events == ["didDecodeHeader", "willValidate", "didValidateFail"])
+            } else {
+                Issue.record("错误类型不符: \(error)")
+            }
+        }
+    }
+
+    @Test
+    @NtkActor
+    func didCompleteHookErrorDoesNotReplaceSuccessfulResult() async throws {
+        let throwingHook = AFThrowingHook(throwPoint: .didComplete)
+        let recordingHook = AFTestRecordingHook()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
+            validation: AFTestPassValidation(),
+            hooks: [throwingHook, recordingHook]
+        )
+        let data = try JSONSerialization.data(withJSONObject: ["retCode": 0, "data": ["id": 1, "name": "test"], "retMsg": "ok"])
+        let handler = AFTestDataHandler(data: data, request: AFTestRequest())
+
+        let result = try await interceptor.intercept(context: makeAFContext(), next: handler)
+        let typed = try #require(result as? NtkResponse<AFTestModel>)
+        #expect(typed.code.intValue == 0)
+        #expect(typed.data.id == 1)
+        #expect(throwingHook.events == ["didDecodeHeader", "willValidate", "didComplete"])
+        #expect(recordingHook.events == ["didDecodeHeader", "willValidate", "didComplete"])
+    }
+
+    @Test
+    @NtkActor
+    func throwingHookDoesNotBlockLaterHooksOnSameNotification() async throws {
+        let throwingHook = AFThrowingHook(throwPoint: .willValidate)
+        let recordingHook = AFTestRecordingHook()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
+            validation: AFTestPassValidation(),
+            hooks: [throwingHook, recordingHook]
+        )
+        let data = try JSONSerialization.data(withJSONObject: ["retCode": 0, "data": ["id": 1, "name": "test"], "retMsg": "ok"])
+        let handler = AFTestDataHandler(data: data, request: AFTestRequest())
+
+        _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
+
+        #expect(throwingHook.events == ["didDecodeHeader", "willValidate", "didComplete"])
+        #expect(recordingHook.events == ["didDecodeHeader", "willValidate", "didComplete"])
+    }
 }
 
 // MARK: - Helpers
@@ -325,6 +428,54 @@ private struct AFTestDummyClient: iNtkClient {
     @NtkActor
     func execute(_ request: NtkMutableRequest) async throws -> NtkClientResponse {
         NtkClientResponse(data: true, msg: nil, response: true, request: request, isCache: false)
+    }
+}
+
+private enum AFHookThrowPoint: Equatable {
+    case didDecodeHeader
+    case willValidate
+    case didValidateFail
+    case didComplete
+}
+
+private struct AFHookObserverError: Error, Equatable {
+    let point: AFHookThrowPoint
+}
+
+private final class AFThrowingHook: iNtkParsingHooks, @unchecked Sendable {
+    let throwPoint: AFHookThrowPoint
+    var events: [String] = []
+
+    init(throwPoint: AFHookThrowPoint) {
+        self.throwPoint = throwPoint
+    }
+
+    func didDecodeHeader(retCode: Int, msg: String?, context: NtkInterceptorContext) async throws {
+        events.append("didDecodeHeader")
+        if throwPoint == .didDecodeHeader {
+            throw AFHookObserverError(point: .didDecodeHeader)
+        }
+    }
+
+    func willValidate(_ response: any iNtkResponse, context: NtkInterceptorContext) async throws {
+        events.append("willValidate")
+        if throwPoint == .willValidate {
+            throw AFHookObserverError(point: .willValidate)
+        }
+    }
+
+    func didValidateFail(_ response: any iNtkResponse, context: NtkInterceptorContext) async throws {
+        events.append("didValidateFail")
+        if throwPoint == .didValidateFail {
+            throw AFHookObserverError(point: .didValidateFail)
+        }
+    }
+
+    func didComplete(_ response: any iNtkResponse, context: NtkInterceptorContext) async throws {
+        events.append("didComplete")
+        if throwPoint == .didComplete {
+            throw AFHookObserverError(point: .didComplete)
+        }
     }
 }
 

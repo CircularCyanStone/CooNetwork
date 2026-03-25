@@ -1,23 +1,15 @@
 import Foundation
 
 struct NtkDefaultResponseParsingPolicy<ResponseData: Sendable & Decodable> {
-    typealias ResponseNotifier = @Sendable (any iNtkResponse, NtkInterceptorContext) async throws -> Void
-
     let validation: iNtkResponseValidation
-    let notifyWillValidate: ResponseNotifier
-    let notifyDidValidateFail: ResponseNotifier
-    let notifyDidComplete: ResponseNotifier
+    let dispatcher: NtkParsingHookDispatcher
 
     init(
         validation: iNtkResponseValidation,
-        notifyWillValidate: @escaping ResponseNotifier = { _, _ in },
-        notifyDidValidateFail: @escaping ResponseNotifier = { _, _ in },
-        notifyDidComplete: @escaping ResponseNotifier = { _, _ in }
+        dispatcher: NtkParsingHookDispatcher = NtkParsingHookDispatcher()
     ) {
         self.validation = validation
-        self.notifyWillValidate = notifyWillValidate
-        self.notifyDidValidateFail = notifyDidValidateFail
-        self.notifyDidComplete = notifyDidComplete
+        self.dispatcher = dispatcher
     }
 
     func decide(
@@ -36,7 +28,7 @@ struct NtkDefaultResponseParsingPolicy<ResponseData: Sendable & Decodable> {
                     isCache: isCache
                 )
                 try await validate(response, request: request, context: context)
-                try await notifyDidComplete(response, context)
+                await dispatcher.didComplete(response, context: context)
                 return response
             }
 
@@ -62,7 +54,7 @@ struct NtkDefaultResponseParsingPolicy<ResponseData: Sendable & Decodable> {
                 isCache: isCache
             )
             try await validate(response, request: request, context: context)
-            try await notifyDidComplete(response, context)
+            await dispatcher.didComplete(response, context: context)
             return response
 
         case let .headerRecovered(decodeError, _, header, request, clientResponse, isCache):
@@ -87,10 +79,10 @@ struct NtkDefaultResponseParsingPolicy<ResponseData: Sendable & Decodable> {
         request: iNtkRequest,
         context: NtkInterceptorContext
     ) async throws {
-        try await notifyWillValidate(response, context)
+        await dispatcher.willValidate(response, context: context)
 
         guard validation.isServiceSuccess(response) else {
-            try await notifyDidValidateFail(response, context)
+            await dispatcher.didValidateFail(response, context: context)
             throw NtkError.validation(request, response)
         }
     }

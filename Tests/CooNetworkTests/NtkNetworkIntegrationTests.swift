@@ -32,6 +32,39 @@ struct NtkNetworkIntegrationTests {
         #expect(response.data == true)
     }
 
+    @Test
+    func requestWithRealParserAndThrowingHookReturnsDecodedBoolResponse() async throws {
+        let payload = try JSONSerialization.data(withJSONObject: [
+            "retCode": 0,
+            "data": true,
+            "retMsg": "ok"
+        ])
+        let baselineNetwork = NtkNetwork<Bool>.with(
+            IntegJSONClient(data: payload),
+            request: IntegDummyRequest(path: "/integration/real-parser-baseline"),
+            responseParser: NtkDataParsingInterceptor<Bool, IntegTestKeys>(validation: IntegDummyValidation())
+        )
+        let hook = IntegThrowingHook()
+        let hookedNetwork = NtkNetwork<Bool>.with(
+            IntegJSONClient(data: payload),
+            request: IntegDummyRequest(path: "/integration/real-parser-hook"),
+            responseParser: NtkDataParsingInterceptor<Bool, IntegTestKeys>(
+                validation: IntegDummyValidation(),
+                hooks: [hook]
+            )
+        )
+
+        let baselineResponse = try await baselineNetwork.request()
+        let hookedResponse = try await hookedNetwork.request()
+        #expect(hookedResponse.data == baselineResponse.data)
+        #expect(hookedResponse.code.intValue == baselineResponse.code.intValue)
+        #expect(hookedResponse.code.stringValue == baselineResponse.code.stringValue)
+        #expect(hookedResponse.msg == baselineResponse.msg)
+        #expect(hookedResponse.isCache == baselineResponse.isCache)
+        #expect(hookedResponse.msg == "ok")
+        #expect(hook.events == ["didDecodeHeader", "willValidate", "didComplete"])
+    }
+
     // MARK: - request() 自定义拦截器被执行
 
     @Test
@@ -204,6 +237,29 @@ private struct IntegMockCacheStorage: iNtkCacheStorage {
         )
     }
     @NtkActor func hasData(key: String, for request: NtkMutableRequest) async -> Bool { cacheData != nil }
+}
+
+private final class IntegThrowingHook: iNtkParsingHooks, @unchecked Sendable {
+    var events: [String] = []
+
+    func didDecodeHeader(retCode: Int, msg: String?, context: NtkInterceptorContext) async throws {
+        events.append("didDecodeHeader")
+        throw IntegHookObserverError.point("didDecodeHeader")
+    }
+
+    func willValidate(_ response: any iNtkResponse, context: NtkInterceptorContext) async throws {
+        events.append("willValidate")
+        throw IntegHookObserverError.point("willValidate")
+    }
+
+    func didComplete(_ response: any iNtkResponse, context: NtkInterceptorContext) async throws {
+        events.append("didComplete")
+        throw IntegHookObserverError.point("didComplete")
+    }
+}
+
+private enum IntegHookObserverError: Error, Equatable {
+    case point(String)
 }
 
 @NtkActor
