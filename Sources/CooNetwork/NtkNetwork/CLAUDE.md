@@ -18,9 +18,10 @@ CooNetwork 核心模块。
 
 ## 子模块
 
-- `iNtk/` - 核心协议定义（含 `iNtkResponsePayloadTransforming`、`iNtkResponsePayloadDecoding`、`iNtkParsingHooks`、`iNtkCacheProvider`、`iNtkResponseParser`）
-- `model/` - 数据模型
-- `interceptor/` - 拦截器基础设施（含 `NtkDataParsingInterceptor`、`NtkCacheInterceptor`）
+- `iNtk/` - 核心通用协议定义（如 `iNtkClient`、`iNtkRequest`、`iNtkResponse`、`iNtkInterceptor`、`iNtkResponseParser`、`iNtkCacheProvider`）
+- `parsing/` - 响应解析子模块（payload normalize / transformer / decoder / hooks / validation / policy / parser）
+- `model/` - 通用数据模型
+- `interceptor/` - 拦截器基础设施（含链管理、上下文、缓存拦截器）
 - `cache/` - 缓存系统
 - `retry/` - 重试机制
 - `deduplication/` - 去重机制

@@ -14,5 +14,4 @@
 - `NtkDynamicData` - 动态数据类型
 - `NtkReturnCode` - 返回码类型
 - `NtkNever` - 无响应数据标记
-- `NtkPayload` - 统一的响应 payload 中间层，承载严格 normalize 后的 `Data` 或动态结构
 - `NtkResponseDecoder` - 泛型 JSON 解码器，依赖 `iNtkResponseMapKeys` 和 `NtkCodingKeys`
