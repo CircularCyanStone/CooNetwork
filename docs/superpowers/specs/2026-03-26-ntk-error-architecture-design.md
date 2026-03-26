@@ -246,6 +246,23 @@ validation 阶段最重要的是已完成结构化的业务响应，不需要引
 
 `NtkError.AF` 设计应保留，但本次设计同时明确它的扩展边界：当前目标是支持**框架官方内建的有限 client 子空间**，而不是对任意外部模块开放可无限追加的 client case。
 
+### 模块所有权决策
+
+本次设计明确采用：**核心层显式内建官方 client 列表**。
+
+也就是说：
+
+- `ClientFailure` 由核心层定义
+- `NtkError.AF` 也由核心层预留为正式错误子空间类型
+- `AlamofireClient` 模块负责产出和消费 `NtkError.AF`，但不拥有其类型定义所有权
+- 因此，核心层承认“官方支持 AF 子空间”，但不会承载 AF 的具体请求执行逻辑
+
+这是一种**闭集设计**：
+
+- 适合当前框架“官方维护有限个 client”的现实
+- 避免为尚不存在的开放式 plugin client 机制做过度抽象
+- 与 Swift enum 无法跨模块任意追加 case 的语言现实一致
+
 这意味着：
 
 - `client` 域是 `NtkError` 的正式扩展位
@@ -261,11 +278,11 @@ public enum ClientFailure: Error {
 }
 ```
 
-`AF` 本身继续作为 `NtkError` 的内嵌类型，由 AlamofireClient 维护其具体 reason 和 context。这样可以保证：
+`AF` 的具体 reason / context 结构由核心层定义稳定 public surface，由 `AlamofireClient` 负责在运行时构造、抛出并消费。这样可以保证：
 
 1. 主框架对外仍统一抛出 `NtkError`
-2. 主框架不被 Alamofire 具体错误细节污染
-3. AlamofireClient 保持独立错误语义空间
+2. client 子空间在类型层面稳定可判定
+3. 语言与模块边界实现方式一致，不再处于“语义解耦、实现耦合”的中间态
 4. 对于官方内建 client，扩展模式稳定且可复制
 
 `NtkError.AF` 内部也应遵守 `reason + context` 原则，不再使用多个裸参数并排的形式。
@@ -408,6 +425,22 @@ public enum ClientFailure: Error {
 3. `underlyingError` 是最可能破坏 `Sendable` 的字段，需明确其承载策略；必要时可在 context 层使用 `@unchecked Sendable`，但必须有文档说明原因。
 4. 不应为了强行获得 `Sendable` 而丢失必要诊断信息；在安全性与可诊断性冲突时，优先显式记录原因并最小化 `@unchecked` 范围。
 
+### 字段级策略
+
+| 字段 | 默认策略 | 说明 |
+|---|---|---|
+| `request` | 优先要求强类型满足 `Sendable`；若现有协议存在体无法满足，则在最外层 context 使用最小范围 `@unchecked Sendable` | 当前主链大量依赖 `iNtkRequest`，不建议为了纯粹并发洁癖移除该诊断信息 |
+| `clientResponse` | 优先使用已知可 Sendable 的统一响应类型；若包含引用语义成员，则在具体 context 层做最小范围 `@unchecked` | 推荐避免直接暴露具体三方响应对象 |
+| `recoveredResponse` | 仅存在于 serialization context，沿用 `NtkResponse<NtkDynamicData?>` 这类可控结构 | 不作为所有错误域的通用字段 |
+| `rawPayload` | 优先使用框架内部中间类型或快照值；避免直接暴露任意 existential | 当前更适合承载 `NtkPayload`、`Data` 或受控快照，而不是无边界 `Sendable?` |
+| `underlyingError` | 允许保留 `Error`，但由持有它的 context 承担 `@unchecked Sendable` 责任，或在必要时转为稳定快照/bridge 表示 | 这是最可能无法静态满足 `Sendable` 的字段，必须明确是“局部豁免”，不是全局放弃 |
+
+### 实现倾向
+
+- 优先让 Failure/Reason 结构保持纯值语义
+- `Context` 是允许出现最小范围 `@unchecked Sendable` 的位置
+- 若某字段只在 debug、NSError bridge、日志中有价值，可考虑在 bridge/userInfo 层暴露，而不是一律进入强类型 public context
+
 ## 为什么不推荐顶层 `other(Error)`
 
 顶层 `other(Error)` 会迅速退化成垃圾桶，破坏分类体系，也会让后续新增错误懒于建模。
@@ -433,7 +466,11 @@ AlamofireClient 继续维护：
 
 ### Cache 错误边界
 
-当前 `NtkError.Cache.noCache` 属于缓存子系统的控制流错误，不属于本次“网络请求主链错误架构”重设计范围。本设计固定的 5 个顶层错误域，仅覆盖请求执行、响应处理、解析、校验和 client 扩展，不覆盖 cache 内部错误空间。
+当前 `NtkError.Cache.noCache` 属于缓存子系统的控制流错误，不属于本次“网络请求主链错误架构”重设计范围。
+
+本次文档中“固定为 5 个顶层错误域”的含义是：**针对网络请求主链，对调用方推荐且正式维护的 `NtkError` 顶层域固定为 `request / response / serialization / validation / client` 这 5 类**。
+
+`NtkError.Cache` 视为独立子系统的历史错误空间，不计入这 5 个网络主链错误域，也不作为本次主重构的分类依据。若后续要统一 cache public surface，应另开设计，不在本次 spec 范围内。
 
 ## 与当前实现相比的收益
 
