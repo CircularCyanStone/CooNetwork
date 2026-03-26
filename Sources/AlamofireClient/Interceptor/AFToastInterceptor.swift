@@ -64,10 +64,10 @@ public struct AFToastInterceptor: iNtkInterceptor {
         }
     }
 
-    private func handleClientError(_ failure: NtkClientError) {
+    private func handleClientError(_ failure: NtkError.Client) {
         switch failure {
         case let .external(reason, _, _, underlyingError, message):
-            guard reason is NtkClientError.AF else { return }
+            guard reason is NtkError.Client.AF else { return }
             if let urlError = underlyingError as? URLError {
                 handleSystemError(urlError as NSError)
                 return

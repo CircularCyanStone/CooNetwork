@@ -8,7 +8,7 @@ import Alamofire
 struct AFErrorMappingTests {
     @Test
     func afErrorHelperStillMapsCancelToAFClientError() {
-        let mapped = NtkClientError.fromAFError(
+        let mapped = NtkError.Client.fromAFError(
             AFError.explicitlyCancelled,
             request: AFMappingRequest(),
             clientResponse: nil
@@ -19,7 +19,7 @@ struct AFErrorMappingTests {
             #expect(clientResponse == nil)
             #expect(underlyingError != nil)
             #expect(message != nil)
-            #expect(reason is NtkClientError.AF)
+            #expect(reason is NtkError.Client.AF)
         } else {
             Issue.record("错误类型不符: \(mapped)")
         }
@@ -28,7 +28,7 @@ struct AFErrorMappingTests {
     @Test
     func afErrorHelperStillCapturesTimedOutUnderlyingError() {
         let afError = AFError.sessionTaskFailed(error: URLError(.timedOut))
-        let mapped = NtkClientError.fromAFError(
+        let mapped = NtkError.Client.fromAFError(
             afError,
             request: AFMappingRequest(),
             clientResponse: nil
@@ -40,7 +40,7 @@ struct AFErrorMappingTests {
             let capturedAFError = underlyingError as? AFError
             #expect(capturedAFError != nil)
             #expect(message != nil)
-            #expect(reason is NtkClientError.AF)
+            #expect(reason is NtkError.Client.AF)
         } else {
             Issue.record("错误类型不符: \(mapped)")
         }

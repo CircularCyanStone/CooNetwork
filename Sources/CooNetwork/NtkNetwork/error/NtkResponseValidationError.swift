@@ -1,8 +1,10 @@
 import Foundation
 
-public enum NtkResponseValidationError: Error, Sendable {
-    case serviceRejected(
-        request: any iNtkRequest,
-        response: any iNtkResponse
-    )
+public extension NtkError {
+    public enum ValidationError: Error, Sendable {
+        case serviceRejected(
+            request: any iNtkRequest,
+            response: any iNtkResponse
+        )
+    }
 }

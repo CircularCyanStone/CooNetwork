@@ -10,7 +10,8 @@
       "Bash(xcrun llvm-profdata:*)",
       "Bash(cd:*)",
       "Bash(xcodebuild:*)",
-      "Bash(xcrun simctl:*)"
+      "Bash(xcrun simctl:*)",
+      "Bash(python3:*)"
     ]
   }
 }

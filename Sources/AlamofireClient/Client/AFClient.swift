@@ -141,7 +141,7 @@ public final class AFClient: iNtkClient {
                 }
                 throw NtkError.clientFailed(
                     reason: .external(
-                        reason: NtkClientError.AF.requestFailed,
+                        reason: NtkError.Client.AF.requestFailed,
                         request: ntkRequest,
                         clientResponse: nil,
                         underlyingError: urlError,
@@ -159,7 +159,7 @@ public final class AFClient: iNtkClient {
             )
             throw NtkError.clientFailed(
                 reason: .external(
-                    reason: NtkClientError.AF.requestFailed,
+                    reason: NtkError.Client.AF.requestFailed,
                     request: ntkRequest,
                     clientResponse: NtkClientResponse(
                         data: response.data,

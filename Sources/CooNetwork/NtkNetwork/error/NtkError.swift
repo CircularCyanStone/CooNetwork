@@ -18,9 +18,9 @@ public enum NtkError: Error, Sendable {
     case requestCancelled
     case requestTimeout
 
-    case responseValidationFailed(reason: NtkResponseValidationError)
-    case responseSerializationFailed(reason: NtkResponseSerializationError)
-    case clientFailed(reason: NtkClientError)
+    case responseValidationFailed(reason: ValidationError)
+    case responseSerializationFailed(reason: SerializationError)
+    case clientFailed(reason: Client)
 
     /// 缓存相关错误
     public enum Cache: Error, Sendable {

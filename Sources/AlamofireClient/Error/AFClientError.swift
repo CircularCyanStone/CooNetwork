@@ -11,8 +11,8 @@ import CooNetwork
 #endif
 import Alamofire
 
-public extension NtkClientError {
-    enum AF: Error, Sendable {
+public extension NtkError.Client {
+    public enum AF: Error, Sendable {
         case requestFailed
     }
 
@@ -20,7 +20,7 @@ public extension NtkClientError {
         _ error: AFError,
         request: iNtkRequest?,
         clientResponse: NtkClientResponse? = nil
-    ) -> NtkClientError {
+    ) -> NtkError.Client {
         .external(
             reason: AF.requestFailed,
             request: request,
