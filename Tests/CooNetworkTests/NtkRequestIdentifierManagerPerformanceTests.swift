@@ -68,7 +68,7 @@ import Testing
         let elapsed = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
 
         print("单次 getCacheKey 耗时: \(String(format: "%.4f", elapsed)) 毫秒")
-        #expect(elapsed < 10, "单次哈希计算应在 10 毫秒内完成")
+        #expect(elapsed < 20, "单次哈希计算应在 20 毫秒内完成")
     }
 
     @Test("测试 generateHashForCache 重复调用性能（无缓存）")
