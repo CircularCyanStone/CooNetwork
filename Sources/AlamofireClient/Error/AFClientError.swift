@@ -12,7 +12,7 @@ import CooNetwork
 import Alamofire
 
 public extension NtkError.Client {
-    public enum AF: Error, Sendable {
+    enum AF: Error, Sendable {
         case requestFailed
     }
 

@@ -1,7 +1,7 @@
 import Foundation
 
 public extension NtkError {
-    public enum Client: Error, @unchecked Sendable {
+    enum Client: Error, @unchecked Sendable {
         case external(
             reason: any Error,
             request: (any iNtkRequest)?,
