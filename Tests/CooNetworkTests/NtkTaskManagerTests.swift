@@ -662,7 +662,7 @@ struct NtkTaskManagerTests {
                     await gate.signalFirstStarted()
                     await gate.waitForFirstRelease()
                     // 模拟网络错误
-                    throw NtkError.serviceDataEmpty
+                    throw NtkError.serialization(.init(reason: .dataMissing, context: .init(stage: .data)))
                 }
                 return Result<String, Error>.success(value)
             } catch {
@@ -700,10 +700,12 @@ struct NtkTaskManagerTests {
 
         // owner 收到的是网络错误（未被取消）
         if case .failure(let error) = ownerResult {
-            if let ntkError = error as? NtkError, case .serviceDataEmpty = ntkError {
+            if let ntkError = error as? NtkError,
+               case let .serialization(failure) = ntkError,
+               failure.reason == SerializationFailure.Reason.dataMissing {
                 // 预期行为
             } else {
-                Issue.record("owner 应该收到 serviceDataEmpty，实际收到: \(error)")
+                Issue.record("owner 应该收到 serialization.dataMissing，实际收到: \(error)")
             }
         } else {
             Issue.record("owner 应该收到错误")
@@ -711,10 +713,12 @@ struct NtkTaskManagerTests {
 
         // follower 收到的是 requestCancelled（而非 responseBodyEmpty）
         if case .failure(let error) = followerResult {
-            if let ntkError = error as? NtkError, case .requestCancelled = ntkError {
-                // 预期行为：已取消的 follower 收到 requestCancelled
+            if let ntkError = error as? NtkError,
+               case let .response(failure) = ntkError,
+               failure.reason == .cancelled {
+                // 预期行为：已取消的 follower 收到 response.cancelled
             } else {
-                Issue.record("被取消的 follower 应该收到 requestCancelled，实际收到: \(error)")
+                Issue.record("被取消的 follower 应该收到 response.cancelled，实际收到: \(error)")
             }
         } else {
             Issue.record("被取消的 follower 应该收到错误")
@@ -822,7 +826,8 @@ private func isCancellationError(_ error: Error) -> Bool {
     guard let ntkError = error as? NtkError else {
         return false
     }
-    if case .requestCancelled = ntkError {
+    if case let .response(failure) = ntkError,
+       failure.reason == .cancelled {
         return true
     }
     return false

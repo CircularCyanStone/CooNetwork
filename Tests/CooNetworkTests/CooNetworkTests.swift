@@ -117,12 +117,16 @@ extension CooNetworkTests {
         do {
             try await execution()
             Issue.record("示例域名请求应失败，但实际成功")
-        } catch is NtkError.AF {
-            #expect(Bool(true))
         } catch let error as NtkError {
             switch error {
-            case .requestTimeout:
-                #expect(Bool(true))
+            case let .client(failure):
+                if case .af = failure {
+                    #expect(Bool(true))
+                } else {
+                    Issue.record("捕获到非预期 client 错误: \(error)")
+                }
+            case let .response(failure):
+                #expect(failure.reason == .timedOut || failure.reason == .cancelled || failure.reason == .transportError)
             default:
                 Issue.record("捕获到非预期 NtkError: \(error)")
             }

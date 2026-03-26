@@ -67,7 +67,7 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
             if let response = response as? NtkResponse<ResponseData> {
                 return response
             } else {
-                throw NtkError.serviceDataTypeInvalid
+                throw NtkError.request(.init(reason: .typeMismatch))
             }
         }
     }
@@ -93,7 +93,7 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
             if let response = response as? NtkResponse<ResponseData> {
                 return response
             } else {
-                throw NtkError.serviceDataTypeInvalid
+                throw NtkError.request(.init(reason: .typeMismatch))
             }
         } catch NtkError.Cache.noCache {
             return nil

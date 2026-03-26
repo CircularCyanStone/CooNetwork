@@ -74,10 +74,11 @@ struct NtkPayloadDecoderTests {
 
         do {
             _ = try await decoder.decode(payload, context: makePayloadDecoderContext())
-            Issue.record("期望抛出 typeMismatch")
+            Issue.record("期望抛出 serialization.envelopeDecodeFailed")
         } catch let error as NtkError {
-            if case .typeMismatch = error {
-                #expect(Bool(true))
+            if case let .serialization(failure) = error {
+                #expect(failure.reason == .envelopeDecodeFailed)
+                #expect(failure.context.stage == .envelope)
             } else {
                 Issue.record("错误类型不符: \(error)")
             }
@@ -96,10 +97,11 @@ struct NtkPayloadDecoderTests {
 
         do {
             _ = try await decoder.decode(payload, context: makePayloadDecoderContext())
-            Issue.record("期望抛出 typeMismatch")
+            Issue.record("期望抛出 serialization.dataDecodeFailed")
         } catch let error as NtkError {
-            if case .typeMismatch = error {
-                #expect(Bool(true))
+            if case let .serialization(failure) = error {
+                #expect(failure.reason == .dataDecodeFailed)
+                #expect(failure.context.stage == .data)
             } else {
                 Issue.record("错误类型不符: \(error)")
             }
@@ -117,10 +119,11 @@ struct NtkPayloadDecoderTests {
 
         do {
             _ = try await decoder.decode(payload, context: makePayloadDecoderContext())
-            Issue.record("期望抛出 typeMismatch")
+            Issue.record("期望抛出 serialization.envelopeDecodeFailed")
         } catch let error as NtkError {
-            if case .typeMismatch = error {
-                #expect(Bool(true))
+            if case let .serialization(failure) = error {
+                #expect(failure.reason == .envelopeDecodeFailed)
+                #expect(failure.context.stage == .envelope)
             } else {
                 Issue.record("错误类型不符: \(error)")
             }

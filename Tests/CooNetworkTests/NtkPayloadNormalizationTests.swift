@@ -5,19 +5,20 @@ import Foundation
 struct NtkPayloadNormalizationTests {
 
     @Test
-    func dynamicDataDecodeFailureThrowsStructuredDecodeInvalid() throws {
+    func dynamicDataDecodeFailureThrowsStructuredDataDecodeFailed() throws {
         do {
             _ = try NtkDynamicData(from: PayloadTestFailingDecoder())
-            Issue.record("期望抛出 decodeInvalid")
+            Issue.record("期望抛出 serialization.dataDecodeFailed")
         } catch let error as NtkError {
-            if case let .decodeInvalid(error) = error {
-                #expect(error.response == nil)
-                #expect(error.rawValue as? String == "解码失败的数据")
-                if let decodingError = error.underlyingError as? DecodingError,
+            if case let .serialization(failure) = error {
+                #expect(failure.reason == .dataDecodeFailed)
+                #expect(failure.context.recoveredResponse == nil)
+                #expect(failure.context.payloadSnapshot?.getString() == "解码失败的数据")
+                if let decodingError = failure.context.underlyingError as? DecodingError,
                    case .typeMismatch = decodingError {
                     #expect(Bool(true))
                 } else {
-                    Issue.record("underlyingError 类型不符: \(error.underlyingError)")
+                    Issue.record("underlyingError 类型不符: \(String(describing: failure.context.underlyingError))")
                 }
             } else {
                 Issue.record("错误类型不符: \(error)")

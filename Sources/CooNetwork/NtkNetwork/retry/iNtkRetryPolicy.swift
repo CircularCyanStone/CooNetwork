@@ -36,17 +36,20 @@ extension iNtkRetryPolicy {
         // 检查是否是可重试的错误
         if let ntkError = error as? NtkError {
             switch ntkError {
-            case .validation, .jsonInvalid, .decodeInvalid, .responseBodyEmpty, .serviceDataEmpty, .serviceDataTypeInvalid,
-                 .typeMismatch, .requestCancelled:
+            case .request, .validation, .serialization, .client:
                 return false
-            case .requestTimeout:
-                return true  // 超时错误应该重试
-            case .other(let error):
-                // 如果关联值是 URLError，使用 URLError 的重试逻辑
-                if let urlError = error as? URLError {
-                    return shouldRetryForURLError(urlError)
+            case let .response(failure):
+                switch failure.reason {
+                case .cancelled, .invalidResponseType, .bodyEmpty:
+                    return false
+                case .timedOut:
+                    return true
+                case .transportError:
+                    if let urlError = failure.context?.underlyingError as? URLError {
+                        return shouldRetryForURLError(urlError)
+                    }
+                    return false
                 }
-                return false
             }
         }
         

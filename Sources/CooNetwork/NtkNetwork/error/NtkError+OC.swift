@@ -1,186 +1,219 @@
-//
-//  NtkError+OC.swift
-//  CooNetwork
-//
-//  Created by AI Assistant on 2025/1/27.
-//
-
 import Foundation
 
-// 从错误模块导入NtkError
-// 注意：确保NtkError.swift包含在同一个target中
-
-// MARK: - 错误域常量
 public let NtkErrorDomain = "NtkErrorDomain"
 public let NtkCacheErrorDomain = "NtkCacheErrorDomain"
 
-// MARK: - 错误码枚举
-// 使用10000+范围避免与系统错误码冲突
 @objc public enum NtkErrorCode: Int {
-    case validation = 10001          // 验证失败
-    case jsonInvalid = 10002         // JSON数据无效
-    case decodeInvalid = 10003       // 解码失败
-    case serviceDataEmpty = 10004    // 服务端数据为空
-    case serviceDataTypeInvalid = 10005  // 服务端数据类型无效
-    case typeMismatch = 10006        // 请求结果类型不匹配
-    case requestCancelled = 10007    // 请求已被取消
-    case requestTimeout = 10008      // 请求超时
-    case other = 10020               // 其他错误
+    case requestTypeMismatch = 10001
+    case requestInvalidRequest = 10002
+    case requestUnsupportedRequestType = 10003
+
+    case responseBodyEmpty = 10101
+    case responseInvalidResponseType = 10102
+    case responseCancelled = 10103
+    case responseTimedOut = 10104
+    case responseTransportError = 10105
+
+    case serializationInvalidJSON = 10201
+    case serializationEnvelopeDecodeFailed = 10202
+    case serializationDataDecodeFailed = 10203
+    case serializationDataMissing = 10204
+    case serializationDataTypeMismatch = 10205
+
+    case validationServiceRejected = 10301
+
+    case clientAFResponseTypeError = 10401
+    case clientAFAFError = 10402
+    case clientAFUnknown = 10403
 }
 
 @objc public enum NtkCacheErrorCode: Int {
-    case noCache = 20001             // 无缓存数据
+    case noCache = 20001
 }
 
-// MARK: - NtkError Objective-C 桥接类
 @objcMembers
-public class NtkErrorBridge: NSObject {
-    
-    // MARK: - Objective-C 兼容的工厂方法
-    
-    /// 创建验证失败错误
-    public static func validationError(request: Any, response: Any) -> NSError {
-        let userInfo: [String: Any] = [
-            NSLocalizedDescriptionKey: "验证失败",
-            "request": request,
-            "response": response
-        ]
-        return NSError(domain: NtkErrorDomain, code: NtkErrorCode.validation.rawValue, userInfo: userInfo)
-    }
-    
-    /// 创建JSON数据无效错误
-    public static func jsonInvalidError(request: Any, response: Any) -> NSError {
-        let userInfo: [String: Any] = [
-            NSLocalizedDescriptionKey: "JSON数据无效",
-            "request": request,
-            "response": response
-        ]
-        return NSError(domain: NtkErrorDomain, code: NtkErrorCode.jsonInvalid.rawValue, userInfo: userInfo)
-    }
-    
-    /// 创建解码失败错误
-    public static func decodeInvalidError(underlyingError: NSError, request: Any, response: Any) -> NSError {
-        let userInfo: [String: Any] = [
-            NSLocalizedDescriptionKey: "解码失败: \(underlyingError.localizedDescription)",
-            "underlyingError": underlyingError,
-            "request": request,
-            "response": response
-        ]
-        return NSError(domain: NtkErrorDomain, code: NtkErrorCode.decodeInvalid.rawValue, userInfo: userInfo)
-    }
-    
-    /// 创建服务端数据为空错误
-    public static func serviceDataEmptyError() -> NSError {
-        let userInfo: [String: Any] = [
-            NSLocalizedDescriptionKey: "服务端数据为空"
-        ]
-        return NSError(domain: NtkErrorDomain, code: NtkErrorCode.serviceDataEmpty.rawValue, userInfo: userInfo)
-    }
-    
-    /// 创建服务端数据类型无效错误
-    public static func serviceDataTypeInvalidError() -> NSError {
-        let userInfo: [String: Any] = [
-            NSLocalizedDescriptionKey: "服务端数据类型无效"
-        ]
-        return NSError(domain: NtkErrorDomain, code: NtkErrorCode.serviceDataTypeInvalid.rawValue, userInfo: userInfo)
-    }
-    
-    /// 创建请求结果类型不匹配错误
-    public static func typeMismatchError() -> NSError {
-        let userInfo: [String: Any] = [
-            NSLocalizedDescriptionKey: "请求结果类型不匹配"
-        ]
-        return NSError(domain: NtkErrorDomain, code: NtkErrorCode.typeMismatch.rawValue, userInfo: userInfo)
-    }
-    
-    /// 创建请求已被取消错误
-    public static func requestCancelledError() -> NSError {
-        let userInfo: [String: Any] = [
-            NSLocalizedDescriptionKey: "请求已被取消"
-        ]
-        return NSError(domain: NtkErrorDomain, code: NtkErrorCode.requestCancelled.rawValue, userInfo: userInfo)
-    }
-    
-    /// 创建请求超时错误
-    public static func requestTimeoutError() -> NSError {
-        let userInfo: [String: Any] = [
-            NSLocalizedDescriptionKey: "请求超时"
-        ]
-        return NSError(domain: NtkErrorDomain, code: NtkErrorCode.requestTimeout.rawValue, userInfo: userInfo)
-    }
-    
-    /// 创建其他类型错误
-    public static func otherError(underlyingError: NSError) -> NSError {
-        let userInfo: [String: Any] = [
-            NSLocalizedDescriptionKey: "其他错误: \(underlyingError.localizedDescription)",
-            "underlyingError": underlyingError
-        ]
-        return NSError(domain: NtkErrorDomain, code: NtkErrorCode.other.rawValue, userInfo: userInfo)
-    }
-    
-    /// 创建无缓存数据错误
-    public static func noCacheError() -> NSError {
-        let userInfo: [String: Any] = [
-            NSLocalizedDescriptionKey: "无缓存数据"
-        ]
-        return NSError(domain: NtkCacheErrorDomain, code: NtkCacheErrorCode.noCache.rawValue, userInfo: userInfo)
-    }
-    
+public final class NtkErrorBridge: NSObject {
+    public static func bridge(_ error: Error) -> NSError {
+        if let nsError = error as NSError?, nsError.domain == NtkErrorDomain || nsError.domain == NtkCacheErrorDomain {
+            return nsError
+        }
 
-    
-    // MARK: - 错误类型检查便利方法
-    
-    /// 检查是否为验证失败错误
-    public static func isValidationError(_ error: NSError) -> Bool {
-        return error.domain == NtkErrorDomain && error.code == NtkErrorCode.validation.rawValue
+        if let error = error as? NtkError {
+            return bridge(error)
+        }
+
+        if let error = error as? NtkError.Cache {
+            switch error {
+            case .noCache:
+                return NSError(
+                    domain: NtkCacheErrorDomain,
+                    code: NtkCacheErrorCode.noCache.rawValue,
+                    userInfo: [NSLocalizedDescriptionKey: "无缓存数据"]
+                )
+            }
+        }
+
+        let nsError = error as NSError
+        return NSError(
+            domain: NtkErrorDomain,
+            code: NtkErrorCode.responseTransportError.rawValue,
+            userInfo: [
+                NSLocalizedDescriptionKey: nsError.localizedDescription,
+                "underlyingError": nsError
+            ]
+        )
     }
-    
-    /// 检查是否为JSON数据无效错误
-    public static func isJSONInvalidError(_ error: NSError) -> Bool {
-        return error.domain == NtkErrorDomain && error.code == NtkErrorCode.jsonInvalid.rawValue
-    }
-    
-    /// 检查是否为解码失败错误
-    public static func isDecodeInvalidError(_ error: NSError) -> Bool {
-        return error.domain == NtkErrorDomain && error.code == NtkErrorCode.decodeInvalid.rawValue
-    }
-    
-    /// 检查是否为服务端数据为空错误
-    public static func isServiceDataEmptyError(_ error: NSError) -> Bool {
-        return error.domain == NtkErrorDomain && error.code == NtkErrorCode.serviceDataEmpty.rawValue
-    }
-    
-    /// 检查是否为服务端数据类型无效错误
-    public static func isServiceDataTypeInvalidError(_ error: NSError) -> Bool {
-        return error.domain == NtkErrorDomain && error.code == NtkErrorCode.serviceDataTypeInvalid.rawValue
-    }
-    
-    /// 检查是否为请求结果类型不匹配错误
-    public static func isTypeMismatchError(_ error: NSError) -> Bool {
-        return error.domain == NtkErrorDomain && error.code == NtkErrorCode.typeMismatch.rawValue
-    }
-    
-    /// 检查是否为请求已被取消错误
-    public static func isRequestCancelledError(_ error: NSError) -> Bool {
-        return error.domain == NtkErrorDomain && error.code == NtkErrorCode.requestCancelled.rawValue
-    }
-    
-    /// 检查是否为请求超时错误
-    public static func isRequestTimeoutError(_ error: NSError) -> Bool {
-        return error.domain == NtkErrorDomain && error.code == NtkErrorCode.requestTimeout.rawValue
-    }
-    
-    /// 检查是否为其他类型错误
-    public static func isOtherError(_ error: NSError) -> Bool {
-        return error.domain == NtkErrorDomain && error.code == NtkErrorCode.other.rawValue
-    }
-    
-    /// 检查是否为缓存相关错误
+
     public static func isCacheError(_ error: NSError) -> Bool {
-        return error.domain == NtkCacheErrorDomain
+        error.domain == NtkCacheErrorDomain
+    }
+
+    public static func isValidationError(_ error: NSError) -> Bool {
+        error.domain == NtkErrorDomain && error.code == NtkErrorCode.validationServiceRejected.rawValue
+    }
+
+    public static func isRequestError(_ error: NSError) -> Bool {
+        error.domain == NtkErrorDomain && (10001...10099).contains(error.code)
+    }
+
+    public static func isResponseError(_ error: NSError) -> Bool {
+        error.domain == NtkErrorDomain && (10101...10199).contains(error.code)
+    }
+
+    public static func isSerializationError(_ error: NSError) -> Bool {
+        error.domain == NtkErrorDomain && (10201...10299).contains(error.code)
+    }
+
+    public static func isClientError(_ error: NSError) -> Bool {
+        error.domain == NtkErrorDomain && (10401...10499).contains(error.code)
+    }
+
+    private static func bridge(_ error: NtkError) -> NSError {
+        switch error {
+        case let .request(failure):
+            return NSError(
+                domain: NtkErrorDomain,
+                code: requestCode(for: failure.reason).rawValue,
+                userInfo: [NSLocalizedDescriptionKey: "请求错误"]
+            )
+
+        case let .response(failure):
+            return NSError(
+                domain: NtkErrorDomain,
+                code: responseCode(for: failure.reason).rawValue,
+                userInfo: makeUserInfo(
+                    description: "响应错误",
+                    request: failure.context?.request,
+                    clientResponse: failure.context?.clientResponse,
+                    underlyingError: failure.context?.underlyingError,
+                    rawPayload: nil,
+                    recoveredResponse: nil,
+                    response: nil
+                )
+            )
+
+        case let .serialization(failure):
+            return NSError(
+                domain: NtkErrorDomain,
+                code: serializationCode(for: failure.reason).rawValue,
+                userInfo: makeUserInfo(
+                    description: "序列化错误",
+                    request: failure.context.request,
+                    clientResponse: failure.context.clientResponse,
+                    underlyingError: failure.context.underlyingError,
+                    rawPayload: failure.context.rawPayload,
+                    recoveredResponse: failure.context.recoveredResponse,
+                    response: nil
+                )
+            )
+
+        case let .validation(failure):
+            return NSError(
+                domain: NtkErrorDomain,
+                code: NtkErrorCode.validationServiceRejected.rawValue,
+                userInfo: makeUserInfo(
+                    description: "验证失败",
+                    request: failure.context.request,
+                    clientResponse: nil,
+                    underlyingError: nil,
+                    rawPayload: nil,
+                    recoveredResponse: nil,
+                    response: failure.context.response
+                )
+            )
+
+        case let .client(failure):
+            switch failure {
+            case let .af(afFailure):
+                return NSError(
+                    domain: NtkErrorDomain,
+                    code: clientAFCode(for: afFailure.reason).rawValue,
+                    userInfo: makeUserInfo(
+                        description: afFailure.context.message ?? "客户端错误",
+                        request: afFailure.context.request,
+                        clientResponse: afFailure.context.clientResponse,
+                        underlyingError: afFailure.context.underlyingError,
+                        rawPayload: nil,
+                        recoveredResponse: nil,
+                        response: nil
+                    )
+                )
+            }
+        }
+    }
+
+    private static func makeUserInfo(
+        description: String,
+        request: iNtkRequest?,
+        clientResponse: NtkClientResponse?,
+        underlyingError: Error?,
+        rawPayload: Data?,
+        recoveredResponse: NtkResponse<NtkDynamicData?>?,
+        response: (any iNtkResponse)?
+    ) -> [String: Any] {
+        var userInfo: [String: Any] = [NSLocalizedDescriptionKey: description]
+        if let request { userInfo["request"] = String(describing: request) }
+        if let clientResponse { userInfo["clientResponse"] = String(describing: clientResponse) }
+        if let recoveredResponse { userInfo["recoveredResponse"] = String(describing: recoveredResponse) }
+        if let response { userInfo["response"] = String(describing: response) }
+        if let underlyingError { userInfo["underlyingError"] = underlyingError as NSError }
+        if let rawPayload { userInfo["rawPayload"] = rawPayload }
+        return userInfo
+    }
+
+    private static func requestCode(for reason: RequestFailure.Reason) -> NtkErrorCode {
+        switch reason {
+        case .typeMismatch: return .requestTypeMismatch
+        case .invalidRequest: return .requestInvalidRequest
+        case .unsupportedRequestType: return .requestUnsupportedRequestType
+        }
+    }
+
+    private static func responseCode(for reason: ResponseFailure.Reason) -> NtkErrorCode {
+        switch reason {
+        case .bodyEmpty: return .responseBodyEmpty
+        case .invalidResponseType: return .responseInvalidResponseType
+        case .cancelled: return .responseCancelled
+        case .timedOut: return .responseTimedOut
+        case .transportError: return .responseTransportError
+        }
+    }
+
+    private static func serializationCode(for reason: SerializationFailure.Reason) -> NtkErrorCode {
+        switch reason {
+        case .invalidJSON: return .serializationInvalidJSON
+        case .envelopeDecodeFailed: return .serializationEnvelopeDecodeFailed
+        case .dataDecodeFailed: return .serializationDataDecodeFailed
+        case .dataMissing: return .serializationDataMissing
+        case .dataTypeMismatch: return .serializationDataTypeMismatch
+        }
+    }
+
+    private static func clientAFCode(for reason: ClientFailure.AF.Reason) -> NtkErrorCode {
+        switch reason {
+        case .responseTypeError: return .clientAFResponseTypeError
+        case .afError: return .clientAFAFError
+        case .unknown: return .clientAFUnknown
+        }
     }
 }
-
-// MARK: - 说明
-// NtkError的Swift扩展应该直接添加到NtkError.swift文件中
-// 以避免在桥接文件中出现模块可见性问题。

@@ -24,7 +24,11 @@ public struct NtkJSONObjectPayloadDecoder<
         _ payload: NtkPayload,
         context: NtkInterceptorContext
     ) async throws -> NtkResponseDecoder<ResponseData, Keys> {
-        guard let dict = extractDict(payload) else { throw NtkError.typeMismatch }
+        guard let dict = extractDict(payload) else {
+            throw NtkError.serialization(
+                .init(reason: .envelopeDecodeFailed, context: .init(stage: .envelope))
+            )
+        }
 
         let code = NtkReturnCode(dict[Keys.code])
         let msg = dict[Keys.msg] as? String
@@ -63,7 +67,11 @@ public struct NtkDataPayloadDecoder<
         _ payload: NtkPayload,
         context: NtkInterceptorContext
     ) async throws -> NtkResponseDecoder<ResponseData, Keys> {
-        guard case .data(let data) = payload else { throw NtkError.typeMismatch }
+        guard case .data(let data) = payload else {
+            throw NtkError.serialization(
+                .init(reason: .dataDecodeFailed, context: .init(stage: .data))
+            )
+        }
         return try JSONDecoder().decode(NtkResponseDecoder<ResponseData, Keys>.self, from: data)
     }
 

@@ -160,13 +160,17 @@ public final class NtkDynamicData: NSObject, Sendable, Codable {
             return
         }
 
-        throw NtkError.decodeInvalid(
+        throw NtkError.serialization(
             .init(
-                underlyingError: DecodingError.typeMismatch(
-                    NtkDynamicData.self,
-                    DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "无法解码为任何支持的类型")
-                ),
-                rawValue: "解码失败的数据"
+                reason: .dataDecodeFailed,
+                context: .init(
+                    payloadSnapshot: NtkDynamicData(string: "解码失败的数据"),
+                    underlyingError: DecodingError.typeMismatch(
+                        NtkDynamicData.self,
+                        DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "无法解码为任何支持的类型")
+                    ),
+                    stage: .model
+                )
             )
         )
     }
@@ -278,7 +282,7 @@ extension NtkDynamicData {
             case .double(let v): return String(v) as! T
             case .bool(let v):   return String(v) as! T
             case .null:          return "" as! T
-            default:             throw NtkError.serviceDataTypeInvalid
+            default:             throw NtkError.serialization(.init(reason: .dataTypeMismatch, context: .init(payloadSnapshot: self, stage: .model)))
             }
 
         case is Int.Type:
@@ -286,10 +290,10 @@ extension NtkDynamicData {
             case .int(let v):    return v as! T
             case .string(let v):
                 if let intValue = Int(v) { return intValue as! T }
-                throw NtkError.serviceDataTypeInvalid
+                throw NtkError.serialization(.init(reason: .dataTypeMismatch, context: .init(payloadSnapshot: self, stage: .model)))
             case .double(let v): return Int(v) as! T
             case .bool(let v):   return (v ? 1 : 0) as! T
-            default:             throw NtkError.serviceDataTypeInvalid
+            default:             throw NtkError.serialization(.init(reason: .dataTypeMismatch, context: .init(payloadSnapshot: self, stage: .model)))
             }
 
         case is Double.Type:
@@ -297,10 +301,10 @@ extension NtkDynamicData {
             case .double(let v): return v as! T
             case .string(let v):
                 if let doubleValue = Double(v) { return doubleValue as! T }
-                throw NtkError.serviceDataTypeInvalid
+                throw NtkError.serialization(.init(reason: .dataTypeMismatch, context: .init(payloadSnapshot: self, stage: .model)))
             case .int(let v):    return Double(v) as! T
             case .bool(let v):   return (v ? 1.0 : 0.0) as! T
-            default:             throw NtkError.serviceDataTypeInvalid
+            default:             throw NtkError.serialization(.init(reason: .dataTypeMismatch, context: .init(payloadSnapshot: self, stage: .model)))
             }
 
         case is Bool.Type:
@@ -311,19 +315,19 @@ extension NtkDynamicData {
                 return (lower == "true" || lower == "1") as! T
             case .int(let v):    return (v != 0) as! T
             case .double(let v): return (v != 0.0) as! T
-            default:             throw NtkError.serviceDataTypeInvalid
+            default:             throw NtkError.serialization(.init(reason: .dataTypeMismatch, context: .init(payloadSnapshot: self, stage: .model)))
             }
 
         case is [String: any Sendable].Type:
             if let value = getDictionary() { return value as! T }
-            throw NtkError.serviceDataTypeInvalid
+            throw NtkError.serialization(.init(reason: .dataTypeMismatch, context: .init(payloadSnapshot: self, stage: .model)))
 
         case is [any Sendable].Type:
             if let value = getArray() { return value as! T }
-            throw NtkError.serviceDataTypeInvalid
+            throw NtkError.serialization(.init(reason: .dataTypeMismatch, context: .init(payloadSnapshot: self, stage: .model)))
 
         default:
-            throw NtkError.typeMismatch
+            throw NtkError.serialization(.init(reason: .dataTypeMismatch, context: .init(payloadSnapshot: self, stage: .model)))
         }
     }
 }

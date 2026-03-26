@@ -42,7 +42,17 @@ struct NtkDefaultResponseParsingPolicy<ResponseData: Sendable & Decodable> {
                     isCache: decoded.isCache
                 )
                 try await validateServiceSuccess(response, request: decoded.request, context: context)
-                throw NtkError.serviceDataEmpty
+                throw NtkError.serialization(
+                    .init(
+                        reason: .dataMissing,
+                        context: .init(
+                            request: decoded.request,
+                            clientResponse: decoded.clientResponse,
+                            rawPayload: decoded.clientResponse.data as? Data,
+                            stage: .data
+                        )
+                    )
+                )
             }
 
             let response = NtkResponse(
@@ -59,7 +69,7 @@ struct NtkDefaultResponseParsingPolicy<ResponseData: Sendable & Decodable> {
 
         case let .decodeFailed(failure):
             if let header = failure.header {
-                let response = NtkResponse<NtkDynamicData?>(
+                let recoveredResponse = NtkResponse<NtkDynamicData?>(
                     code: header.code,
                     data: header.data,
                     msg: header.msg,
@@ -67,19 +77,32 @@ struct NtkDefaultResponseParsingPolicy<ResponseData: Sendable & Decodable> {
                     request: failure.request,
                     isCache: failure.isCache
                 )
-                try await validateServiceSuccess(response, request: failure.request, context: context)
-                throw NtkError.decodeInvalid(
+                try await validateServiceSuccess(recoveredResponse, request: failure.request, context: context)
+                throw NtkError.serialization(
                     .init(
-                        underlyingError: failure.decodeError,
-                        response: response,
-                        rawValue: failure.clientResponse.data
+                        reason: .dataDecodeFailed,
+                        context: .init(
+                            request: failure.request,
+                            clientResponse: failure.clientResponse,
+                            recoveredResponse: recoveredResponse,
+                            rawPayload: failure.clientResponse.data as? Data,
+                            payloadSnapshot: recoveredResponse.data,
+                            underlyingError: failure.decodeError,
+                            stage: .model
+                        )
                     )
                 )
             }
-            throw NtkError.decodeInvalid(
+            throw NtkError.serialization(
                 .init(
-                    underlyingError: failure.decodeError,
-                    rawValue: failure.clientResponse.data
+                    reason: .dataDecodeFailed,
+                    context: .init(
+                        request: failure.request,
+                        clientResponse: failure.clientResponse,
+                        rawPayload: failure.clientResponse.data as? Data,
+                        underlyingError: failure.decodeError,
+                        stage: .model
+                    )
                 )
             )
         }
@@ -94,7 +117,12 @@ struct NtkDefaultResponseParsingPolicy<ResponseData: Sendable & Decodable> {
 
         guard validation.isServiceSuccess(response) else {
             await dispatcher.didValidateFail(response, context: context)
-            throw NtkError.validation(request, response)
+            throw NtkError.validation(
+                .init(
+                    reason: .serviceRejected,
+                    context: .init(request: request, response: response)
+                )
+            )
         }
     }
 }

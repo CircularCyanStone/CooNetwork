@@ -102,7 +102,9 @@ private final class RecordingTransformer: iNtkResponsePayloadTransforming, @unch
 
 private struct DataToDynamicTransformer: iNtkResponsePayloadTransforming {
     func transform(_ payload: NtkPayload, context: NtkInterceptorContext) async throws -> NtkPayload {
-        guard case .data = payload else { throw NtkError.typeMismatch }
+        guard case .data = payload else {
+            throw NtkError.serialization(.init(reason: .dataDecodeFailed, context: .init(stage: .data)))
+        }
         return try NtkPayload.normalize(from: ["value": "decoded"] as [String: any Sendable])
     }
 }
@@ -111,7 +113,9 @@ private struct DynamicToDataTransformer: iNtkResponsePayloadTransforming {
     func transform(_ payload: NtkPayload, context: NtkInterceptorContext) async throws -> NtkPayload {
         guard case .dynamic(let dynamic) = payload,
               let dict = dynamic.getDictionary()
-        else { throw NtkError.typeMismatch }
+        else {
+            throw NtkError.serialization(.init(reason: .envelopeDecodeFailed, context: .init(stage: .envelope)))
+        }
 
         let data = try JSONSerialization.data(withJSONObject: dict)
         return .data(data)
@@ -120,6 +124,6 @@ private struct DynamicToDataTransformer: iNtkResponsePayloadTransforming {
 
 private struct FailingTransformer: iNtkResponsePayloadTransforming {
     func transform(_ payload: NtkPayload, context: NtkInterceptorContext) async throws -> NtkPayload {
-        throw NtkError.typeMismatch
+        throw NtkError.serialization(.init(reason: .dataDecodeFailed, context: .init(stage: .data)))
     }
 }

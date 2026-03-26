@@ -53,7 +53,9 @@ public final class AFClient: iNtkClient {
         let finalRequestModifier = createRequestModifier(for: ntkRequest)
 
         // 检查任务取消
-        if Task.isCancelled { throw NtkError.requestCancelled }
+        if Task.isCancelled {
+            throw NtkError.response(.init(reason: .cancelled, context: .init(request: ntkRequest)))
+        }
 
         // 创建请求任务
         var afRequest: DataRequest
@@ -130,8 +132,21 @@ public final class AFClient: iNtkClient {
         case .failure(let error):
             // 5. 错误处理
             
-            if let urlError = error.underlyingError as? URLError, urlError.code == .timedOut {
-                throw NtkError.requestTimeout
+            if let urlError = error.underlyingError as? URLError {
+                if urlError.code == .timedOut {
+                    throw NtkError.response(
+                        .init(
+                            reason: .timedOut,
+                            context: .init(request: ntkRequest, underlyingError: urlError)
+                        )
+                    )
+                }
+                throw NtkError.response(
+                    .init(
+                        reason: .transportError,
+                        context: .init(request: ntkRequest, underlyingError: urlError)
+                    )
+                )
             }
             let fixResponse = NtkResponse<Data?>(
                 code: NtkReturnCode(response.response?.statusCode ?? 0),
@@ -141,7 +156,25 @@ public final class AFClient: iNtkClient {
                 request: ntkRequest,
                 isCache: false
             )
-            throw NtkError.AF.afError(error, ntkRequest, fixResponse)
+            throw NtkError.client(
+                .af(
+                    .init(
+                        reason: .afError,
+                        context: .init(
+                            request: ntkRequest,
+                            clientResponse: NtkClientResponse(
+                                data: response.data,
+                                msg: nil,
+                                response: fixResponse,
+                                request: ntkRequest,
+                                isCache: false
+                            ),
+                            underlyingError: error,
+                            message: error.errorDescription ?? error.localizedDescription
+                        )
+                    )
+                )
+            )
         }
     }
     

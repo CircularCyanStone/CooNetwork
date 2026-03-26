@@ -43,46 +43,47 @@ public struct AFToastInterceptor: iNtkInterceptor {
         } catch let error as NtkError {
             handleNtkError(error, request: afRequest)
             throw error
-        } catch let afError as NtkError.AF {
-            handleAFError(afError)
-            throw afError
         } catch {
-            // 处理其他未知的 Error
             throw error
         }
     }
     
     private func handleNtkError(_ error: NtkError, request: iAFRequest) {
-        if case let .validation(_, response) = error {
+        if case let .validation(failure) = error,
+           let response = failure.context.response as? any iNtkResponse {
             if ignoreCode.contains(response.code.intValue) {
                 return
             }
-            // 服务端验证失败，提示消息。
             if request.toastRetErrorMsg(response.code.stringValue), let msg = response.msg {
-                // toast提示
                 toastHandler(msg)
             }
-        } else if case .requestTimeout = error {
-            toastHandler("连接超时~")
-        } else if case .other(let innerError) = error {
-            // 系统级别错误
-            let nsError = innerError as NSError
-            handleSystemError(nsError)
+        } else if case let .response(failure) = error {
+            switch failure.reason {
+            case .timedOut:
+                toastHandler("连接超时~")
+            case .transportError:
+                if let innerError = failure.context?.underlyingError {
+                    handleSystemError(innerError as NSError)
+                }
+            default:
+                break
+            }
+        } else if case let .client(clientFailure) = error {
+            handleClientError(clientFailure)
         }
     }
-    
-    private func handleAFError(_ error: NtkError.AF) {
-        var msg: String?
-        switch error {
-        case .responseTypeError:
-            msg = "接口数据类型异常"
-        case let .afError(error, _, _):
-            msg = error.errorDescription ?? error.localizedDescription
-        case .unknown(let message):
-            msg = message
-        }
-        if let msg = msg {
-            toastHandler(msg)
+
+    private func handleClientError(_ failure: ClientFailure) {
+        switch failure {
+        case let .af(error):
+            switch error.reason {
+            case .responseTypeError:
+                toastHandler("接口数据类型异常")
+            case .afError, .unknown:
+                if let msg = error.context.message {
+                    toastHandler(msg)
+                }
+            }
         }
     }
     

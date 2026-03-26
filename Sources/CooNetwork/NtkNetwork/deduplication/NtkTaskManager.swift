@@ -61,7 +61,7 @@ final class NtkTaskManager {
         // 检查取消状态（解决先取消后执行的可重入问题）
         if let cancelledRef = request.isCancelledRef, cancelledRef.isCancelled {
             logger.warning("请求已取消，终止执行", category: .deduplication)
-            throw NtkError.requestCancelled
+            throw NtkError.response(.init(reason: .cancelled))
         }
 
         let baseRequestId = requestIdentifier(for: request)
@@ -185,9 +185,9 @@ extension NtkTaskManager {
 
         // 创建独立的 wrapper Task
         let waiterTask = Task<Sendable, Error> {
-            if Task.isCancelled { throw NtkError.requestCancelled }
+            if Task.isCancelled { throw NtkError.response(.init(reason: .cancelled)) }
             let result = try await underlyingTask.value
-            if Task.isCancelled { throw NtkError.requestCancelled }
+            if Task.isCancelled { throw NtkError.response(.init(reason: .cancelled)) }
             return result
         }
 
@@ -205,7 +205,7 @@ extension NtkTaskManager {
             let result = try await waiterTask.value
             // 检查 isCancelledRef（覆盖：底层成功但本实例已被取消）
             if let cancelledRef = request.isCancelledRef, cancelledRef.isCancelled {
-                throw NtkError.requestCancelled
+                throw NtkError.response(.init(reason: .cancelled))
             }
             logger.info("重复请求完成，返回共享结果: \(baseRequestId)", category: .deduplication)
             guard let typedResult = result as? T else {
@@ -216,7 +216,7 @@ extension NtkTaskManager {
         } catch {
             // 如果本实例已被取消，统一抛 requestCancelled（而非底层的网络错误）
             if let cancelledRef = request.isCancelledRef, cancelledRef.isCancelled {
-                throw NtkError.requestCancelled
+                throw NtkError.response(.init(reason: .cancelled))
             }
             logger.warning("现有请求失败，透传错误: \(baseRequestId), 错误: \(error)", category: .deduplication)
             throw error
@@ -271,9 +271,9 @@ extension NtkTaskManager {
 
             // 添加实际请求任务
             group.addTask {
-                if Task.isCancelled { throw NtkError.requestCancelled }
+                if Task.isCancelled { throw NtkError.response(.init(reason: .cancelled)) }
                 let result = try await execution()
-                if Task.isCancelled { throw NtkError.requestCancelled }
+                if Task.isCancelled { throw NtkError.response(.init(reason: .cancelled)) }
                 return result
             }
 
@@ -282,12 +282,12 @@ extension NtkTaskManager {
                 try await Task.sleep(
                     nanoseconds: UInt64(validTimeout * 1_000_000_000)
                 )
-                throw NtkError.requestTimeout
+                throw NtkError.response(.init(reason: .timedOut))
             }
 
             // 等待第一个完成的任务
             guard let result = try await group.next() else {
-                throw NtkError.requestCancelled
+                throw NtkError.response(.init(reason: .cancelled))
             }
             return result
         }
@@ -323,19 +323,21 @@ extension NtkTaskManager {
             let result = try await entry.task.value
             // owner 拿到结果后检查自身取消状态
             if let cancelledRef = request.isCancelledRef, cancelledRef.isCancelled {
-                throw NtkError.requestCancelled
+                throw NtkError.response(.init(reason: .cancelled))
             }
             logger.debug("请求成功完成: \(requestKey)", category: .deduplication)
             guard let typedResult = result as? T else {
-                throw NtkError.typeMismatch
+                throw NtkError.request(.init(reason: .typeMismatch))
             }
             return typedResult
         } catch {
             // 统一检查：如果 owner 已被取消，优先抛 requestCancelled
             if let cancelledRef = request.isCancelledRef, cancelledRef.isCancelled {
-                throw NtkError.requestCancelled
+                throw NtkError.response(.init(reason: .cancelled))
             }
-            if let ntkError = error as? NtkError, case .requestTimeout = ntkError {
+            if let ntkError = error as? NtkError,
+               case let .response(failure) = ntkError,
+               failure.reason == .timedOut {
                 logger.warning("请求超时: \(requestKey), 超时时间: \(timeout)秒", category: .deduplication)
             } else {
                 logger.error("请求执行失败: \(requestKey), 错误: \(error)", category: .deduplication)
