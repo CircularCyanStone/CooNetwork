@@ -22,6 +22,6 @@
 - `iNtkParsingHooks` - 解析流程中的生命周期通知协议，不参与业务裁决
 - `NtkParsingHookDispatcher` - 负责向多个 hooks 分发生命周期通知，不负责结果判定
 - `iNtkResponseValidation` - 业务成功判定协议
-- `NtkParsingResult` - 解释阶段产生的中间结果
+- `NtkInterpretation` - 解释阶段产生的中间结果，包含 `Decoded` / `DecodeFailure` 两类上下文
 - `NtkDefaultResponseParsingPolicy` - 默认解析判定策略，负责结果判定
 - `NtkDataPayloadDecoder` / `NtkJSONObjectPayloadDecoder` - 内置 payload decoder

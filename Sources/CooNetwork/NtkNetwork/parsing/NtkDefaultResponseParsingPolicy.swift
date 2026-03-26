@@ -13,68 +13,67 @@ struct NtkDefaultResponseParsingPolicy<ResponseData: Sendable & Decodable> {
     }
 
     func decide(
-        from result: NtkParsingResult<ResponseData>,
+        from interpretation: NtkInterpretation<ResponseData>,
         context: NtkInterceptorContext
     ) async throws -> any iNtkResponse {
-        switch result {
-        case let .decoded(code, msg, data, request, clientResponse, isCache):
+        switch interpretation {
+        case let .decoded(decoded):
             if ResponseData.self is NtkNever.Type {
                 let response = NtkResponse(
-                    code: code,
+                    code: decoded.code,
                     data: NtkNever() as! ResponseData,
-                    msg: msg,
-                    response: clientResponse,
-                    request: request,
-                    isCache: isCache
+                    msg: decoded.msg,
+                    response: decoded.clientResponse,
+                    request: decoded.request,
+                    isCache: decoded.isCache
                 )
-                try await validate(response, request: request, context: context)
+                try await validateServiceSuccess(response, request: decoded.request, context: context)
                 await dispatcher.didComplete(response, context: context)
                 return response
             }
 
-            guard let data else {
+            guard let data = decoded.data else {
                 let response = NtkResponse<ResponseData?>(
-                    code: code,
+                    code: decoded.code,
                     data: nil,
-                    msg: msg,
-                    response: clientResponse,
-                    request: request,
-                    isCache: isCache
+                    msg: decoded.msg,
+                    response: decoded.clientResponse,
+                    request: decoded.request,
+                    isCache: decoded.isCache
                 )
-                try await validate(response, request: request, context: context)
+                try await validateServiceSuccess(response, request: decoded.request, context: context)
                 throw NtkError.serviceDataEmpty
             }
 
             let response = NtkResponse(
-                code: code,
+                code: decoded.code,
                 data: data,
-                msg: msg,
-                response: clientResponse,
-                request: request,
-                isCache: isCache
+                msg: decoded.msg,
+                response: decoded.clientResponse,
+                request: decoded.request,
+                isCache: decoded.isCache
             )
-            try await validate(response, request: request, context: context)
+            try await validateServiceSuccess(response, request: decoded.request, context: context)
             await dispatcher.didComplete(response, context: context)
             return response
 
-        case let .headerRecovered(decodeError, _, header, request, clientResponse, isCache):
-            let response = NtkResponse<NtkDynamicData?>(
-                code: header.code,
-                data: header.data,
-                msg: header.msg,
-                response: clientResponse,
-                request: request,
-                isCache: isCache
-            )
-            try await validate(response, request: request, context: context)
-            throw NtkError.decodeInvalid(decodeError, clientResponse.data, request)
-
-        case let .unrecoverableDecodeFailure(decodeError, _, request, clientResponse, _):
-            throw NtkError.decodeInvalid(decodeError, clientResponse.data, request)
+        case let .decodeFailed(failure):
+            if let header = failure.header {
+                let response = NtkResponse<NtkDynamicData?>(
+                    code: header.code,
+                    data: header.data,
+                    msg: header.msg,
+                    response: failure.clientResponse,
+                    request: failure.request,
+                    isCache: failure.isCache
+                )
+                try await validateServiceSuccess(response, request: failure.request, context: context)
+            }
+            throw NtkError.decodeInvalid(failure.decodeError, failure.clientResponse.data, failure.request)
         }
     }
 
-    private func validate(
+    private func validateServiceSuccess(
         _ response: any iNtkResponse,
         request: iNtkRequest,
         context: NtkInterceptorContext

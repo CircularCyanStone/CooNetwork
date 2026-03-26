@@ -134,7 +134,7 @@ struct NtkDataParsingInterceptorTests {
             _ = try await interceptor.intercept(context: context, next: handler)
             Issue.record("期望抛出 decodeInvalid")
         } catch let error as NtkError {
-            if case .decodeInvalid = error {
+            if case let .decodeInvalid(err, resp, req) = error {
                 #expect(Bool(true))
             } else {
                 Issue.record("错误类型不符: \(error)")
@@ -442,7 +442,7 @@ struct NtkDataParsingInterceptorTests {
 
     @Test
     @NtkActor
-    func headerRecoveredPathDoesNotTriggerDidDecodeHeaderOrDidComplete() async throws {
+    func decodeFailureWithHeaderDoesNotTriggerDidDecodeHeaderOrDidComplete() async throws {
         let hook = AFTestRecordingHook()
         let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
             validation: AFTestPassValidation(),
@@ -466,7 +466,7 @@ struct NtkDataParsingInterceptorTests {
 
     @Test
     @NtkActor
-    func headerRecoveredValidationFailureTriggersDidValidateFailOnly() async throws {
+    func decodeFailureWithHeaderValidationFailureTriggersDidValidateFailOnly() async throws {
         let hook = AFTestRecordingHook()
         let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
             validation: AFTestFailValidation(),

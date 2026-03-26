@@ -16,12 +16,14 @@ struct NtkDefaultResponseParsingPolicyTests {
 
         let result = try await policy.decide(
             from: .decoded(
-                code: NtkReturnCode(0),
-                msg: "ok",
-                data: PolicyTestModel(id: 1, name: "test"),
-                request: PolicyTestRequest(),
-                clientResponse: makePolicyClientResponse(),
-                isCache: false
+                .init(
+                    code: NtkReturnCode(0),
+                    msg: "ok",
+                    data: PolicyTestModel(id: 1, name: "test"),
+                    request: PolicyTestRequest(),
+                    clientResponse: makePolicyClientResponse(),
+                    isCache: false
+                )
             ),
             context: makePolicyContext()
         )
@@ -45,12 +47,14 @@ struct NtkDefaultResponseParsingPolicyTests {
         do {
             _ = try await policy.decide(
                 from: .decoded(
-                    code: NtkReturnCode(0),
-                    msg: "ok",
-                    data: nil,
-                    request: PolicyTestRequest(),
-                    clientResponse: makePolicyClientResponse(),
-                    isCache: false
+                    .init(
+                        code: NtkReturnCode(0),
+                        msg: "ok",
+                        data: nil,
+                        request: PolicyTestRequest(),
+                        clientResponse: makePolicyClientResponse(),
+                        isCache: false
+                    )
                 ),
                 context: makePolicyContext()
             )
@@ -76,12 +80,14 @@ struct NtkDefaultResponseParsingPolicyTests {
         do {
             _ = try await policy.decide(
                 from: .decoded(
-                    code: NtkReturnCode(999),
-                    msg: "fail",
-                    data: nil,
-                    request: PolicyTestRequest(),
-                    clientResponse: makePolicyClientResponse(),
-                    isCache: false
+                    .init(
+                        code: NtkReturnCode(999),
+                        msg: "fail",
+                        data: nil,
+                        request: PolicyTestRequest(),
+                        clientResponse: makePolicyClientResponse(),
+                        isCache: false
+                    )
                 ),
                 context: makePolicyContext()
             )
@@ -106,12 +112,14 @@ struct NtkDefaultResponseParsingPolicyTests {
 
         let result = try await policy.decide(
             from: .decoded(
-                code: NtkReturnCode(0),
-                msg: "ok",
-                data: nil,
-                request: PolicyTestRequest(),
-                clientResponse: makePolicyClientResponse(),
-                isCache: false
+                .init(
+                    code: NtkReturnCode(0),
+                    msg: "ok",
+                    data: nil,
+                    request: PolicyTestRequest(),
+                    clientResponse: makePolicyClientResponse(),
+                    isCache: false
+                )
             ),
             context: makePolicyContext()
         )
@@ -123,7 +131,7 @@ struct NtkDefaultResponseParsingPolicyTests {
 
     @Test
     @NtkActor
-    func headerRecoveredWithValidationFailThrowsValidation() async throws {
+    func decodeFailureWithHeaderValidationFailureThrowsValidation() async throws {
         let hook = PolicyTestRecordingHook()
         let policy = NtkDefaultResponseParsingPolicy<PolicyTestModel>(
             validation: PolicyTestFailValidation(),
@@ -132,7 +140,7 @@ struct NtkDefaultResponseParsingPolicyTests {
 
         do {
             _ = try await policy.decide(
-                from: makeHeaderRecoveredResult(),
+                from: makeDecodeFailureWithHeaderInterpretation(),
                 context: makePolicyContext()
             )
             Issue.record("期望抛出 validation")
@@ -147,7 +155,7 @@ struct NtkDefaultResponseParsingPolicyTests {
 
     @Test
     @NtkActor
-    func headerRecoveredWithValidationPassStillThrowsDecodeInvalid() async throws {
+    func decodeFailureWithHeaderValidationPassStillThrowsDecodeInvalid() async throws {
         let hook = PolicyTestRecordingHook()
         let policy = NtkDefaultResponseParsingPolicy<PolicyTestModel>(
             validation: PolicyTestPassValidation(),
@@ -156,7 +164,7 @@ struct NtkDefaultResponseParsingPolicyTests {
 
         do {
             _ = try await policy.decide(
-                from: makeHeaderRecoveredResult(),
+                from: makeDecodeFailureWithHeaderInterpretation(),
                 context: makePolicyContext()
             )
             Issue.record("期望抛出 decodeInvalid")
@@ -171,7 +179,7 @@ struct NtkDefaultResponseParsingPolicyTests {
 
     @Test
     @NtkActor
-    func unrecoverableDecodeFailureThrowsDecodeInvalid() async throws {
+    func decodeFailureWithoutHeaderThrowsDecodeInvalid() async throws {
         let policy = NtkDefaultResponseParsingPolicy<PolicyTestModel>(
             validation: PolicyTestPassValidation(),
             dispatcher: NtkParsingHookDispatcher()
@@ -179,13 +187,7 @@ struct NtkDefaultResponseParsingPolicyTests {
 
         do {
             _ = try await policy.decide(
-                from: .unrecoverableDecodeFailure(
-                    decodeError: makePolicyDecodeError(),
-                    rawPayload: .data(Data("{}".utf8)),
-                    request: PolicyTestRequest(),
-                    clientResponse: makePolicyClientResponse(),
-                    isCache: false
-                ),
+                from: makeDecodeFailureWithoutHeaderInterpretation(),
                 context: makePolicyContext()
             )
             Issue.record("期望抛出 decodeInvalid")
@@ -200,7 +202,7 @@ struct NtkDefaultResponseParsingPolicyTests {
 
     @Test
     @NtkActor
-    func headerRecoveredDoesNotTriggerDidComplete() async throws {
+    func decodeFailureWithHeaderDoesNotTriggerDidComplete() async throws {
         let hook = PolicyTestRecordingHook()
         let policy = NtkDefaultResponseParsingPolicy<PolicyTestModel>(
             validation: PolicyTestPassValidation(),
@@ -209,7 +211,7 @@ struct NtkDefaultResponseParsingPolicyTests {
 
         await #expect(throws: NtkError.self) {
             _ = try await policy.decide(
-                from: makeHeaderRecoveredResult(),
+                from: makeDecodeFailureWithHeaderInterpretation(),
                 context: makePolicyContext()
             )
         }
@@ -271,22 +273,37 @@ private func makePolicyClientResponse() -> NtkClientResponse {
     )
 }
 
-private func makeHeaderRecoveredResult() -> NtkParsingResult<PolicyTestModel> {
-    .headerRecovered(
-        decodeError: makePolicyDecodeError(),
-        rawPayload: .dynamic(NtkDynamicData(dictionary: [
-            "retCode": 999,
-            "retMsg": "fail",
-            "data": ["reason": "mock"]
-        ])),
-        header: NtkExtractedHeader(
-            code: NtkReturnCode(999),
-            msg: "fail",
-            data: NtkDynamicData(dictionary: ["reason": "mock"])
-        ),
-        request: PolicyTestRequest(),
-        clientResponse: makePolicyClientResponse(),
-        isCache: false
+private func makeDecodeFailureWithHeaderInterpretation() -> NtkInterpretation<PolicyTestModel> {
+    .decodeFailed(
+        .init(
+            decodeError: makePolicyDecodeError(),
+            rawPayload: .dynamic(NtkDynamicData(dictionary: [
+                "retCode": 999,
+                "retMsg": "fail",
+                "data": ["reason": "mock"]
+            ])),
+            header: NtkExtractedHeader(
+                code: NtkReturnCode(999),
+                msg: "fail",
+                data: NtkDynamicData(dictionary: ["reason": "mock"])
+            ),
+            request: PolicyTestRequest(),
+            clientResponse: makePolicyClientResponse(),
+            isCache: false
+        )
+    )
+}
+
+private func makeDecodeFailureWithoutHeaderInterpretation() -> NtkInterpretation<PolicyTestModel> {
+    .decodeFailed(
+        .init(
+            decodeError: makePolicyDecodeError(),
+            rawPayload: .data(Data("{}".utf8)),
+            header: nil,
+            request: PolicyTestRequest(),
+            clientResponse: makePolicyClientResponse(),
+            isCache: false
+        )
     )
 }
 

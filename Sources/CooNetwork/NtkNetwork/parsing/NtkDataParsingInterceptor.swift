@@ -108,7 +108,7 @@ public struct NtkDataParsingInterceptor<
     private func interpret(
         _ prepared: PreparedPayload,
         context: NtkInterceptorContext
-    ) async throws -> NtkParsingResult<ResponseData> {
+    ) async throws -> NtkInterpretation<ResponseData> {
         do {
             let decoderResponse = try await decoder.decode(prepared.payload, context: context)
             logDecodedHeader(decoderResponse, request: prepared.request)
@@ -119,7 +119,7 @@ public struct NtkDataParsingInterceptor<
                 context: context
             )
 
-            return .decoded(
+            let decoded = NtkInterpretation<ResponseData>.Decoded(
                 code: decoderResponse.code,
                 msg: decoderResponse.msg,
                 data: decoderResponse.data,
@@ -127,16 +127,17 @@ public struct NtkDataParsingInterceptor<
                 clientResponse: prepared.clientResponse,
                 isCache: prepared.clientResponse.isCache
             )
+            return .decoded(decoded)
         } catch let error as DecodingError {
-            return recoverInterpretResult(from: error, prepared: prepared)
+            return makeInterpretFailureResult(from: error, prepared: prepared)
         }
     }
 
     private func decide(
-        _ result: NtkParsingResult<ResponseData>,
+        _ interpretation: NtkInterpretation<ResponseData>,
         context: NtkInterceptorContext
     ) async throws -> any iNtkResponse {
-        try await policy.decide(from: result, context: context)
+        try await policy.decide(from: interpretation, context: context)
     }
 
     private func logDecodedHeader(
@@ -155,28 +156,19 @@ public struct NtkDataParsingInterceptor<
         )
     }
 
-    private func recoverInterpretResult(
+    private func makeInterpretFailureResult(
         from error: DecodingError,
         prepared: PreparedPayload
-    ) -> NtkParsingResult<ResponseData> {
-        if let header = try? decoder.extractHeader(prepared.payload, request: prepared.request) {
-            return .headerRecovered(
-                decodeError: error,
-                rawPayload: prepared.payload,
-                header: header,
-                request: prepared.request,
-                clientResponse: prepared.clientResponse,
-                isCache: prepared.clientResponse.isCache
-            )
-        }
-
-        return .unrecoverableDecodeFailure(
+    ) -> NtkInterpretation<ResponseData> {
+        let failure = NtkInterpretation<ResponseData>.DecodeFailure(
             decodeError: error,
             rawPayload: prepared.payload,
+            header: try? decoder.extractHeader(prepared.payload, request: prepared.request),
             request: prepared.request,
             clientResponse: prepared.clientResponse,
             isCache: prepared.clientResponse.isCache
         )
+        return .decodeFailed(failure)
     }
 
     private func transform(
