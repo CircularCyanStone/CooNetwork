@@ -111,9 +111,9 @@ struct NtkDataParsingInterceptorTests {
             _ = try await interceptor.intercept(context: context, next: handler)
             Issue.record("期望抛出 decodeInvalid")
         } catch let error as NtkError {
-            if case let .decodeInvalid(error) = error {
-                #expect(error.response == nil)
-                #expect(error.rawValue is Data)
+            if case let .decodeInvalid(decodeInvalid) = error {
+                #expect(decodeInvalid.response == nil)
+                #expect(decodeInvalid.rawValue is Data)
             } else {
                 Issue.record("错误类型不符: \(error)")
             }
@@ -135,17 +135,17 @@ struct NtkDataParsingInterceptorTests {
             _ = try await interceptor.intercept(context: context, next: handler)
             Issue.record("期望抛出 decodeInvalid")
         } catch let error as NtkError {
-            if case let .decodeInvalid(error) = error {
-                let response = try #require(error.response)
+            if case let .decodeInvalid(decodeInvalid) = error {
+                let response = try #require(decodeInvalid.response)
                 #expect(response.code.intValue == 0)
                 #expect(response.msg == "ok")
                 #expect(response.data?.getString() == "not_an_object")
-                #expect(error.rawValue is Data)
-                if let decodingError = error.underlyingError as? DecodingError,
+                #expect(decodeInvalid.rawValue is Data)
+                if let decodingError = decodeInvalid.underlyingError as? DecodingError,
                    case .typeMismatch = decodingError {
                     #expect(Bool(true))
                 } else {
-                    Issue.record("underlyingError 类型不符: \(error.underlyingError)")
+                    Issue.record("underlyingError 类型不符: \(decodeInvalid.underlyingError)")
                 }
             } else {
                 Issue.record("错误类型不符: \(error)")
@@ -198,9 +198,9 @@ struct NtkDataParsingInterceptorTests {
             _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
             Issue.record("期望抛出 decodeInvalid")
         } catch let error as NtkError {
-            if case let .decodeInvalid(error) = error {
-                #expect(error.response == nil)
-                #expect(error.rawValue is Data)
+            if case let .decodeInvalid(decodeInvalid) = error {
+                #expect(decodeInvalid.response == nil)
+                #expect(decodeInvalid.rawValue is Data)
             } else {
                 Issue.record("错误类型不符: \(error)")
             }
