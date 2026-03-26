@@ -187,7 +187,12 @@ struct DirectDataParsingInterceptor<ResponseData: Decodable & Sendable>: iNtkRes
                 isCache: clientResponse.isCache
             )
         } catch let error as DecodingError {
-            throw NtkError.decodeInvalid(error, rawData)
+            throw NtkError.decodeInvalid(
+                .init(
+                    underlyingError: error,
+                    rawValue: rawData
+                )
+            )
         } catch {
             throw error
         }

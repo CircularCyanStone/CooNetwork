@@ -161,11 +161,13 @@ public final class NtkDynamicData: NSObject, Sendable, Codable {
         }
 
         throw NtkError.decodeInvalid(
-            DecodingError.typeMismatch(
-                NtkDynamicData.self,
-                DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "无法解码为任何支持的类型")
-            ),
-            "解码失败的数据"
+            .init(
+                underlyingError: DecodingError.typeMismatch(
+                    NtkDynamicData.self,
+                    DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "无法解码为任何支持的类型")
+                ),
+                rawValue: "解码失败的数据"
+            )
         )
     }
 

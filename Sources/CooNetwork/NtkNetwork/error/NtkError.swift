@@ -10,7 +10,23 @@ import Foundation
 /// 网络组件错误类型
 /// 定义了网络请求过程中可能出现的各种错误情况
 public enum NtkError: Error {
-    
+
+    public struct DecodeInvalid: Error, @unchecked Sendable {
+        public let underlyingError: Error
+        public let response: NtkResponse<NtkDynamicData?>?
+        public let rawValue: Sendable?
+
+        public init(
+            underlyingError: Error,
+            response: NtkResponse<NtkDynamicData?>? = nil,
+            rawValue: Sendable? = nil
+        ) {
+            self.underlyingError = underlyingError
+            self.response = response
+            self.rawValue = rawValue
+        }
+    }
+
     /// 服务端业务逻辑验证失败
     /// 当响应验证器判断服务端返回的业务状态码表示失败时抛出
     case validation(_ request: iNtkRequest, _ response: any iNtkResponse)
@@ -20,8 +36,11 @@ public enum NtkError: Error {
     case jsonInvalid(_ request: iNtkRequest, _ response: Sendable)
     
     /// JSON解码错误
-    /// 当使用JSONDecoder解码数据为模型时发生错误
-    case decodeInvalid(_ error: Error, _ response: Sendable, _ request: iNtkRequest? = nil)
+    /// 当使用JSONDecoder解码数据为模型时发生错误。
+    /// `underlyingError` 表示底层解码根因；若解析链路已恢复出结构化 envelope，
+    /// 则通过 `DecodeInvalid.response` 暴露 `NtkResponse<NtkDynamicData?>` 供调用方直接读取。
+    /// `rawValue` 仅作为兜底上下文，在没有 recovered response 时尤其有用。
+    case decodeInvalid(DecodeInvalid)
     
     /// 网络层 响应体为空
     case responseBodyEmpty(_ request: iNtkRequest, _ response: any iNtkResponse)
