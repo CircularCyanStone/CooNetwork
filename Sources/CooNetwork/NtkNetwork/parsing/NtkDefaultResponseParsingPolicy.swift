@@ -68,8 +68,20 @@ struct NtkDefaultResponseParsingPolicy<ResponseData: Sendable & Decodable> {
                     isCache: failure.isCache
                 )
                 try await validateServiceSuccess(response, request: failure.request, context: context)
+                throw NtkError.decodeInvalid(
+                    .init(
+                        underlyingError: failure.decodeError,
+                        response: response,
+                        rawValue: failure.clientResponse.data
+                    )
+                )
             }
-            throw NtkError.decodeInvalid(failure.decodeError, failure.clientResponse.data, failure.request)
+            throw NtkError.decodeInvalid(
+                .init(
+                    underlyingError: failure.decodeError,
+                    rawValue: failure.clientResponse.data
+                )
+            )
         }
     }
 

@@ -5,6 +5,27 @@ import Foundation
 struct NtkPayloadNormalizationTests {
 
     @Test
+    func dynamicDataDecodeFailureThrowsStructuredDecodeInvalid() throws {
+        do {
+            _ = try NtkDynamicData(from: PayloadTestFailingDecoder())
+            Issue.record("期望抛出 decodeInvalid")
+        } catch let error as NtkError {
+            if case let .decodeInvalid(error) = error {
+                #expect(error.response == nil)
+                #expect(error.rawValue as? String == "解码失败的数据")
+                if let decodingError = error.underlyingError as? DecodingError,
+                   case .typeMismatch = decodingError {
+                    #expect(Bool(true))
+                } else {
+                    Issue.record("underlyingError 类型不符: \(error.underlyingError)")
+                }
+            } else {
+                Issue.record("错误类型不符: \(error)")
+            }
+        }
+    }
+
+    @Test
     func normalizeAcceptsDataRoot() throws {
         let raw = Data("hello".utf8)
         let payload = try NtkPayload.normalize(from: raw)
@@ -125,7 +146,6 @@ struct NtkPayloadNormalizationTests {
         #expect(array[1] is UnknownBox)
     }
 
-
     @Test
     func normalizeStillAllowsLazyNestedDictionaryNavigation() throws {
         let source: NSDictionary = [
@@ -164,5 +184,57 @@ struct NtkPayloadNormalizationTests {
 
         #expect(dynamic["data"]?[0]?["id"]?.getInt() == 1)
         #expect(dynamic["data"]?[1]?["id"]?.getInt() == 2)
+    }
+}
+
+private struct PayloadTestFailingDecoder: Decoder {
+    let codingPath: [CodingKey] = []
+    let userInfo: [CodingUserInfoKey : Any] = [:]
+
+    func container<Key>(keyedBy type: Key.Type) throws -> KeyedDecodingContainer<Key> {
+        throw DecodingError.typeMismatch(
+            [String: Any].self,
+            .init(codingPath: codingPath, debugDescription: "unsupported keyed container")
+        )
+    }
+
+    func unkeyedContainer() throws -> UnkeyedDecodingContainer {
+        throw DecodingError.typeMismatch(
+            [Any].self,
+            .init(codingPath: codingPath, debugDescription: "unsupported unkeyed container")
+        )
+    }
+
+    func singleValueContainer() throws -> SingleValueDecodingContainer {
+        PayloadTestFailingSingleValueContainer()
+    }
+}
+
+private struct PayloadTestFailingSingleValueContainer: SingleValueDecodingContainer {
+    let codingPath: [CodingKey] = []
+
+    func decodeNil() -> Bool { false }
+
+    func decode(_ type: Bool.Type) throws -> Bool { throw mismatch(type) }
+    func decode(_ type: String.Type) throws -> String { throw mismatch(type) }
+    func decode(_ type: Double.Type) throws -> Double { throw mismatch(type) }
+    func decode(_ type: Float.Type) throws -> Float { throw mismatch(type) }
+    func decode(_ type: Int.Type) throws -> Int { throw mismatch(type) }
+    func decode(_ type: Int8.Type) throws -> Int8 { throw mismatch(type) }
+    func decode(_ type: Int16.Type) throws -> Int16 { throw mismatch(type) }
+    func decode(_ type: Int32.Type) throws -> Int32 { throw mismatch(type) }
+    func decode(_ type: Int64.Type) throws -> Int64 { throw mismatch(type) }
+    func decode(_ type: UInt.Type) throws -> UInt { throw mismatch(type) }
+    func decode(_ type: UInt8.Type) throws -> UInt8 { throw mismatch(type) }
+    func decode(_ type: UInt16.Type) throws -> UInt16 { throw mismatch(type) }
+    func decode(_ type: UInt32.Type) throws -> UInt32 { throw mismatch(type) }
+    func decode(_ type: UInt64.Type) throws -> UInt64 { throw mismatch(type) }
+
+    func decode<T>(_ type: T.Type) throws -> T where T : Decodable {
+        throw mismatch(type)
+    }
+
+    private func mismatch(_ type: Any.Type) -> DecodingError {
+        .typeMismatch(type, .init(codingPath: codingPath, debugDescription: "forced failure for NtkDynamicData test"))
     }
 }

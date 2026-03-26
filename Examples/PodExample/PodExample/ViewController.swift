@@ -294,17 +294,32 @@ struct IPv6ParsingInterceptor: iNtkResponseParser {
         }
 
         guard let string = String(data: rawData, encoding: .utf8) else {
-            throw NtkError.decodeInvalid(DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Invalid UTF8 Data")), rawData)
+            throw NtkError.decodeInvalid(
+                .init(
+                    underlyingError: DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Invalid UTF8 Data")),
+                    rawValue: rawData
+                )
+            )
         }
 
         guard let firstBrace = string.firstIndex(of: "{"),
               let lastBrace = string.lastIndex(of: "}") else {
-            throw NtkError.decodeInvalid(DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Invalid JSONP format")), rawData)
+            throw NtkError.decodeInvalid(
+                .init(
+                    underlyingError: DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Invalid JSONP format")),
+                    rawValue: rawData
+                )
+            )
         }
 
         let jsonString = String(string[firstBrace...lastBrace])
         guard let jsonBytes = jsonString.data(using: .utf8) else {
-             throw NtkError.decodeInvalid(DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Invalid JSON string")), rawData)
+             throw NtkError.decodeInvalid(
+                .init(
+                    underlyingError: DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Invalid JSON string")),
+                    rawValue: rawData
+                )
+            )
         }
 
         let decoder = JSONDecoder()
