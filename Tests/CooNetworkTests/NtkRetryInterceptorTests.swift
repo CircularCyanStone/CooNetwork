@@ -16,11 +16,10 @@ struct NtkRetryInterceptorTests {
             _ = try await interceptor.intercept(context: context, next: AlwaysFailHandler())
             Issue.record("期望抛出错误，但实际未抛出")
         } catch let error as NtkError {
-            switch error {
-            case let .response(failure):
-                #expect(failure.reason == .timedOut)
-            default:
-                Issue.record("抛出了错误类型，但不是 response.timedOut: \(error)")
+            if case NtkError.requestTimeout = error {
+                #expect(Bool(true))
+            } else {
+                Issue.record("抛出了错误类型，但不是 requestTimeout: \(error)")
             }
         } catch {
             Issue.record("抛出了未知错误类型: \(error)")
@@ -144,7 +143,7 @@ private struct CountingFailHandler: iNtkRequestHandler {
     let counter: RetryExecutionCounter
     func handle(context: NtkInterceptorContext) async throws -> any iNtkResponse {
         await counter.increment()
-        throw NtkError.response(.init(reason: .timedOut))
+        throw NtkError.requestTimeout
     }
 }
 
@@ -167,7 +166,7 @@ private struct FailNTimesThenSucceedHandler: iNtkRequestHandler {
         await counter.increment()
         let current = await counter.value()
         if current <= failCount {
-            throw NtkError.response(.init(reason: .timedOut))
+            throw NtkError.requestTimeout
         }
         return NtkResponse(code: NtkReturnCode(200), data: true, msg: nil, response: true, request: request, isCache: false)
     }
@@ -203,14 +202,14 @@ private struct DummyKeys: iNtkResponseMapKeys {
 
 private struct DummyClient: iNtkClient {
     typealias Keys = DummyKeys
-    
+
     var storage: any iNtkCacheStorage {
         DummyCacheStorage()
     }
-    
+
     @NtkActor
     func execute(_ request: NtkMutableRequest) async throws -> NtkClientResponse {
-        throw NtkError.response(.init(reason: .timedOut))
+        throw NtkError.requestTimeout
     }
     
     @NtkActor
@@ -256,6 +255,6 @@ private struct DummyCacheStorage: iNtkCacheStorage {
 @NtkActor
 private struct AlwaysFailHandler: iNtkRequestHandler {
     func handle(context: NtkInterceptorContext) async throws -> any iNtkResponse {
-        throw NtkError.response(.init(reason: .timedOut))
+        throw NtkError.requestTimeout
     }
 }

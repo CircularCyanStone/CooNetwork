@@ -37,6 +37,26 @@ struct NtkDataParsingInterceptorTests {
         #expect(result.code.intValue == 0)
     }
 
+    @Test
+    @NtkActor
+    func acquireRejectsNonClientResponseAsInvalidResponseType() async {
+        let interceptor = NtkDataParsingInterceptor<Bool, AFTestKeys>(validation: AFTestPassValidation())
+        let handler = AFTestPlainResponseHandler(response: AFPlainResponse(request: AFTestRequest()))
+
+        do {
+            _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
+            Issue.record("期望抛出 invalidResponseType")
+        } catch let error as NtkError {
+            if case .invalidResponseType = error {
+                #expect(Bool(true))
+            } else {
+                Issue.record("错误类型不符: \(error)")
+            }
+        } catch {
+            Issue.record("抛出了未知错误类型: \(error)")
+        }
+    }
+
     // MARK: - 常规 Decodable 模型解析
 
     @Test
@@ -68,8 +88,9 @@ struct NtkDataParsingInterceptorTests {
             _ = try await interceptor.intercept(context: context, next: handler)
             Issue.record("期望抛出 serialization.dataMissing")
         } catch let error as NtkError {
-            if case let .serialization(failure) = error {
-                #expect(failure.reason == .dataMissing)
+            if case let .responseSerializationFailed(reason) = error,
+               case .dataMissing = reason {
+                #expect(Bool(true))
             } else {
                 Issue.record("错误类型不符: \(error)")
             }
@@ -90,7 +111,8 @@ struct NtkDataParsingInterceptorTests {
             _ = try await interceptor.intercept(context: context, next: handler)
             Issue.record("期望抛出 validation 错误")
         } catch let error as NtkError {
-            if case .validation = error {
+            if case let .responseValidationFailed(reason) = error,
+               case .serviceRejected = reason {
                 #expect(Bool(true))
             } else {
                 Issue.record("错误类型不符: \(error)")
@@ -111,8 +133,8 @@ struct NtkDataParsingInterceptorTests {
             _ = try await interceptor.intercept(context: context, next: handler)
             Issue.record("期望抛出 response.bodyEmpty")
         } catch let error as NtkError {
-            if case let .response(failure) = error {
-                #expect(failure.reason == .bodyEmpty)
+            if case .responseBodyEmpty = error {
+                #expect(Bool(true))
             } else {
                 Issue.record("错误类型不符: \(error)")
             }
@@ -134,14 +156,14 @@ struct NtkDataParsingInterceptorTests {
             _ = try await interceptor.intercept(context: context, next: handler)
             Issue.record("期望抛出 serialization.dataDecodeFailed")
         } catch let error as NtkError {
-            if case let .serialization(failure) = error {
-                let response = try #require(failure.context.recoveredResponse)
-                #expect(failure.reason == .dataDecodeFailed)
+            if case let .responseSerializationFailed(reason) = error,
+               case let .dataDecodingFailed(_, _, recoveredResponse, rawPayload, underlyingError) = reason {
+                let response = try #require(recoveredResponse)
                 #expect(response.code.intValue == 0)
                 #expect(response.msg == "ok")
                 #expect(response.data?.getString() == "not_an_object")
-                #expect(failure.context.rawPayload != nil)
-                if let decodingError = failure.context.underlyingError as? DecodingError,
+                #expect(rawPayload != nil)
+                if let decodingError = underlyingError as? DecodingError,
                    case .typeMismatch = decodingError {
                     #expect(Bool(true))
                 } else {
@@ -169,8 +191,9 @@ struct NtkDataParsingInterceptorTests {
             _ = try await interceptor.intercept(context: makeConfiguredAFContext(), next: handler)
             Issue.record("期望抛出 validation 错误")
         } catch let error as NtkError {
-            if case let .validation(failure) = error {
-                let typed = try #require(failure.context.response as? NtkResponse<NtkDynamicData?>)
+            if case let .responseValidationFailed(reason) = error,
+               case .serviceRejected(_, let response) = reason {
+                let typed = try #require(response as? NtkResponse<NtkDynamicData?>)
                 #expect(typed.code.intValue == 999)
                 #expect(typed.msg == "fail")
                 #expect(typed.data?["reason"]?.getString() == "mock")
@@ -198,10 +221,10 @@ struct NtkDataParsingInterceptorTests {
             _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
             Issue.record("期望抛出 serialization.dataDecodeFailed")
         } catch let error as NtkError {
-            if case let .serialization(failure) = error {
-                #expect(failure.reason == .dataDecodeFailed)
-                #expect(failure.context.recoveredResponse == nil)
-                #expect(failure.context.rawPayload != nil)
+            if case let .responseSerializationFailed(reason) = error,
+               case let .dataDecodingFailed(_, _, recoveredResponse, rawPayload, _) = reason {
+                #expect(recoveredResponse == nil)
+                #expect(rawPayload != nil)
             } else {
                 Issue.record("错误类型不符: \(error)")
             }
@@ -337,7 +360,8 @@ struct NtkDataParsingInterceptorTests {
             _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
             Issue.record("期望抛出 validation 错误")
         } catch let error as NtkError {
-            if case .validation = error {
+            if case let .responseValidationFailed(reason) = error,
+               case .serviceRejected = reason {
                 #expect(throwingHook.events == ["didDecodeHeader", "willValidate", "didValidateFail"])
                 #expect(recordingHook.events == ["didDecodeHeader", "willValidate", "didValidateFail"])
             } else {
@@ -378,8 +402,9 @@ struct NtkDataParsingInterceptorTests {
             _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
             Issue.record("期望抛出 serialization.dataMissing")
         } catch let error as NtkError {
-            if case let .serialization(failure) = error {
-                #expect(failure.reason == .dataMissing)
+            if case let .responseSerializationFailed(reason) = error,
+               case .dataMissing = reason {
+                #expect(Bool(true))
             } else {
                 Issue.record("错误类型不符: \(error)")
             }
@@ -401,8 +426,9 @@ struct NtkDataParsingInterceptorTests {
             _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
             Issue.record("期望抛出 serialization.dataDecodeFailed")
         } catch let error as NtkError {
-            if case let .serialization(failure) = error {
-                #expect(failure.reason == .dataDecodeFailed)
+            if case let .responseSerializationFailed(reason) = error,
+               case .invalidDataPayload = reason {
+                #expect(Bool(true))
             } else {
                 Issue.record("错误类型不符: \(error)")
             }
@@ -427,9 +453,9 @@ struct NtkDataParsingInterceptorTests {
             _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
             Issue.record("期望抛出 serialization.dataDecodeFailed")
         } catch let error as NtkError {
-            if case let .serialization(failure) = error {
-                #expect(failure.reason == .dataDecodeFailed)
-                #expect(failure.context.recoveredResponse == nil)
+            if case let .responseSerializationFailed(reason) = error,
+               case let .invalidDataPayload(_, _, recoveredResponse) = reason {
+                #expect(recoveredResponse == nil)
                 #expect(hook.events.isEmpty)
             } else {
                 Issue.record("错误类型不符: \(error)")
@@ -447,8 +473,9 @@ struct NtkDataParsingInterceptorTests {
             _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
             Issue.record("期望抛出 serialization.invalidJSON")
         } catch let error as NtkError {
-            if case let .serialization(failure) = error {
-                #expect(failure.reason == .invalidJSON)
+            if case let .responseSerializationFailed(reason) = error,
+               case .invalidJSON = reason {
+                #expect(Bool(true))
             } else {
                 Issue.record("错误类型不符: \(error)")
             }
@@ -471,13 +498,16 @@ struct NtkDataParsingInterceptorTests {
             _ = try await interceptor.intercept(context: makeConfiguredAFContext(), next: handler)
             Issue.record("期望抛出 serialization.dataDecodeFailed")
         } catch let error as NtkError {
-            if case let .serialization(failure) = error {
-                let response = try #require(failure.context.recoveredResponse)
-                #expect(failure.reason == .dataDecodeFailed)
-                #expect(response.code.intValue == 999)
-                #expect(response.msg == "fail")
-                #expect(response.data?["reason"]?.getString() == "mock")
-                #expect(hook.events == ["willValidate"])
+            if case let .responseSerializationFailed(reason) = error {
+                if case let .dataDecodingFailed(_, _, recoveredResponse, _, _) = reason {
+                    let response = try #require(recoveredResponse)
+                    #expect(response.code.intValue == 999)
+                    #expect(response.msg == "fail")
+                    #expect(response.data?["reason"]?.getString() == "mock")
+                    #expect(hook.events == ["willValidate"])
+                } else {
+                    Issue.record("错误类型不符: \(reason)")
+                }
             } else {
                 Issue.record("错误类型不符: \(error)")
             }
@@ -500,7 +530,9 @@ struct NtkDataParsingInterceptorTests {
             _ = try await interceptor.intercept(context: makeConfiguredAFContext(), next: handler)
             Issue.record("期望抛出 validation 错误")
         } catch let error as NtkError {
-            if case .validation = error {
+            if case let .responseValidationFailed(reason) = error,
+               case .serviceRejected(_, let response) = reason {
+                #expect(response.code.intValue == 999)
                 #expect(hook.events == ["willValidate", "didValidateFail"])
             } else {
                 Issue.record("错误类型不符: \(error)")
@@ -677,7 +709,7 @@ private final class AFTestRecordingHook: iNtkParsingHooks, @unchecked Sendable {
 
 private struct AFTestFailingTransformer: iNtkResponsePayloadTransforming {
     func transform(_ payload: NtkPayload, context: NtkInterceptorContext) async throws -> NtkPayload {
-        throw NtkError.request(.init(reason: .typeMismatch))
+        throw NtkError.invalidRequest
     }
 }
 
@@ -740,10 +772,35 @@ private struct AFTestRawClientResponseHandler: iNtkRequestHandler {
     }
 }
 
+private struct AFPlainResponse: iNtkResponse {
+    let code = NtkReturnCode(200)
+    let data: Bool = true
+    let msg: String? = nil
+    let response: any Sendable = true
+    let request: any iNtkRequest
+    let isCache = false
+}
+
+@NtkActor
+private struct AFTestPlainResponseHandler: iNtkRequestHandler {
+    let response: any iNtkResponse
+    func handle(context: NtkInterceptorContext) async throws -> any iNtkResponse {
+        response
+    }
+}
+
 private struct AFDataToJSONObjectTransformer: iNtkResponsePayloadTransforming {
     func transform(_ payload: NtkPayload, context: NtkInterceptorContext) async throws -> NtkPayload {
         guard case .data(let data) = payload else {
-            throw NtkError.serialization(.init(reason: .dataDecodeFailed, context: .init(stage: .data)))
+            throw NtkError.responseSerializationFailed(
+                reason: .dataDecodingFailed(
+                    request: nil,
+                    clientResponse: nil,
+                    recoveredResponse: nil,
+                    rawPayload: nil,
+                    underlyingError: nil
+                )
+            )
         }
         let raw = try JSONSerialization.jsonObject(with: data)
         return try NtkPayload.normalize(from: raw)

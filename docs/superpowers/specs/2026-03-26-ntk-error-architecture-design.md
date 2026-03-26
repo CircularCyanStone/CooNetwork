@@ -1,45 +1,96 @@
-# NtkError 错误架构重设计
+# NtkError 错误架构重设计（AFError 风格收口版）
 
 ## 背景
 
-当前 `NtkError` 已开始承载 richer context，例如 `decodeInvalid(DecodeInvalid)` 已能暴露 `underlyingError`、恢复出的结构化 response 和原始值。但整体错误体系仍存在几个结构性问题：
+当前已落地的 `NtkError` 重构方案存在方向性问题，不是实现细节偏差，而是 public API 建模轴线错误：
 
-1. 顶层 case 粒度不一致：既有领域级错误，也有具体失败点，也有兜底错误。
-2. 参数风格不一致：tuple 参数、struct 参数、单个 `Error`、无上下文 case 混用。
-3. 复杂错误上下文没有形成统一规则：`DecodeInvalid` 是局部优化，还没推广为体系。
-4. client 扩展虽然已有 `NtkError.AF`，但仍像旁路设计，未成为主架构正式组成部分。
+1. 顶层按 `request / response / serialization / validation / client` 五域切分，暴露的是框架内部处理阶段，而不是调用方真正关心的公共失败事件。
+2. `RequestFailure / ResponseFailure / SerializationFailure / ValidationFailure / ClientFailure` 统一采用 `reason + context` 套壳，导致简单错误也被过度对象化。
+3. 抛错体验退化为 `NtkError.request(.init(reason: .typeMismatch))` 一类层级深、样板重、可读性差的写法。
+4. `typeMismatch` 混杂了多种本质不同的失败场景，已经失去 public API 价值。
+5. 当前方案并未真正对齐 Alamofire `AFError` 的设计思想；它只借用了“顶层 + 子类型”的表面形式，没有采用“公共失败事件 + 独立失败原因类型”的建模方式。
 
-由于该框架尚未大范围使用，本次设计不以兼容现有 API 为目标，优先追求长期扩展性、框架语义清晰度和调用方处理体验。
+本次重设计没有兼容旧 API 的压力，目标是直接按最优 public API 方案重构。
+
+---
 
 ## 设计目标
 
-1. 所有对外抛出的错误统一收敛为 `NtkError`。
-2. 顶层错误分类少而稳定，命名直觉，接近 `AFError` 的使用体验。
-3. 复杂错误统一采用 `reason + context` 建模，避免裸参数扩散。
-4. 保留并强化 `NtkError.AF` 这类 client 扩展模式，使其成为正式架构机制。
-5. 让调用方能够先按顶层领域处理，再按具体 reason 深入处理。
+1. 所有对外错误统一由 `NtkError` 作为公共入口暴露。
+2. `NtkError` 顶层只表达**公共失败事件**，不表达内部流水线阶段。
+3. 简单、稳定、高频的失败直接使用顶层 case。
+4. 复杂错误通过独立 `enum XXError: Error` 收敛，而不是统一 `Failure(reason: context:)` 套壳。
+5. 调用方既可以 `switch NtkError`，也可以直接基于独立错误类型做更细分处理。
+6. 设计风格尽可能向 Alamofire `AFError` 靠拢。
+7. 不为了兼容旧命名和旧结构而保留任何中间态设计。
+
+---
 
 ## 非目标
 
-1. 不追求保留现有 `NtkError` case 命名与关联值结构。
-2. 不引入协议化 type-erasure 错误系统，避免过度抽象。
-3. 不把所有字段收敛为一个万能大 context，避免 optional 泛滥和语义退化。
+1. 不保留现有五域顶层结构。
+2. 不保留 `Failure(reason: context:)` 统一模式。
+3. 不保留 `typeMismatch` 这类模糊公共语义。
+4. 不以内部实现分层（request / response / serialization / validation）作为 public API 的分类依据。
+5. 不设计开放式 client plugin 错误注册系统；当前只服务于框架官方维护的 client 子空间。
 
-## 推荐方案
+---
 
-采用“统一根错误 `NtkError` + 稳定顶层分类 + 各领域内 `reason + context` + client 子空间扩展”的双层错误架构。
+## 与现有设计决策记录的关系
 
-### 顶层错误域
+本 spec 会**替换** `docs/design-decisions.md` 中这条既有结论：
 
-推荐最终固定为以下 5 类：
+- `NtkError.AF 嵌套枚举` — Swift enum 无法在 extension 中加 case，嵌套枚举让每个 client 有独立错误空间，是多来源错误的标准模式
 
-- `request`
-- `response`
-- `serialization`
-- `validation`
-- `client`
+替换原因不是“AF 子空间不该存在”，而是原决策把 client 子空间错误地绑定到了旧的五域顶层结构上。新设计保留官方 client 子空间，但改成：
+
+```swift
+NtkError.clientFailed(reason: .af(...))
+```
+
+也就是：
+
+- 保留 AF 作为官方维护的 client 子空间
+- 放弃 `NtkError.client(...)` / `ClientFailure` 这套旧的顶层领域壳
+- 让顶层 API 回到“公共失败事件”语义
+
+---
+
+## 核心设计
+
+### 1. 顶层 `NtkError` 改为“公共失败事件入口”
 
 推荐骨架：
+
+```swift
+public enum NtkError: Error, Sendable {
+    case invalidRequest
+    case unsupportedRequestType
+    case invalidResponseType
+    case invalidTypedResponse
+    case responseBodyEmpty
+    case requestCancelled
+    case requestTimeout
+
+    case responseValidationFailed(reason: NtkResponseValidationError)
+    case responseSerializationFailed(reason: NtkResponseSerializationError)
+    case clientFailed(reason: NtkClientError)
+
+    enum Cache: Error, Sendable {
+        case noCache
+    }
+}
+```
+
+### 设计原则
+
+- 顶层 case 名必须是**对外失败事件**，而不是内部处理阶段。
+- 顶层只保留无需进一步对象化即可理解的稳定语义。
+- 复杂错误下沉到独立错误类型，而不是在顶层保留一个“领域桶”再二次 reason/context 拆解。
+
+### 为什么不是五域顶层
+
+以下写法是本次明确放弃的旧方向：
 
 ```swift
 public enum NtkError: Error {
@@ -51,447 +102,628 @@ public enum NtkError: Error {
 }
 ```
 
-这 5 类的设计依据如下：
+原因：
 
-### 1. request
+- `request / response / serialization / validation / client` 是框架内部分类，不是最佳 public API。
+- 调用方首先接触到的是失败事件，而不是框架流水线分层。
+- 该模型天然鼓励“所有错误都先分桶，再造壳”，最终导致 API 膨胀和使用体验恶化。
 
-表示请求构建、请求前置条件、请求/返回契约不成立等问题。
+---
 
-适合承载：
-- `typeMismatch`
-- 未来如 `invalidRequest`、`unsupportedRequestType`
+## 独立错误类型设计
 
-### 2. response
+### 2. `NtkResponseSerializationError`
 
-表示请求已执行，但响应本体层面无法继续处理。
+这是最核心的复杂错误类型，承载解析、解码、数据解释过程中的失败。
 
-适合承载：
-- `responseBodyEmpty`
-- `requestCancelled`
-- `requestTimeout`
-- client 返回的无效响应对象等
-
-### 3. serialization
-
-表示响应数据无法被解释为框架期望的结构化内容，是最核心的复杂错误域。
-
-适合承载：
-- `jsonInvalid`
-- `decodeInvalid`
-- `serviceDataEmpty`
-- `serviceDataTypeInvalid`
-
-### 4. validation
-
-表示响应结构合法，但业务语义判定失败。
-
-适合承载：
-- 当前 `validation(_ request: iNtkRequest, _ response: any iNtkResponse)`
-
-### 5. client
-
-表示具体 client 的扩展错误空间。
-
-适合承载：
-- `NtkError.AF`
-- 未来其他 client 子空间
-
-## 术语表
-
-- `request`：触发当前错误的请求对象，通常是 `iNtkRequest` 或其子协议实例。
-- `clientResponse`：底层 client 返回的原始响应对象，例如 `NtkClientResponse`，承载 status、headers、data、cache 等底层信息。
-- `recoveredResponse`：在 serialization 链路中从 payload 恢复出的结构化 envelope，例如 `NtkResponse<NtkDynamicData?>`，并不代表最终 typed response。
-- `typedResponse`：最终面向调用方的 `NtkResponse<ResponseData>`。
-- `rawPayload`：尚未成功解释为目标结构的原始 payload 或中间 payload 值。
-- `underlyingError`：触发当前错误的底层错误，例如 `DecodingError`、`AFError`、`URLError`。
-
-## 参数管理策略
-
-本次重设计的核心不在于增加或删减 case，而在于统一参数语义与承载方式。
-
-### 核心原则
-
-1. 顶层 `NtkError` case 不再直接挂多个裸参数。
-2. 复杂错误统一采用 `reason + context`。
-3. `underlyingError` 是复杂错误的标准字段。
-4. `response` 必须拆成明确语义命名，不再用宽泛总称。
-5. 顶层不保留 `other(Error)` 这类垃圾桶 case。
-
-### 推荐模式
+推荐定义：
 
 ```swift
-public struct SerializationFailure: Error {
-    public let reason: Reason
-    public let context: Context
+public enum NtkResponseSerializationError: Error, Sendable {
+    case invalidJSON(
+        request: iNtkRequest?,
+        clientResponse: NtkClientResponse?,
+        rawPayload: Data?
+    )
+
+    case invalidEnvelope(
+        request: iNtkRequest?,
+        clientResponse: NtkClientResponse?,
+        rawPayload: Data?
+    )
+
+    case invalidDataPayload(
+        request: iNtkRequest?,
+        clientResponse: NtkClientResponse?,
+        recoveredResponse: NtkResponse<NtkDynamicData?>?
+    )
+
+    case envelopeDecodingFailed(
+        request: iNtkRequest?,
+        clientResponse: NtkClientResponse?,
+        rawPayload: Data?,
+        underlyingError: Error?
+    )
+
+    case dataDecodingFailed(
+        request: iNtkRequest?,
+        clientResponse: NtkClientResponse?,
+        recoveredResponse: NtkResponse<NtkDynamicData?>?,
+        rawPayload: Data?,
+        underlyingError: Error?
+    )
+
+    case dataMissing(
+        request: iNtkRequest?,
+        clientResponse: NtkClientResponse?,
+        recoveredResponse: NtkResponse<NtkDynamicData?>?
+    )
+
+    case dataTypeMismatch(
+        request: iNtkRequest?,
+        clientResponse: NtkClientResponse?,
+        recoveredResponse: NtkResponse<NtkDynamicData?>?,
+        underlyingError: Error?
+    )
 }
+```
+
+### 设计要点
+
+- 不再保留 `SerializationFailure(reason: context:)`。
+- 不再保留 `stage` 作为核心 public API 字段；失败点直接通过 case 名表达。
+- `recoveredResponse` 只在真正需要时出现，不做所有错误共享的大 context。
+- `rawPayload` 尽量收敛为 `Data?`，避免 public API 被任意类型污染。
+- **严格区分“输入形态不合法”和“真正发生解码失败”**：
+  - `invalidEnvelope` / `invalidDataPayload` 表示前置输入根本不满足 decoder 期望
+  - `envelopeDecodingFailed` / `dataDecodingFailed` 表示输入形态成立，但 decoder 真正抛错
+
+这条区分是本次重构必须锁死的规则，不能再把旧 `typeMismatch` 换皮后重新混入 decode failure。
+
+---
+
+### 3. `NtkResponseValidationError`
+
+业务层校验失败使用独立错误类型承载。
+
+推荐定义：
+
+```swift
+public enum NtkResponseValidationError: Error, Sendable {
+    case serviceRejected(
+        request: iNtkRequest,
+        response: any iNtkResponse
+    )
+}
+```
+
+### 术语约束
+
+- validation 阶段的 `response` 指的是**已恢复出的业务响应对象**，也就是已经可以参与业务校验的 `any iNtkResponse`。
+- 这个 `response` 不等于底层 `clientResponse`。
+- 这个 `response` 在 decode failure 路径里，代表“从 payload 恢复出的可校验业务响应”，不是最终 typed response。
+
+为避免混淆：
+
+- `clientResponse`：底层客户端响应
+- `recoveredResponse`：serialization 路径中的恢复性 envelope
+- `response`：validation 阶段真正用于业务判断的业务响应
+
+---
+
+### 4. `NtkClientError`
+
+官方维护的 client 子空间使用独立错误类型承载。
+
+推荐定义：
+
+```swift
+public enum NtkClientError: Error, Sendable {
+    case af(
+        request: iNtkRequest?,
+        clientResponse: NtkClientResponse?,
+        underlyingError: Error?,
+        message: String?
+    )
+}
+```
+
+### 设计要点
+
+- 保留 AF 作为官方内建 client 子空间，但不再把它建模成五域之一。
+- 顶层对外暴露为：
+
+```swift
+NtkError.clientFailed(reason: .af(...))
 ```
 
 而不是：
 
 ```swift
-case decodeInvalid(_ request: iNtkRequest, _ response: any iNtkResponse, _ error: Error)
+NtkError.client(.af(...))
 ```
 
-### 通用诊断骨架
+- `AFClientError.swift` 只负责 AF 到 `NtkClientError.af(...)` 的映射，不拥有公共错误模型定义权。
 
-复杂错误共享最小诊断骨架思路：
+### 关于“贴近 AFError”的精确定义
 
-- `request`
-- `clientResponse`
-- `underlyingError`
+本 spec 中“贴近 AFError”的含义是：
 
-这三项是最稳定、跨领域最常见的诊断信息。
+1. 顶层使用公共失败事件命名
+2. 复杂错误下沉到独立错误类型
+3. 放弃内部五域顶层分类
 
-### 领域增量上下文
+它**不意味着** `NtkClientError` 必须完整镜像 `AFError` 的全部子分类。
 
-不使用“一个超大万能 context”，而是在共享骨架上按领域补充字段。
+对 `NtkClientError` 的当前定位是：
 
-#### SerializationFailure.Context
+- 它是**官方 client 子空间透传错误**
+- 它不是通用网络错误 taxonomy
+- 它当前不追求把 AF 内部错误再做一轮完整公共建模
 
-额外建议字段：
-- `recoveredResponse`
-- `rawPayload`
-- `stage`
+因此 `NtkClientError.af(...)` 是刻意保留的 opaque client passthrough，而不是“设计未完成的中间态”。
 
-说明：
-- `recoveredResponse` 表示已从 payload 中恢复出的结构化 envelope，例如 `NtkResponse<NtkDynamicData?>`
-- `rawPayload` 表示原始 payload / source value
-- `stage` 表示失败发生在 JSON、envelope、data、model 哪一段
+---
 
-#### ValidationFailure.Context
+## 必删旧结构
 
-额外建议字段：
-- `response`
+以下类型和文件代表的是已确认错误的抽象方向，应整体删除：
 
-说明：
-validation 阶段最重要的是已完成结构化的业务响应，不需要引入 `rawPayload` 或 `recoveredResponse` 等 serialization 专属语义。
+- `RequestFailure`
+- `ResponseFailure`
+- `SerializationFailure`
+- `ValidationFailure`
+- `ClientFailure`
+- `Sources/CooNetwork/NtkNetwork/error/NtkError+Request.swift`
+- `Sources/CooNetwork/NtkNetwork/error/NtkError+Response.swift`
+- `Sources/CooNetwork/NtkNetwork/error/NtkError+Serialization.swift`
+- `Sources/CooNetwork/NtkNetwork/error/NtkError+Validation.swift`
+- `Sources/CooNetwork/NtkNetwork/error/NtkError+Client.swift`
 
-#### ResponseFailure.Context
+本次不是对这些结构做修补，而是彻底替换掉。
 
-通常只需：
-- `request`
-- `clientResponse`
-- `underlyingError`
+---
 
-#### AF.Context
+## 顶层事件判定表
 
-推荐也遵守同样规则：
-- `request`
-- `clientResponse`
-- `underlyingError`
+以下矩阵用于钉死最容易漂移的顶层 case 边界。
 
-## 命名调整建议
+| 发生点 | 失败本质 | 对外语义 | 禁止替代项 |
+|---|---|---|---|
+| 主链前置条件缺失，导致当前阶段无法继续 | 请求构建前置条件或 prepare 阶段必需上下文不成立 | `.invalidRequest` | 不得落到 `.invalidResponseType` / `.invalidTypedResponse` |
+| 请求对象不是当前 client 支持的请求类型 | 请求类型不受支持 | `.unsupportedRequestType` | 不得落到 `.invalidRequest` |
+| parsing 入口收到的底层响应对象不是 `NtkClientResponse` | 底层响应对象形态非法 | `.invalidResponseType` | 不得落到 `.invalidTypedResponse` / `.invalidRequest` |
+| executor / task manager 最终交付给调用方时，typed response cast 失败 | 框架最终产物与调用方期望的 typed response 不匹配 | `.invalidTypedResponse` | 不得落到 `.invalidResponseType` / `.invalidRequest` |
+| 响应体为空，无法进入正常解析 | 响应内容缺失 | `.responseBodyEmpty` | 不得落到 serialization error |
+| 任务被取消 | 请求执行被取消 | `.requestCancelled` | 不得落到 `.clientFailed` |
+| 请求超时 | 请求执行超时 | `.requestTimeout` | 不得落到 `.clientFailed` |
 
-### `DecodeInvalid.response`
+额外规则：
 
-当前 `DecodeInvalid.response` 实际语义是：
-- 解析链路中恢复出来的 envelope
-- 不是底层 client response
-- 也不是最终 typed response
+- `invalidRequest`：只用于两类场景：1）请求构建前置条件缺失；2）parsing prepare 阶段缺 `request` / `clientResponse` 等主链必需上下文。
+- `invalidResponseType`：只用于 parsing 入口的底层 response 对象形态不合法。
+- `invalidTypedResponse`：只用于 executor / task manager 最终 typed response 交付失败。
+- 若失败发生在底层 response 对象形态判定，必须落到 `invalidResponseType`；若失败发生在最终 typed response 交付，必须落到 `invalidTypedResponse`；不得以“上下文不成立”为由回退到 `invalidRequest`。
 
-因此不应继续命名为宽泛的 `response`，建议改为：
-- `recoveredResponse`
+---
 
-### `rawValue`
+## 错误映射矩阵
 
-当前 `rawValue` 语义偏宽，建议改名为：
-- `rawPayload`
+### 5. 顶层简单错误
 
-如果未来该字段不一定是 payload，也可考虑 `sourceValue`，但对当前解析链路来说 `rawPayload` 更直观。
-
-## 现有错误迁移建议
-
-| 现有 case | 建议去向 | 说明 |
+| 当前已落地语义 | 新方案 | 说明 |
 |---|---|---|
-| `validation(request, response)` | `validation(.serviceRejected(...))` | 保留语义，参数对象化 |
-| `jsonInvalid(request, response)` | `serialization(.invalidJSON(...))` | 并入 serialization 域 |
-| `decodeInvalid(DecodeInvalid)` | `serialization(...)` | 升级为 reason + context |
-| `responseBodyEmpty(request, response)` | `response(.bodyEmpty(...))` | 并入 response 域 |
-| `serviceDataEmpty` | `serialization(.dataMissing(...))` | 属于内容解释失败 |
-| `serviceDataTypeInvalid` | `serialization(.dataTypeMismatch(...))` | 属于内容解释失败 |
-| `typeMismatch` | `request(.typeMismatch(...))` | 请求/契约层问题 |
-| `requestCancelled` | `response(.cancelled(...))` | 请求执行失败 |
-| `requestTimeout` | `response(.timedOut(...))` | 请求执行失败 |
-| `other(error)` | 删除 | 不再保留顶层垃圾桶 |
+| `invalidRequest` | `.invalidRequest` | 直接顶层化 |
+| `unsupportedRequestType` | `.unsupportedRequestType` | 直接顶层化 |
+| `invalidResponseType` | `.invalidResponseType` | 底层响应对象形态错误 |
+| `responseBodyEmpty` | `.responseBodyEmpty` | 高频稳定失败事件 |
+| `cancelled` | `.requestCancelled` | 保持公共失败事件命名 |
+| `timedOut` | `.requestTimeout` | 保持公共失败事件命名 |
 
-## 各错误域的建议 reason
+### 6. `typeMismatch` 的彻底拆解
 
-### RequestFailure.Reason
+`typeMismatch` 过于模糊，必须从 public API 中彻底移除。
 
-- `typeMismatch`
-- `invalidRequest`
-- `unsupportedRequestType`
+| 旧场景 | 当前位置 | 新方案 |
+|---|---|---|
+| parser 入口拿到的 response 不是 `NtkClientResponse` | `NtkDataParsingInterceptor.acquire` | `.invalidResponseType` |
+| prepare 阶段缺 request / clientResponse | `NtkDataParsingInterceptor.prepare` | `.invalidRequest` |
+| executor 最终 typed response cast 失败 | `NtkNetworkExecutor` | `.invalidTypedResponse` |
+| task manager owner/follower typed cast 失败 | `NtkTaskManager` | `.invalidTypedResponse` |
+| payload decoder 输入形态不匹配 | `NtkPayloadDecoders` | `.responseSerializationFailed(reason: ...)` |
 
-### ResponseFailure.Reason
+结论：`typeMismatch` 这个名字应完全消失。
 
-- `bodyEmpty`
-- `invalidResponseType`
-- `cancelled`
-- `timedOut`
-- `transportError`
+---
 
-### SerializationFailure.Reason
+### 7. 解析路径映射
 
-- `invalidJSON`
-- `envelopeDecodeFailed`
-- `dataDecodeFailed`
-- `dataMissing`
-- `dataTypeMismatch`
+#### `NtkPayload.normalize`
 
-### ValidationFailure.Reason
-
-- `serviceRejected`
-
-## `NtkError.AF` 的最终定位
-
-`NtkError.AF` 设计应保留，但本次设计同时明确它的扩展边界：当前目标是支持**框架官方内建的有限 client 子空间**，而不是对任意外部模块开放可无限追加的 client case。
-
-### 模块所有权决策
-
-本次设计明确采用：**核心层显式内建官方 client 列表**。
-
-也就是说：
-
-- `ClientFailure` 由核心层定义
-- `NtkError.AF` 也由核心层预留为正式错误子空间类型
-- `AlamofireClient` 模块负责产出和消费 `NtkError.AF`，但不拥有其类型定义所有权
-- 因此，核心层承认“官方支持 AF 子空间”，但不会承载 AF 的具体请求执行逻辑
-
-这是一种**闭集设计**：
-
-- 适合当前框架“官方维护有限个 client”的现实
-- 避免为尚不存在的开放式 plugin client 机制做过度抽象
-- 与 Swift enum 无法跨模块任意追加 case 的语言现实一致
-
-这意味着：
-
-- `client` 域是 `NtkError` 的正式扩展位
-- `AF` 是当前已知、正式支持的 client 子空间
-- 未来若框架内建新的 client，可在核心层继续扩充 `ClientFailure`
-- 本次不设计开放式注册、type-erasure 或任意外部模块动态扩展 client 错误空间的机制
-
-推荐结构方向：
+顶层 payload 不合法：
 
 ```swift
-public enum ClientFailure: Error {
-    case af(AF)
-}
+NtkError.responseSerializationFailed(reason: .invalidJSON(...))
 ```
 
-`AF` 的具体 reason / context 结构由核心层定义稳定 public surface，由 `AlamofireClient` 负责在运行时构造、抛出并消费。这样可以保证：
+#### `NtkJSONObjectPayloadDecoder`
 
-1. 主框架对外仍统一抛出 `NtkError`
-2. client 子空间在类型层面稳定可判定
-3. 语言与模块边界实现方式一致，不再处于“语义解耦、实现耦合”的中间态
-4. 对于官方内建 client，扩展模式稳定且可复制
+输入不是 `.dynamic`：
 
-`NtkError.AF` 内部也应遵守 `reason + context` 原则，不再使用多个裸参数并排的形式。
+```swift
+NtkError.responseSerializationFailed(reason: .invalidEnvelope(...))
+```
 
-## 错误归一化边界
+输入形态成立，但 decoder 真抛错：
 
-由于最终对外 public surface 统一抛出 `NtkError`，因此必须明确“任意底层 Error 何时、由谁、如何收敛”。本次设计约束如下：
+```swift
+NtkError.responseSerializationFailed(reason: .envelopeDecodingFailed(...))
+```
 
-### 归一化原则
+#### `NtkDataPayloadDecoder`
 
-1. 进入公开网络主链的错误，在离开框架前必须被收敛为 `NtkError`。
-2. 顶层不保留 `other(Error)`；未知错误只能落入所属领域内部的 `unknown` / `custom` / `transportError` 等 reason。
-3. 不允许公共 API 将裸 `Error` 直接抛给调用方。
+输入不是 `.data`：
 
-### 推荐归一化规则
+```swift
+NtkError.responseSerializationFailed(reason: .invalidDataPayload(...))
+```
 
-- `URLError`、底层连接失败、传输中断等进入 `response(.transportError(...))` 或 `response(.timedOut(...))` / `response(.cancelled(...))`
-- 无法解释 payload 的错误进入 `serialization(...)`
-- 业务成功判定失败进入 `validation(...)`
-- request 构建或 request/response 契约不成立进入 `request(...)` 或 `response(...)`
-- 已知 client 特定错误进入 `client(...)`
-- 其他无法进一步精确分类、但领域已知的错误，进入该领域内部 `unknown` / `custom`
+输入形态成立，但 decoder 真抛错：
 
-### 当前重点约束
+```swift
+NtkError.responseSerializationFailed(reason: .dataDecodingFailed(...))
+```
 
-- retry、executor、response parser、client adapter 等公共边界都需要做 `Error -> NtkError` 收敛
-- 领域内部可以保留 `underlyingError`，但最终顶层必须是 `NtkError`
+#### `NtkDynamicData`
 
-## 复杂错误与轻量错误的判定规则
+- 纯类型转换不成立 → `.responseSerializationFailed(reason: .dataTypeMismatch(...))`
+- decoder 真正抛错 → `.responseSerializationFailed(reason: .dataDecodingFailed(...))`
 
-用户已确认“复杂错误统一上下文，简单错误保持轻量”。为避免后续实现再次分裂，明确以下门槛：
+---
 
-### 使用 `reason + context` 的情况
+### 8. parsing policy 优先级
 
-当错误至少满足以下任一条件时，必须使用 `reason + context`：
+本节不再使用 `header` 术语，统一沿用 `recoveredResponse / response`。除流程名外，不再使用 `parsing error` 作为对外错误术语。
 
-1. 调用方需要稳定读取诊断信息（request、clientResponse、recoveredResponse、underlyingError、rawPayload 等）
-2. 同一领域下存在多个失败原因，且未来可能继续扩展
-3. 错误会被日志、埋点、重试、toast、debug UI 等跨层消费
+必须保留当前真正正确的判定优先级，但换成新的 public error shape。
 
-### 使用轻量 reason 的情况
+#### 空 body
 
-当错误只表达一个稳定、无需额外诊断信息的语义时，可保持轻量：
+```swift
+throw NtkError.responseBodyEmpty
+```
 
-- `request.typeMismatch`
-- `response.cancelled`
-- `response.timedOut`
-- `serialization.dataMissing`
-- `validation.serviceRejected`（若调用方不需要进一步消费上下文，则可轻；若需要读取 response，则仍应是 reason + context）
+#### decode failure + recoveredResponse 可形成可校验业务 response + validation fail
 
-### 当前实现建议
+```swift
+throw NtkError.responseValidationFailed(reason: .serviceRejected(...))
+```
 
-- `serialization` 默认视为复杂错误域，应统一 `reason + context`
-- `validation` 默认使用 `reason + context`
-- `response` 允许轻量与富上下文并存，但 transport 相关 reason 至少应可保留 `underlyingError`
-- `request` 域大多数 reason 可保持轻量，只有涉及 request 构建失败细节时再引入 context
+#### decode failure + recoveredResponse 可形成可校验业务 response + validation pass
 
-## request / response 分类矩阵
+```swift
+throw NtkError.responseSerializationFailed(reason: .dataDecodingFailed(...))
+```
 
-当前代码中 `typeMismatch` 与“响应类型不符”并不止一种来源，因此需要显式矩阵，避免实现时归类漂移。
+#### decode failure + 无可用于校验的 recoveredResponse
 
-| 失败场景 | 当前位置 | 建议归类 | 建议 reason |
-|---|---|---|---|
-| 解析器期望 `NtkClientResponse`，却拿到其他 `iNtkResponse` | `NtkDataParsingInterceptor.acquire` | `response` | `invalidResponseType` |
-| acquire 之后缺失 `request` 或 `clientResponse`，无法继续 prepare | `NtkDataParsingInterceptor.prepare` | `request` | `typeMismatch` |
-| payload 顶层结构不满足 normalize 要求 | `NtkPayload.normalize` 路径 | `serialization` | `invalidJSON` / `envelopeDecodeFailed`，视失败点而定 |
-| 执行器最终无法 cast 成期望的 typed response | executor 最终交付路径 | `request` | `typeMismatch` |
-| client 返回对象形态不满足框架主链契约 | client adapter / parser 入口 | `response` | `invalidResponseType` |
+```swift
+throw NtkError.responseSerializationFailed(reason: .dataDecodingFailed(...))
+```
 
-这张矩阵的原则是：
+#### decoded 成功但 `data == nil`
 
-- **请求/结果契约不成立** → `request`
-- **底层响应对象形态不合法** → `response`
-- **payload / envelope / model 解释失败** → `serialization`
+validation 通过后：
 
-## 判定优先级
+```swift
+throw NtkError.responseSerializationFailed(reason: .dataMissing(...))
+```
 
-当前解析链路里，validation 与 serialization 并不是完全独立的；spec 必须保留现有有效行为，避免重构时回归。
+### 固定原则
 
-### 优先级规则
+1. validation 优先级高于 serialization。
+2. 空 body 不进入 validation。
+3. 无可用于校验的 `recoveredResponse` 时，decode failure 直接视为 serialization failure。
+4. `data == nil` 不是 validation failure，而是 serialization failure。
 
-1. 若 decode 失败但成功恢复出 header / envelope，则先执行 validation。
-2. 若 validation 失败，则优先抛出 `validation`，不再继续向调用方暴露该次 `serialization` 失败。
-3. 只有 validation 通过后，才抛出对应的 `serialization` 错误。
-4. 在 decoded 成功但 `data == nil` 的路径上，同样先 validation；validation 通过后，才抛 `serialization(.dataMissing)`。
-5. 空 body、底层 response 不合法、请求被取消、请求超时等不进入 validation，直接落入 `response`。
+---
 
-### 当前代码对应关系
+### 9. validation 映射
 
-该优先级直接对应当前 `NtkDefaultResponseParsingPolicy.decide` 的行为，应在重构后保持一致。
+业务校验失败统一映射为：
 
-## 重试语义映射
+```swift
+NtkError.responseValidationFailed(reason: .serviceRejected(...))
+```
 
-当前 `iNtkRetryPolicy` 已依赖旧错误分类，本次重构必须同步定义新错误架构下的默认重试语义。
+不再保留：
 
-### 默认策略
+```swift
+ValidationFailure(reason: .serviceRejected, context: ...)
+```
 
-- `request.*`：默认不重试
-- `validation.*`：默认不重试
-- `serialization.*`：默认不重试
-- `response.cancelled`：不重试
-- `response.timedOut`：可重试
-- `response.transportError`：是否重试取决于其 `underlyingError`，若是 `URLError`，沿用当前 `URLError` 映射规则
-- `response.invalidResponseType` / `response.bodyEmpty`：默认不重试
-- `client.*`：默认不重试，除非该 client 子空间自行定义其 reason 可重试并由 retry 层显式适配
+---
 
-### `URLError` 映射
+### 10. AF / client 映射
 
-继续沿用当前 retry 语义：
+#### AF 请求取消
 
-- `.timedOut`、`.cannotConnectToHost`、`.networkConnectionLost`、`.notConnectedToInternet`、`.dnsLookupFailed` → 可重试
-- `.badURL`、`.unsupportedURL`、`.cannotParseResponse`、`.badServerResponse`、`.userCancelledAuthentication`、`.userAuthenticationRequired` → 不重试
-- `.cannotLoadFromNetwork`、`.resourceUnavailable` → 可重试
-- 其他情况默认不重试
+```swift
+NtkError.requestCancelled
+```
 
-## Objective-C 桥接迁移策略
+#### AF timeout
 
-当前 `NtkError+OC.swift` 提供固定错误码和桥接工厂。本次设计不以兼容现有 Swift API 为目标，但必须明确 OC bridge 的处理方式。
+```swift
+NtkError.requestTimeout
+```
 
-### 设计结论
+#### 其他 AFError / AF 侧底层错误
 
-1. Objective-C bridge **保留**，但视为适配层，不反向约束 Swift 错误架构。
-2. Swift 层先完成新 `NtkError` 架构，OC bridge 再做映射调整。
-3. 现有错误码不要求一一保留原 case 名，但需要提供稳定映射，避免 Objective-C 使用方无法识别基础错误类别。
+```swift
+NtkError.clientFailed(reason: .af(...))
+```
 
-### 推荐映射策略
+### 关键决策
 
-- `request` / `response` / `serialization` / `validation` / `client` 建立新的错误码段
-- 若短期需要平滑迁移，可临时保留旧码并将其映射到新领域
-- bridge 产生的 `userInfo` 应使用新术语：`request`、`clientResponse`、`recoveredResponse`、`underlyingError`、`rawPayload`
+本次不保留 `transportError` 作为公共顶层概念。
 
-## Sendable 与并发约束
+原因：
 
-当前 `DecodeInvalid` 已采用 `@unchecked Sendable`。新架构会把 `request`、`clientResponse`、`underlyingError` 等信息进一步系统化，因此必须把并发约束提前写入设计。
+1. `timeout` 与 `cancelled` 已被提炼为更有公共价值的失败事件。
+2. 其余客户端/底层网络失败，统一经 `clientFailed(reason: .af(...))` 收口，更贴近 `AFError` 风格。
+3. `transportError` 本质仍是内部技术分类，不是最佳 public API 事件命名。
 
-### 设计约束
+### AF 映射优先级硬约束
 
-1. 顶层 `NtkError` 及其公开 Failure / Context 类型应尽可能满足 `Sendable`。
-2. 若某些 context 字段天然无法静态满足 `Sendable`，应优先缩小暴露面，再评估是否使用 `@unchecked Sendable`。
-3. `underlyingError` 是最可能破坏 `Sendable` 的字段，需明确其承载策略；必要时可在 context 层使用 `@unchecked Sendable`，但必须有文档说明原因。
-4. 不应为了强行获得 `Sendable` 而丢失必要诊断信息；在安全性与可诊断性冲突时，优先显式记录原因并最小化 `@unchecked` 范围。
+AF / client 映射时，`cancelled` 与 `timedOut` 必须先于 `clientFailed` 归一化：
 
-### 字段级策略
+- 一旦命中取消，必须映射为 `.requestCancelled`
+- 一旦命中超时，必须映射为 `.requestTimeout`
+- 只有未命中上述两类时，AF 错误才允许落到 `.clientFailed(reason: .af(...))`
 
-| 字段 | 默认策略 | 说明 |
-|---|---|---|
-| `request` | 优先要求强类型满足 `Sendable`；若现有协议存在体无法满足，则在最外层 context 使用最小范围 `@unchecked Sendable` | 当前主链大量依赖 `iNtkRequest`，不建议为了纯粹并发洁癖移除该诊断信息 |
-| `clientResponse` | 优先使用已知可 Sendable 的统一响应类型；若包含引用语义成员，则在具体 context 层做最小范围 `@unchecked` | 推荐避免直接暴露具体三方响应对象 |
-| `recoveredResponse` | 仅存在于 serialization context，沿用 `NtkResponse<NtkDynamicData?>` 这类可控结构 | 不作为所有错误域的通用字段 |
-| `rawPayload` | 优先使用框架内部中间类型或快照值；避免直接暴露任意 existential | 当前更适合承载 `NtkPayload`、`Data` 或受控快照，而不是无边界 `Sendable?` |
-| `underlyingError` | 允许保留 `Error`，但由持有它的 context 承担 `@unchecked Sendable` 责任，或在必要时转为稳定快照/bridge 表示 | 这是最可能无法静态满足 `Sendable` 的字段，必须明确是“局部豁免”，不是全局放弃 |
+因此即便 `underlyingError` 最终表现为 `URLError.cancelled` 或 `URLError.timedOut`，也不得继续透传为 `.clientFailed(reason: .af(...))`。
+
+---
+
+## 重试语义
+
+### 默认矩阵
+
+| 错误 | 是否重试 |
+|---|---|
+| `.invalidRequest` | 否 |
+| `.unsupportedRequestType` | 否 |
+| `.invalidResponseType` | 否 |
+| `.invalidTypedResponse` | 否 |
+| `.responseBodyEmpty` | 否 |
+| `.requestCancelled` | 否 |
+| `.requestTimeout` | 是 |
+| `.responseValidationFailed(...)` | 否 |
+| `.responseSerializationFailed(...)` | 否 |
+| `.clientFailed(reason: .af(...))` | 默认否；若 underlying `URLError` 命中可重试集合，则重试 |
+
+### `URLError` 细分规则
+
+沿用当前有效矩阵：
+
+可重试：
+- `.timedOut`
+- `.cannotConnectToHost`
+- `.networkConnectionLost`
+- `.notConnectedToInternet`
+- `.dnsLookupFailed`
+- `.cannotLoadFromNetwork`
+- `.resourceUnavailable`
+
+不可重试：
+- `.badURL`
+- `.unsupportedURL`
+- `.cannotParseResponse`
+- `.badServerResponse`
+- `.userCancelledAuthentication`
+- `.userAuthenticationRequired`
+
+---
+
+## Objective-C Bridge
+
+### 设计原则
+
+1. Objective-C bridge 保留，但仅作为适配层。
+2. bridge 不反向塑造 Swift public API。
+3. 旧术语和旧错误码兼容不是本次主目标；优先反映新的错误模型。
+4. NSError code 段分组仅用于 bridge 与历史消费端识别，不代表 Swift 层继续采用 request/response 五域式 taxonomy。
+
+### 建议 code 段
+
+| 新错误 | NSError code 段 |
+|---|---|
+| `invalidRequest` / `unsupportedRequestType` | 100xx |
+| `invalidResponseType` / `invalidTypedResponse` / `responseBodyEmpty` / `requestCancelled` / `requestTimeout` | 101xx |
+| `responseSerializationFailed(...)` | 102xx |
+| `responseValidationFailed(...)` | 103xx |
+| `clientFailed(...)` | 104xx |
+
+### `userInfo` key
+
+统一使用：
+
+- `request`
+- `clientResponse`
+- `recoveredResponse`
+- `response`
+- `underlyingError`
+- `rawPayload`
+- `message`
+
+其中：
+
+- `response` 只用于 validation 阶段的业务响应
+- `recoveredResponse` 只用于 serialization 阶段的恢复性 envelope
+
+---
+
+## 文件组织
+
+推荐新的错误文件结构：
+
+- `Sources/CooNetwork/NtkNetwork/error/NtkError.swift`
+- `Sources/CooNetwork/NtkNetwork/error/NtkResponseSerializationError.swift`
+- `Sources/CooNetwork/NtkNetwork/error/NtkResponseValidationError.swift`
+- `Sources/CooNetwork/NtkNetwork/error/NtkClientError.swift`
+- `Sources/CooNetwork/NtkNetwork/error/NtkError+OC.swift`
+
+说明：
+
+- `NtkError.swift` 只保留顶层公共错误入口。
+- 独立错误类型分别放入单独文件。
+- 不再使用 `NtkError+Request.swift` 这一类“Failure 壳子文件”。
+
+---
+
+## 逐模块迁移策略
+
+### `NtkPayload.swift`
+
+- payload 入口不合法 → `.responseSerializationFailed(reason: .invalidJSON(...))`
+
+### `NtkPayloadDecoders.swift`
+
+- object decoder 输入不合法 → `.responseSerializationFailed(reason: .invalidEnvelope(...))`
+- object decoder 真抛错 → `.responseSerializationFailed(reason: .envelopeDecodingFailed(...))`
+- data decoder 输入不合法 → `.responseSerializationFailed(reason: .invalidDataPayload(...))`
+- data decoder 真抛错 → `.responseSerializationFailed(reason: .dataDecodingFailed(...))`
+
+### `NtkDynamicData.swift`
+
+- 纯类型不匹配 → `.responseSerializationFailed(reason: .dataTypeMismatch(...))`
+- decoder 抛错 → `.responseSerializationFailed(reason: .dataDecodingFailed(...))`
+
+### `NtkDataParsingInterceptor.swift`
+
+- acquire 拿到非法 response → `.invalidResponseType`
+- prepare 缺主链上下文 → `.invalidRequest`
+
+### `NtkDefaultResponseParsingPolicy.swift`
+
+- 空 body → `.responseBodyEmpty`
+- validation fail → `.responseValidationFailed(reason: .serviceRejected(...))`
+- decode fail → `.responseSerializationFailed(reason: .dataDecodingFailed(...))`
+- decoded but nil data → `.responseSerializationFailed(reason: .dataMissing(...))`
+
+### `NtkNetworkExecutor.swift`
+
+- 最终 typed response cast fail → `.invalidTypedResponse`
+
+### `NtkTaskManager.swift`
+
+- cancelled → `.requestCancelled`
+- timed out → `.requestTimeout`
+- owner/follower cast fail → `.invalidTypedResponse`
+
+### `iNtkRetryPolicy.swift`
+
+- 改为消费新顶层错误模型与 `NtkClientError.af` 的 underlying `URLError`
+
+### `AFClient.swift`
+
+- cancelled → `.requestCancelled`
+- timeout → `.requestTimeout`
+- 其他 AF 失败 → `.clientFailed(reason: .af(...))`
+
+### `AFToastInterceptor.swift`
+
+- `responseValidationFailed(.serviceRejected(...))` → 继续读取业务 msg
+- `requestTimeout` → “连接超时~”
+- `clientFailed(.af(...))` → 优先展示 message，否则 fallback `localizedDescription`
+
+---
+
+## 测试策略
+
+测试应围绕“公共失败事件 + 独立错误类型”编写，而不是围绕旧五域。
+
+### 顶层错误测试
+
+- `invalidRequest`
+- `unsupportedRequestType`
+- `invalidResponseType`
+- `invalidTypedResponse`
+- `responseBodyEmpty`
+- `requestCancelled`
+- `requestTimeout`
+
+### serialization 测试
+
+- `.invalidJSON`
+- `.invalidEnvelope`
+- `.invalidDataPayload`
+- `.envelopeDecodingFailed`
+- `.dataDecodingFailed`
+- `.dataMissing`
+- `.dataTypeMismatch`
+
+### validation 测试
+
+- `.serviceRejected`
+
+### AF 映射测试
+
+- AF timeout → `.requestTimeout`
+- AF cancel → `.requestCancelled`
+- AF generic error → `.clientFailed(reason: .af(...))`
+
+### retry 测试
+
+- `requestTimeout` 可重试
+- `requestCancelled` 不重试
+- `invalidTypedResponse` 不重试
+- `responseSerializationFailed` 不重试
+- `clientFailed(.af(...))` 按 underlying `URLError` 判断
+
+---
+
+## Sendable 约束
+
+### 原则
+
+1. 顶层 `NtkError` 及独立错误类型尽可能满足 `Sendable`。
+2. 若 `underlyingError` 或协议 existential 导致静态 `Sendable` 难以成立，应把 `@unchecked Sendable` 收敛在最小辅助结构，而不是重新回到 `Failure/Context` 总壳设计。
+3. 不为了追求 `Sendable` 纯洁性而删除关键诊断信息。
 
 ### 实现倾向
 
-- 优先让 Failure/Reason 结构保持纯值语义
-- `Context` 是允许出现最小范围 `@unchecked Sendable` 的位置
-- 若某字段只在 debug、NSError bridge、日志中有价值，可考虑在 bridge/userInfo 层暴露，而不是一律进入强类型 public context
+- 简单顶层 case 保持纯值语义。
+- 复杂错误尽量直接关联可控字段。
+- 真正需要封装 `@unchecked Sendable` 时，仅在最小局部辅助类型中使用。
 
-## 为什么不推荐顶层 `other(Error)`
+---
 
-顶层 `other(Error)` 会迅速退化成垃圾桶，破坏分类体系，也会让后续新增错误懒于建模。
+## 验收标准
 
-更优做法是：
-- 能落到 `request` / `response` / `serialization` / `validation` 的，必须进入对应领域
-- 确实需要未知兜底时，也应在领域内部定义 `unknown` / `custom`
-- client 域允许保留更开放的未知分支，但核心框架域应尽量完整建模
+最终设计必须满足：
 
-## 推荐文件组织
+1. 顶层 `NtkError` 不再出现 `request/response/serialization/validation/client` 作为 public case。
+2. 不再存在 `RequestFailure / ResponseFailure / SerializationFailure / ValidationFailure / ClientFailure`。
+3. 不再存在统一的 `reason + context` 套壳模式。
+4. `typeMismatch` 完全消失。
+5. 顶层 case 都是公共失败事件，而不是内部处理阶段。
+6. 复杂错误都落入独立 `enum XXError: Error`。
+7. 除已提升为公共失败事件的取消与超时外，其余 AF 错误统一通过 `clientFailed(reason: .af(...))` 暴露。
+8. retry、toast、executor、task manager、policy 都改为消费新模型。
+9. Objective-C bridge 术语与 code 段同步更新。
+10. `NtkError.Cache` 继续独立存在，不并入本次主链重构。
+11. decoder 输入形态错误与 decoder 真正抛错必须分离，不得重新混成新的模糊 decode case。
+12. `invalidRequest` / `invalidResponseType` / `invalidTypedResponse` 的边界必须按本 spec 的顶层事件判定表执行，不得自由发挥。
 
-为避免 `NtkError.swift` 继续膨胀，建议按领域拆分：
+---
 
-- `NtkError.swift` —— 只放顶层 enum
-- `NtkError+Request.swift`
-- `NtkError+Response.swift`
-- `NtkError+Serialization.swift`
-- `NtkError+Validation.swift`
-- `NtkError+Client.swift`
+## 最终结论
 
-AlamofireClient 继续维护：
-- `Sources/AlamofireClient/Error/AFClientError.swift`
+本次最优方案不是在现有五域设计上修补，而是彻底改造 `NtkError` 的 public API 轴线：
 
-### Cache 错误边界
+- 从“内部错误分类树”
+- 改成“公共失败事件入口 + 独立子错误类型”
 
-当前 `NtkError.Cache.noCache` 属于缓存子系统的控制流错误，不属于本次“网络请求主链错误架构”重设计范围。
-
-本次文档中“固定为 5 个顶层错误域”的含义是：**针对网络请求主链，对调用方推荐且正式维护的 `NtkError` 顶层域固定为 `request / response / serialization / validation / client` 这 5 类**。
-
-`NtkError.Cache` 视为独立子系统的历史错误空间，不计入这 5 个网络主链错误域，也不作为本次主重构的分类依据。若后续要统一 cache public surface，应另开设计，不在本次 spec 范围内。
-
-## 与当前实现相比的收益
-
-1. 顶层错误域稳定，不再随着细节演进持续膨胀。
-2. 参数风格统一，复杂错误都能用一致模式读取。
-3. `DecodeInvalid` 的 rich context 能升级为全局架构原则，而不是局部特例。
-4. `NtkError.AF` 从附属设计升级为正式扩展机制。
-5. 调用方可先按顶层领域处理，再深入到 reason，使用体验更接近 `AFError`。
-
-## 风险与注意事项
-
-1. 避免为了“统一”做出一个包含大量 optional 字段的万能 context。
-2. 避免继续保留顶层 `other`，否则新体系会被快速侵蚀。
-3. 避免继续使用宽泛的 `response` 命名，必须明确区分 `clientResponse` / `recoveredResponse` / `response`。
-4. `serviceDataEmpty` 和 `serviceDataTypeInvalid` 应坚持归入 serialization，而不是 validation。
-5. `NtkError.AF` 也必须采用新参数规则，不能在 client 子空间里继续沿用旧式裸参数。
-
-## 建议的后续实现方向
-
-1. 先在 `NtkError` 层重建顶层分类与各领域 Failure 类型。
-2. 优先重构 `decodeInvalid` 所在路径，将其改造成 `serialization` 域完整实现。
-3. 再调整 `validation` 与 `response` 相关错误抛出点。
-4. 最后重构 `AFClientError.swift`，让 `NtkError.AF` 接入新的 `client` 域。
-5. 配套补齐针对 reason/context 的测试，确保每个错误域都能稳定暴露应有诊断信息。
+这才是真正贴近 `AFError` 的设计方式，也最符合当前项目“无兼容压力，直接按最优方案重构”的要求。

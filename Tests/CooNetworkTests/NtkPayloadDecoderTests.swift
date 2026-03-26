@@ -76,9 +76,9 @@ struct NtkPayloadDecoderTests {
             _ = try await decoder.decode(payload, context: makePayloadDecoderContext())
             Issue.record("期望抛出 serialization.envelopeDecodeFailed")
         } catch let error as NtkError {
-            if case let .serialization(failure) = error {
-                #expect(failure.reason == .envelopeDecodeFailed)
-                #expect(failure.context.stage == .envelope)
+            if case let NtkError.responseSerializationFailed(reason: reason) = error,
+               case .invalidEnvelope = reason {
+                #expect(Bool(true))
             } else {
                 Issue.record("错误类型不符: \(error)")
             }
@@ -99,9 +99,9 @@ struct NtkPayloadDecoderTests {
             _ = try await decoder.decode(payload, context: makePayloadDecoderContext())
             Issue.record("期望抛出 serialization.dataDecodeFailed")
         } catch let error as NtkError {
-            if case let .serialization(failure) = error {
-                #expect(failure.reason == .dataDecodeFailed)
-                #expect(failure.context.stage == .data)
+            if case let .responseSerializationFailed(reason: reason) = error,
+               case .invalidDataPayload = reason {
+                #expect(Bool(true))
             } else {
                 Issue.record("错误类型不符: \(error)")
             }
@@ -121,9 +121,9 @@ struct NtkPayloadDecoderTests {
             _ = try await decoder.decode(payload, context: makePayloadDecoderContext())
             Issue.record("期望抛出 serialization.envelopeDecodeFailed")
         } catch let error as NtkError {
-            if case let .serialization(failure) = error {
-                #expect(failure.reason == .envelopeDecodeFailed)
-                #expect(failure.context.stage == .envelope)
+            if case let NtkError.responseSerializationFailed(reason: reason) = error,
+               case .invalidEnvelope = reason {
+                #expect(Bool(true))
             } else {
                 Issue.record("错误类型不符: \(error)")
             }

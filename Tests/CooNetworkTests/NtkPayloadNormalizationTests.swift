@@ -10,15 +10,14 @@ struct NtkPayloadNormalizationTests {
             _ = try NtkDynamicData(from: PayloadTestFailingDecoder())
             Issue.record("期望抛出 serialization.dataDecodeFailed")
         } catch let error as NtkError {
-            if case let .serialization(failure) = error {
-                #expect(failure.reason == .dataDecodeFailed)
-                #expect(failure.context.recoveredResponse == nil)
-                #expect(failure.context.payloadSnapshot?.getString() == "解码失败的数据")
-                if let decodingError = failure.context.underlyingError as? DecodingError,
+            if case let NtkError.responseSerializationFailed(reason: reason) = error,
+               case let .dataDecodingFailed(request: _, clientResponse: _, recoveredResponse: recoveredResponse, rawPayload: _, underlyingError: underlyingError) = reason {
+                #expect(recoveredResponse == nil)
+                if let decodingError = underlyingError as? DecodingError,
                    case .typeMismatch = decodingError {
                     #expect(Bool(true))
                 } else {
-                    Issue.record("underlyingError 类型不符: \(String(describing: failure.context.underlyingError))")
+                    Issue.record("underlyingError 类型不符: \(String(describing: underlyingError))")
                 }
             } else {
                 Issue.record("错误类型不符: \(error)")

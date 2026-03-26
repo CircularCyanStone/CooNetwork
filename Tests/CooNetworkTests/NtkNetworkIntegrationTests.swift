@@ -99,7 +99,7 @@ struct NtkNetworkIntegrationTests {
     @Test
     func requestPropagatesClientError() async throws {
         let network = NtkNetwork<Bool>.with(
-            IntegMockClient(result: .failure(NtkError.response(.init(reason: .timedOut)))),
+            IntegMockClient(result: .failure(NtkError.requestTimeout)),
             request: IntegDummyRequest(path: "/integration/error-test"),
             responseParser: IntegMockParsingInterceptor()
         )

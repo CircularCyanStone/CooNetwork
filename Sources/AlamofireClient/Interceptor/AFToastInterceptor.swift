@@ -49,40 +49,31 @@ public struct AFToastInterceptor: iNtkInterceptor {
     }
     
     private func handleNtkError(_ error: NtkError, request: iAFRequest) {
-        if case let .validation(failure) = error,
-           let response = failure.context.response as? any iNtkResponse {
+        if case let .responseValidationFailed(reason) = error,
+           case let .serviceRejected(_, response) = reason {
             if ignoreCode.contains(response.code.intValue) {
                 return
             }
             if request.toastRetErrorMsg(response.code.stringValue), let msg = response.msg {
                 toastHandler(msg)
             }
-        } else if case let .response(failure) = error {
-            switch failure.reason {
-            case .timedOut:
-                toastHandler("连接超时~")
-            case .transportError:
-                if let innerError = failure.context?.underlyingError {
-                    handleSystemError(innerError as NSError)
-                }
-            default:
-                break
-            }
-        } else if case let .client(clientFailure) = error {
-            handleClientError(clientFailure)
+        } else if case .requestTimeout = error {
+            toastHandler("连接超时~")
+        } else if case let .clientFailed(clientError) = error {
+            handleClientError(clientError)
         }
     }
 
-    private func handleClientError(_ failure: ClientFailure) {
+    private func handleClientError(_ failure: NtkClientError) {
         switch failure {
-        case let .af(error):
-            switch error.reason {
-            case .responseTypeError:
-                toastHandler("接口数据类型异常")
-            case .afError, .unknown:
-                if let msg = error.context.message {
-                    toastHandler(msg)
-                }
+        case let .external(reason, _, _, underlyingError, message):
+            guard reason is NtkClientError.AF else { return }
+            if let urlError = underlyingError as? URLError {
+                handleSystemError(urlError as NSError)
+                return
+            }
+            if let message {
+                toastHandler(message)
             }
         }
     }

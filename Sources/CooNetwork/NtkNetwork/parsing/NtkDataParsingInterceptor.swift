@@ -78,7 +78,7 @@ public struct NtkDataParsingInterceptor<
         }
 
         guard let clientResponse = response as? NtkClientResponse else {
-            throw NtkError.response(.init(reason: .invalidResponseType))
+            throw NtkError.invalidResponseType
         }
 
         return AcquiredResponse(
@@ -93,16 +93,11 @@ public struct NtkDataParsingInterceptor<
     ) async throws -> PreparedPayload {
         guard let request = acquired.request,
               let clientResponse = acquired.clientResponse else {
-            throw NtkError.request(.init(reason: .typeMismatch))
+            throw NtkError.invalidRequest
         }
 
         if let body = clientResponse.data as? Data, body.isEmpty {
-            throw NtkError.response(
-                .init(
-                    reason: .bodyEmpty,
-                    context: .init(request: request, clientResponse: clientResponse)
-                )
-            )
+            throw NtkError.responseBodyEmpty
         }
 
         let normalizedPayload = try NtkPayload.normalize(from: clientResponse.data)

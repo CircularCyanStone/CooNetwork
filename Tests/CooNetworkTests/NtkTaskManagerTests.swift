@@ -638,6 +638,20 @@ struct NtkTaskManagerTests {
         }
     }
 
+    @Test
+    @NtkActor
+    func testMatchingResponseTypeReturnsResultWithoutInvalidTypedResponse() async throws {
+        var request = NtkMutableRequest(
+            TaskManagerDummyRequest(path: "/task-manager/test/matching-response-type"))
+        request.responseType = "String"
+
+        let result: String = try await NtkTaskManager.shared.executeWithDeduplication(request: request) {
+            "fallback-result"
+        }
+
+        #expect(result == "fallback-result")
+    }
+
     /// 场景 8：follower 被取消，底层 Task 抛网络错误时，follower 收到 requestCancelled
     @Test
     @NtkActor
@@ -662,7 +676,13 @@ struct NtkTaskManagerTests {
                     await gate.signalFirstStarted()
                     await gate.waitForFirstRelease()
                     // 模拟网络错误
-                    throw NtkError.serialization(.init(reason: .dataMissing, context: .init(stage: .data)))
+                    throw NtkError.responseSerializationFailed(
+                        reason: .dataMissing(
+                            request: nil,
+                            clientResponse: nil,
+                            recoveredResponse: nil
+                        )
+                    )
                 }
                 return Result<String, Error>.success(value)
             } catch {
@@ -701,11 +721,11 @@ struct NtkTaskManagerTests {
         // owner 收到的是网络错误（未被取消）
         if case .failure(let error) = ownerResult {
             if let ntkError = error as? NtkError,
-               case let .serialization(failure) = ntkError,
-               failure.reason == SerializationFailure.Reason.dataMissing {
+               case .responseSerializationFailed(let reason) = ntkError,
+               case .dataMissing = reason {
                 // 预期行为
             } else {
-                Issue.record("owner 应该收到 serialization.dataMissing，实际收到: \(error)")
+                Issue.record("owner 应该收到 responseSerializationFailed.dataMissing，实际收到: \(error)")
             }
         } else {
             Issue.record("owner 应该收到错误")
@@ -714,11 +734,10 @@ struct NtkTaskManagerTests {
         // follower 收到的是 requestCancelled（而非 responseBodyEmpty）
         if case .failure(let error) = followerResult {
             if let ntkError = error as? NtkError,
-               case let .response(failure) = ntkError,
-               failure.reason == .cancelled {
-                // 预期行为：已取消的 follower 收到 response.cancelled
+               case .requestCancelled = ntkError {
+                // 预期行为：已取消的 follower 收到 requestCancelled
             } else {
-                Issue.record("被取消的 follower 应该收到 response.cancelled，实际收到: \(error)")
+                Issue.record("被取消的 follower 应该收到 requestCancelled，实际收到: \(error)")
             }
         } else {
             Issue.record("被取消的 follower 应该收到错误")
@@ -826,8 +845,7 @@ private func isCancellationError(_ error: Error) -> Bool {
     guard let ntkError = error as? NtkError else {
         return false
     }
-    if case let .response(failure) = ntkError,
-       failure.reason == .cancelled {
+    if case .requestCancelled = ntkError {
         return true
     }
     return false

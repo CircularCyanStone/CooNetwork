@@ -11,20 +11,22 @@ import CooNetwork
 #endif
 import Alamofire
 
-extension ClientFailure.AF {
+public extension NtkClientError {
+    enum AF: Error, Sendable {
+        case requestFailed
+    }
+
     static func fromAFError(
         _ error: AFError,
         request: iNtkRequest?,
         clientResponse: NtkClientResponse? = nil
-    ) -> ClientFailure.AF {
-        .init(
-            reason: .afError,
-            context: .init(
-                request: request,
-                clientResponse: clientResponse,
-                underlyingError: error,
-                message: error.errorDescription ?? error.localizedDescription
-            )
+    ) -> NtkClientError {
+        .external(
+            reason: AF.requestFailed,
+            request: request,
+            clientResponse: clientResponse,
+            underlyingError: error,
+            message: error.errorDescription ?? error.localizedDescription
         )
     }
 }

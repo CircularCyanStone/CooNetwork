@@ -41,7 +41,7 @@ public final class AFClient: iNtkClient {
     @NtkActor
     private func sendRequest(_ request: NtkMutableRequest) async throws -> NtkClientResponse {
         guard let ntkRequest = request.originalRequest as? iAFRequest else {
-            fatalError("request must be iAFRequest")
+            throw NtkError.unsupportedRequestType
         }
 
         // 构建完整URL
@@ -54,7 +54,7 @@ public final class AFClient: iNtkClient {
 
         // 检查任务取消
         if Task.isCancelled {
-            throw NtkError.response(.init(reason: .cancelled, context: .init(request: ntkRequest)))
+            throw NtkError.requestCancelled
         }
 
         // 创建请求任务
@@ -133,18 +133,19 @@ public final class AFClient: iNtkClient {
             // 5. 错误处理
             
             if let urlError = error.underlyingError as? URLError {
-                if urlError.code == .timedOut {
-                    throw NtkError.response(
-                        .init(
-                            reason: .timedOut,
-                            context: .init(request: ntkRequest, underlyingError: urlError)
-                        )
-                    )
+                if urlError.code == .cancelled {
+                    throw NtkError.requestCancelled
                 }
-                throw NtkError.response(
-                    .init(
-                        reason: .transportError,
-                        context: .init(request: ntkRequest, underlyingError: urlError)
+                if urlError.code == .timedOut {
+                    throw NtkError.requestTimeout
+                }
+                throw NtkError.clientFailed(
+                    reason: .external(
+                        reason: NtkClientError.AF.requestFailed,
+                        request: ntkRequest,
+                        clientResponse: nil,
+                        underlyingError: urlError,
+                        message: urlError.localizedDescription
                     )
                 )
             }
@@ -156,23 +157,19 @@ public final class AFClient: iNtkClient {
                 request: ntkRequest,
                 isCache: false
             )
-            throw NtkError.client(
-                .af(
-                    .init(
-                        reason: .afError,
-                        context: .init(
-                            request: ntkRequest,
-                            clientResponse: NtkClientResponse(
-                                data: response.data,
-                                msg: nil,
-                                response: fixResponse,
-                                request: ntkRequest,
-                                isCache: false
-                            ),
-                            underlyingError: error,
-                            message: error.errorDescription ?? error.localizedDescription
-                        )
-                    )
+            throw NtkError.clientFailed(
+                reason: .external(
+                    reason: NtkClientError.AF.requestFailed,
+                    request: ntkRequest,
+                    clientResponse: NtkClientResponse(
+                        data: response.data,
+                        msg: nil,
+                        response: fixResponse,
+                        request: ntkRequest,
+                        isCache: false
+                    ),
+                    underlyingError: error,
+                    message: error.errorDescription ?? error.localizedDescription
                 )
             )
         }

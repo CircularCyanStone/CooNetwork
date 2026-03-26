@@ -94,8 +94,8 @@ struct NtkInterceptorChainManagerTests {
             _ = try await manager.execute(context: context)
             Issue.record("期望抛出错误")
         } catch let error as NtkError {
-            if case let .response(failure) = error {
-                #expect(failure.reason == .timedOut)
+            if case NtkError.requestTimeout = error {
+                #expect(Bool(true))
             } else {
                 Issue.record("错误类型不符: \(error)")
             }
@@ -251,7 +251,7 @@ private struct ChainTieredInterceptor: iNtkInterceptor {
 @NtkActor
 private struct ChainThrowingInterceptor: iNtkInterceptor {
     func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
-        throw NtkError.response(.init(reason: .timedOut))
+        throw NtkError.requestTimeout
     }
 }
 

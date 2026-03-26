@@ -20,7 +20,7 @@
 - **iNtkResponseParser 与 iNtkInterceptor 解耦** — 解析器是框架感知的核心组件，优先级必须由框架控制（`innerHigh`）；若直接实现 `iNtkInterceptor`，使用者可任意覆写 priority，破坏执行顺序保证；通过 `NtkResponseParserBox` 包装后优先级锁死，实现者无需也无法干预
 - **NtkDataParsingInterceptor 位于 CooNetwork 而非 AlamofireClient** — 解析逻辑（`NtkPayload` normalize + `iNtkResponsePayloadTransforming` + `iNtkResponsePayloadDecoding` + `iNtkParsingHooks`）与具体网络库无关；放在核心层让非 AF 客户端（如 mPaaS）也可复用，只需提供自定义 transformer / decoder
 - **AFClient 依赖 Alamofire 类型** — 适配器模式的正确应用，`iNtkClient` 协议是抽象层，AFClient 负责翻译为具体调用，再加一层才是过度抽象
-- **NtkError.AF 嵌套枚举** — Swift enum 无法在 extension 中加 case，嵌套枚举让每个 client 有独立错误空间，是多来源错误的标准模式
+- **NtkError 使用事件式顶层 + 独立子错误类型** — 顶层 `NtkError` 只表达公共失败事件（如 `invalidRequest`、`invalidResponseType`、`requestTimeout`、`clientFailed`），不再按 request/response/serialization/validation/client 五域建模；复杂错误下沉到 `NtkResponseSerializationError`、`NtkResponseValidationError`、`NtkClientError`，其中 AF 作为官方维护的 client 子空间，经 `NtkError.clientFailed(reason: .af(...))` 暴露，而不是继续使用旧的 `NtkError.AF` 嵌套枚举体系
 - **NtkNetworkExecutor 三个方法的拦截器链构建"重复"** — 组合策略和错误处理完全不同，仅排序逻辑重复（已提取为 `sortInterceptors`），强行统一降低可读性
 
 ## 其他

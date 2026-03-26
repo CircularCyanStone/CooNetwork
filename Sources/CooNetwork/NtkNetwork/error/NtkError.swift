@@ -8,16 +8,22 @@
 import Foundation
 
 /// 网络组件错误类型
-/// 定义了网络请求过程中可能出现的各种错误情况
+/// 定义了网络请求过程中对外暴露的公共失败事件
 public enum NtkError: Error, Sendable {
-    case request(RequestFailure)
-    case response(ResponseFailure)
-    case serialization(SerializationFailure)
-    case validation(ValidationFailure)
-    case client(ClientFailure)
+    case invalidRequest
+    case unsupportedRequestType
+    case invalidResponseType
+    case invalidTypedResponse
+    case responseBodyEmpty
+    case requestCancelled
+    case requestTimeout
+
+    case responseValidationFailed(reason: NtkResponseValidationError)
+    case responseSerializationFailed(reason: NtkResponseSerializationError)
+    case clientFailed(reason: NtkClientError)
 
     /// 缓存相关错误
-    enum Cache: Error {
+    public enum Cache: Error, Sendable {
         /// 没有缓存数据
         case noCache
     }

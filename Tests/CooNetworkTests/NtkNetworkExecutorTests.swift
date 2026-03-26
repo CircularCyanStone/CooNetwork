@@ -26,7 +26,7 @@ struct NtkNetworkExecutorTests {
         var request = NtkMutableRequest(ExecDummyRequest(path: "/executor/error-test"))
         request.responseType = String(describing: Bool.self)
         let config = NtkNetworkExecutor<Bool>.Configuration(
-            client: ExecMockClient(result: .failure(NtkError.response(.init(reason: .timedOut)))),
+            client: ExecMockClient(result: .failure(NtkError.requestTimeout)),
             request: request,
             interceptors: [NtkResponseParserBox(ExecMockParsingInterceptor())]
         )
@@ -60,6 +60,32 @@ struct NtkNetworkExecutorTests {
         let log = await counter.log()
         // high 优先级先执行
         #expect(log.first == "high")
+    }
+
+    @Test
+    @NtkActor
+    func executeThrowsTypeMismatchForFinalTypedCastFailure() async {
+        var request = NtkMutableRequest(ExecDummyRequest(path: "/executor/type-mismatch"))
+        request.responseType = String(describing: Bool.self)
+        let config = NtkNetworkExecutor<Bool>.Configuration(
+            client: ExecMockClient(result: .success(())),
+            request: request,
+            interceptors: [NtkResponseParserBox(ExecPassThroughParser())]
+        )
+        let executor = NtkNetworkExecutor<Bool>(config: config)
+
+        do {
+            _ = try await executor.execute()
+            Issue.record("期望抛出最终 typed response cast 错误")
+        } catch let error as NtkError {
+            if case NtkError.invalidTypedResponse = error {
+                #expect(Bool(true))
+            } else {
+                Issue.record("错误类型不符: \(error)")
+            }
+        } catch {
+            Issue.record("抛出了未知错误类型: \(error)")
+        }
     }
 
     // MARK: - loadCache() 有缓存
@@ -336,6 +362,13 @@ private struct ExecMockParsingInterceptor: iNtkResponseParser {
             request: response.request,
             isCache: response.isCache
         )
+    }
+}
+
+@NtkActor
+private struct ExecPassThroughParser: iNtkResponseParser {
+    func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
+        try await next.handle(context: context)
     }
 }
 
