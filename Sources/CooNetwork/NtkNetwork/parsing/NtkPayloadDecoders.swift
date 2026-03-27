@@ -25,12 +25,10 @@ public struct NtkJSONObjectPayloadDecoder<
         context: NtkInterceptorContext
     ) async throws -> NtkResponseDecoder<ResponseData, Keys> {
         guard let dict = extractDict(payload) else {
-            throw NtkError.responseSerializationFailed(
-                reason: .invalidEnvelope(
-                    request: nil,
-                    clientResponse: nil,
-                    rawPayload: nil
-                )
+            throw NtkError.Serialization.invalidEnvelope(
+                request: nil,
+                clientResponse: nil,
+                rawPayload: nil
             )
         }
 
@@ -72,12 +70,10 @@ public struct NtkDataPayloadDecoder<
         context: NtkInterceptorContext
     ) async throws -> NtkResponseDecoder<ResponseData, Keys> {
         guard case .data(let data) = payload else {
-            throw NtkError.responseSerializationFailed(
-                reason: .invalidDataPayload(
-                    request: nil,
-                    clientResponse: nil,
-                    recoveredResponse: nil
-                )
+            throw NtkError.Serialization.invalidDataPayload(
+                request: nil,
+                clientResponse: nil,
+                recoveredResponse: nil
             )
         }
         return try JSONDecoder().decode(NtkResponseDecoder<ResponseData, Keys>.self, from: data)

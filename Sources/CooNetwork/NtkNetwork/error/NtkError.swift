@@ -18,10 +18,6 @@ public enum NtkError: Error, Sendable {
     case requestCancelled
     case requestTimeout
 
-    case responseValidationFailed(reason: ValidationError)
-    case responseSerializationFailed(reason: SerializationError)
-    case clientFailed(reason: Client)
-
     /// 缓存相关错误
     public enum Cache: Error, Sendable {
         /// 没有缓存数据

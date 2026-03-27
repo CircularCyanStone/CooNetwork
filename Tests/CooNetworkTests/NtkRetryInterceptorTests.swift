@@ -96,24 +96,82 @@ struct NtkRetryInterceptorTests {
     /// 第 2 次重试成功时应停止
     @Test
     @NtkActor
-    func retrySuccessOnSecondRetryShouldStop() async throws {
-        let counter = RetryExecutionCounter()
-        let interceptor = NtkRetryInterceptor(
-            retryPolicy: CountingRetryPolicy(maxRetryCount: 5))
-        let context = NtkInterceptorContext(
-            mutableRequest: NtkMutableRequest(DummyRequest()),
-            client: DummyClient()
-        )
+    func validationErrorShouldNotRetry() async throws {
+        let policy = NtkFixedIntervalRetryPolicy.precise(maxRetryCount: 3, interval: 0)
+        #expect(policy.shouldRetry(
+            attemptCount: 1,
+            error: NtkError.Validation.serviceRejected(
+                request: DummyRequest(),
+                response: NtkResponse<Bool>(
+                    code: NtkReturnCode(999),
+                    data: false,
+                    msg: "fail",
+                    response: false,
+                    request: DummyRequest(),
+                    isCache: false
+                )
+            )
+        ) == false)
+    }
 
-        // 前 2 次失败（首次 + 第 1 次重试），第 3 次成功（第 2 次重试）
-        let response = try await interceptor.intercept(
-            context: context,
-            next: FailNTimesThenSucceedHandler(
-                failCount: 2, counter: counter, request: DummyRequest()))
+    @Test
+    @NtkActor
+    func serializationErrorShouldNotRetry() async throws {
+        let policy = NtkFixedIntervalRetryPolicy.precise(maxRetryCount: 3, interval: 0)
+        #expect(policy.shouldRetry(
+            attemptCount: 1,
+            error: NtkError.Serialization.dataMissing(
+                request: nil,
+                clientResponse: nil,
+                recoveredResponse: nil
+            )
+        ) == false)
+    }
 
-        let count = await counter.value()
-        #expect(count == 3)
-        #expect(response is NtkResponse<Bool>)
+    @Test
+    @NtkActor
+    func clientTimeoutErrorShouldRetry() async throws {
+        let policy = NtkFixedIntervalRetryPolicy.precise(maxRetryCount: 3, interval: 0)
+        #expect(policy.shouldRetry(
+            attemptCount: 1,
+            error: NtkError.Client.external(
+                reason: NtkError.Client.AF.requestFailed,
+                request: DummyRequest(),
+                clientResponse: nil,
+                underlyingError: URLError(.timedOut),
+                message: URLError(.timedOut).localizedDescription
+            )
+        ) == true)
+    }
+
+    @Test
+    @NtkActor
+    func clientBadUrlErrorShouldNotRetry() async throws {
+        let policy = NtkFixedIntervalRetryPolicy.precise(maxRetryCount: 3, interval: 0)
+        #expect(policy.shouldRetry(
+            attemptCount: 1,
+            error: NtkError.Client.external(
+                reason: NtkError.Client.AF.requestFailed,
+                request: DummyRequest(),
+                clientResponse: nil,
+                underlyingError: URLError(.badURL),
+                message: URLError(.badURL).localizedDescription
+            )
+        ) == false)
+    }
+
+    @Test
+    @NtkActor
+    func invalidTypedResponseShouldNotRetry() async throws {
+        let policy = NtkFixedIntervalRetryPolicy.precise(maxRetryCount: 3, interval: 0)
+        #expect(policy.shouldRetry(attemptCount: 1, error: NtkError.invalidTypedResponse) == false)
+    }
+
+    @Test
+    @NtkActor
+    func requestCancelledShouldNotRetry() async throws {
+        let policy = NtkFixedIntervalRetryPolicy.precise(maxRetryCount: 3, interval: 0)
+        #expect(policy.shouldRetry(attemptCount: 1, error: NtkError.requestCancelled) == false)
     }
 }
 

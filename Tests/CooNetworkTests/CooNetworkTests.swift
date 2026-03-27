@@ -123,11 +123,11 @@ extension CooNetworkTests {
                 #expect(Bool(true))
             case NtkError.requestCancelled:
                 #expect(Bool(true))
-            case NtkError.clientFailed:
-                #expect(Bool(true))
             default:
                 Issue.record("捕获到非预期 NtkError: \(error)")
             }
+        } catch let _ as NtkError.Client {
+            #expect(Bool(true))
         } catch {
             Issue.record("捕获到非预期错误类型: \(error)")
         }

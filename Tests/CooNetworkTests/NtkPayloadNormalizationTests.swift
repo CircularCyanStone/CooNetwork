@@ -9,9 +9,8 @@ struct NtkPayloadNormalizationTests {
         do {
             _ = try NtkDynamicData(from: PayloadTestFailingDecoder())
             Issue.record("期望抛出 serialization.dataDecodeFailed")
-        } catch let error as NtkError {
-            if case let NtkError.responseSerializationFailed(reason: reason) = error,
-               case let .dataDecodingFailed(request: _, clientResponse: _, recoveredResponse: recoveredResponse, rawPayload: _, underlyingError: underlyingError) = reason {
+        } catch let error as NtkError.Serialization {
+            if case let .dataDecodingFailed(request: _, clientResponse: _, recoveredResponse: recoveredResponse, rawPayload: _, underlyingError: underlyingError) = error {
                 #expect(recoveredResponse == nil)
                 if let decodingError = underlyingError as? DecodingError,
                    case .typeMismatch = decodingError {
@@ -39,7 +38,7 @@ struct NtkPayloadNormalizationTests {
 
     @Test(arguments: ["hello", true as any Sendable, 1 as any Sendable, 1.5 as any Sendable, NSNull() as any Sendable])
     func normalizeRejectsTopLevelScalar(_ raw: any Sendable) throws {
-        #expect(throws: NtkError.self) {
+        #expect(throws: NtkError.Serialization.self) {
             _ = try NtkPayload.normalize(from: raw)
         }
     }
@@ -47,7 +46,7 @@ struct NtkPayloadNormalizationTests {
     @Test
     func normalizeRejectsDictionaryWithNonStringKey() throws {
         let source: NSDictionary = [1: "bad"]
-        #expect(throws: NtkError.self) {
+        #expect(throws: NtkError.Serialization.self) {
             _ = try NtkPayload.normalize(from: source)
         }
     }

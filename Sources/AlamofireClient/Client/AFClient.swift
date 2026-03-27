@@ -139,14 +139,12 @@ public final class AFClient: iNtkClient {
                 if urlError.code == .timedOut {
                     throw NtkError.requestTimeout
                 }
-                throw NtkError.clientFailed(
-                    reason: .external(
-                        reason: NtkError.Client.AF.requestFailed,
-                        request: ntkRequest,
-                        clientResponse: nil,
-                        underlyingError: urlError,
-                        message: urlError.localizedDescription
-                    )
+                throw NtkError.Client.external(
+                    reason: NtkError.Client.AF.requestFailed,
+                    request: ntkRequest,
+                    clientResponse: nil,
+                    underlyingError: urlError,
+                    message: urlError.localizedDescription
                 )
             }
             let fixResponse = NtkResponse<Data?>(
@@ -157,20 +155,18 @@ public final class AFClient: iNtkClient {
                 request: ntkRequest,
                 isCache: false
             )
-            throw NtkError.clientFailed(
-                reason: .external(
-                    reason: NtkError.Client.AF.requestFailed,
+            throw NtkError.Client.external(
+                reason: NtkError.Client.AF.requestFailed,
+                request: ntkRequest,
+                clientResponse: NtkClientResponse(
+                    data: response.data,
+                    msg: nil,
+                    response: fixResponse,
                     request: ntkRequest,
-                    clientResponse: NtkClientResponse(
-                        data: response.data,
-                        msg: nil,
-                        response: fixResponse,
-                        request: ntkRequest,
-                        isCache: false
-                    ),
-                    underlyingError: error,
-                    message: error.errorDescription ?? error.localizedDescription
-                )
+                    isCache: false
+                ),
+                underlyingError: error,
+                message: error.errorDescription ?? error.localizedDescription
             )
         }
     }

@@ -41,26 +41,25 @@ extension iNtkRetryPolicy {
                  .invalidResponseType,
                  .invalidTypedResponse,
                  .responseBodyEmpty,
-                 .requestCancelled,
-                 .responseValidationFailed,
-                 .responseSerializationFailed:
+                 .requestCancelled:
                 return false
             case .requestTimeout:
                 return true
-            case let .clientFailed(reason):
-                switch reason {
-                case let .external(_, _, _, underlyingError, _):
-                    if let urlError = underlyingError as? URLError {
-                        return shouldRetryForURLError(urlError)
-                    }
-                    return false
-                }
             }
         }
-        
-        // 检查缓存错误
-        if error is NtkError.Cache {
+
+        if error is NtkError.Validation || error is NtkError.Serialization || error is NtkError.Cache {
             return false
+        }
+
+        if let clientError = error as? NtkError.Client {
+            switch clientError {
+            case let .external(_, _, _, underlyingError, _):
+                if let urlError = underlyingError as? URLError {
+                    return shouldRetryForURLError(urlError)
+                }
+                return false
+            }
         }
         
         // 对于其他网络相关错误，默认可以重试

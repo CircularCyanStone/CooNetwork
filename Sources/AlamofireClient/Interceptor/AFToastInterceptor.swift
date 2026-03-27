@@ -40,27 +40,34 @@ public struct AFToastInterceptor: iNtkInterceptor {
         do {
             let response = try await next.handle(context: context)
             return response
+        } catch let error as NtkError.Validation {
+            handleValidationDomainError(error, request: afRequest)
+            throw error
+        } catch let error as NtkError.Client {
+            handleClientError(error)
+            throw error
         } catch let error as NtkError {
-            handleNtkError(error, request: afRequest)
+            handleTopLevelError(error)
             throw error
         } catch {
             throw error
         }
     }
-    
-    private func handleNtkError(_ error: NtkError, request: iAFRequest) {
-        if case let .responseValidationFailed(reason) = error,
-           case let .serviceRejected(_, response) = reason {
+
+    private func handleValidationDomainError(_ error: NtkError.Validation, request: iAFRequest) {
+        if case let .serviceRejected(_, response) = error {
             if ignoreCode.contains(response.code.intValue) {
                 return
             }
             if request.toastRetErrorMsg(response.code.stringValue), let msg = response.msg {
                 toastHandler(msg)
             }
-        } else if case .requestTimeout = error {
+        }
+    }
+
+    private func handleTopLevelError(_ error: NtkError) {
+        if case .requestTimeout = error {
             toastHandler("连接超时~")
-        } else if case let .clientFailed(clientError) = error {
-            handleClientError(clientError)
         }
     }
 

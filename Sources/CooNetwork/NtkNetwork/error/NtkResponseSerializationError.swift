@@ -1,7 +1,7 @@
 import Foundation
 
 public extension NtkError {
-    enum SerializationError: Error, Sendable {
+    enum Serialization: Error, Sendable {
     case invalidJSON(
         request: (any iNtkRequest)?,
         clientResponse: NtkClientResponse?,

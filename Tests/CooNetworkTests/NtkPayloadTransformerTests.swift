@@ -59,7 +59,7 @@ struct NtkPayloadTransformerTests {
         let context = makeTransformerContext()
         let transformer = FailingTransformer()
 
-        await #expect(throws: NtkError.self) {
+        await #expect(throws: NtkError.Serialization.self) {
             _ = try await transformer.transform(payload, context: context)
         }
     }
@@ -103,7 +103,7 @@ private final class RecordingTransformer: iNtkResponsePayloadTransforming, @unch
 private struct DataToDynamicTransformer: iNtkResponsePayloadTransforming {
     func transform(_ payload: NtkPayload, context: NtkInterceptorContext) async throws -> NtkPayload {
         guard case .data = payload else {
-            throw NtkError.responseSerializationFailed(reason: .invalidDataPayload(request: nil, clientResponse: nil, recoveredResponse: nil))
+            throw NtkError.Serialization.invalidDataPayload(request: nil, clientResponse: nil, recoveredResponse: nil)
         }
         return try NtkPayload.normalize(from: ["value": "decoded"] as [String: any Sendable])
     }
@@ -114,7 +114,7 @@ private struct DynamicToDataTransformer: iNtkResponsePayloadTransforming {
         guard case .dynamic(let dynamic) = payload,
               let dict = dynamic.getDictionary()
         else {
-            throw NtkError.responseSerializationFailed(reason: .invalidEnvelope(request: nil, clientResponse: nil, rawPayload: nil))
+            throw NtkError.Serialization.invalidEnvelope(request: nil, clientResponse: nil, rawPayload: nil)
         }
 
         let data = try JSONSerialization.data(withJSONObject: dict)
@@ -124,6 +124,6 @@ private struct DynamicToDataTransformer: iNtkResponsePayloadTransforming {
 
 private struct FailingTransformer: iNtkResponsePayloadTransforming {
     func transform(_ payload: NtkPayload, context: NtkInterceptorContext) async throws -> NtkPayload {
-        throw NtkError.responseSerializationFailed(reason: .invalidDataPayload(request: nil, clientResponse: nil, recoveredResponse: nil))
+        throw NtkError.Serialization.invalidDataPayload(request: nil, clientResponse: nil, recoveredResponse: nil)
     }
 }

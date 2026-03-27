@@ -676,12 +676,10 @@ struct NtkTaskManagerTests {
                     await gate.signalFirstStarted()
                     await gate.waitForFirstRelease()
                     // 模拟网络错误
-                    throw NtkError.responseSerializationFailed(
-                        reason: .dataMissing(
-                            request: nil,
-                            clientResponse: nil,
-                            recoveredResponse: nil
-                        )
+                    throw NtkError.Serialization.dataMissing(
+                        request: nil,
+                        clientResponse: nil,
+                        recoveredResponse: nil
                     )
                 }
                 return Result<String, Error>.success(value)
@@ -712,7 +710,7 @@ struct NtkTaskManagerTests {
         followerRequest.isCancelledRef?.cancel()
         NtkTaskManager.shared.cancelRequest(request: followerRequest)
 
-        // 释放底层任务（会抛 responseBodyEmpty）
+        // 释放底层任务（会抛 NtkError.Serialization.dataMissing）
         await gate.releaseFirst()
 
         let ownerResult = await ownerTask.value
@@ -720,12 +718,11 @@ struct NtkTaskManagerTests {
 
         // owner 收到的是网络错误（未被取消）
         if case .failure(let error) = ownerResult {
-            if let ntkError = error as? NtkError,
-               case .responseSerializationFailed(let reason) = ntkError,
-               case .dataMissing = reason {
+            if let serialization = error as? NtkError.Serialization,
+               case .dataMissing = serialization {
                 // 预期行为
             } else {
-                Issue.record("owner 应该收到 responseSerializationFailed.dataMissing，实际收到: \(error)")
+                Issue.record("owner 应该收到 NtkError.Serialization.dataMissing，实际收到: \(error)")
             }
         } else {
             Issue.record("owner 应该收到错误")

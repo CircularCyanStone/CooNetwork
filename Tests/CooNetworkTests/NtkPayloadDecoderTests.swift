@@ -74,10 +74,9 @@ struct NtkPayloadDecoderTests {
 
         do {
             _ = try await decoder.decode(payload, context: makePayloadDecoderContext())
-            Issue.record("期望抛出 serialization.envelopeDecodeFailed")
-        } catch let error as NtkError {
-            if case let NtkError.responseSerializationFailed(reason: reason) = error,
-               case .invalidEnvelope = reason {
+            Issue.record("期望抛出 serialization.invalidEnvelope")
+        } catch let error as NtkError.Serialization {
+            if case .invalidEnvelope = error {
                 #expect(Bool(true))
             } else {
                 Issue.record("错误类型不符: \(error)")
@@ -97,10 +96,9 @@ struct NtkPayloadDecoderTests {
 
         do {
             _ = try await decoder.decode(payload, context: makePayloadDecoderContext())
-            Issue.record("期望抛出 serialization.dataDecodeFailed")
-        } catch let error as NtkError {
-            if case let .responseSerializationFailed(reason: reason) = error,
-               case .invalidDataPayload = reason {
+            Issue.record("期望抛出 serialization.invalidDataPayload")
+        } catch let error as NtkError.Serialization {
+            if case .invalidDataPayload = error {
                 #expect(Bool(true))
             } else {
                 Issue.record("错误类型不符: \(error)")
@@ -119,10 +117,9 @@ struct NtkPayloadDecoderTests {
 
         do {
             _ = try await decoder.decode(payload, context: makePayloadDecoderContext())
-            Issue.record("期望抛出 serialization.envelopeDecodeFailed")
-        } catch let error as NtkError {
-            if case let NtkError.responseSerializationFailed(reason: reason) = error,
-               case .invalidEnvelope = reason {
+            Issue.record("期望抛出 serialization.invalidEnvelope")
+        } catch let error as NtkError.Serialization {
+            if case .invalidEnvelope = error {
                 #expect(Bool(true))
             } else {
                 Issue.record("错误类型不符: \(error)")

@@ -160,16 +160,14 @@ public final class NtkDynamicData: NSObject, Sendable, Codable {
             return
         }
 
-        throw NtkError.responseSerializationFailed(
-            reason: .dataDecodingFailed(
-                request: nil,
-                clientResponse: nil,
-                recoveredResponse: nil,
-                rawPayload: nil,
-                underlyingError: DecodingError.typeMismatch(
-                    NtkDynamicData.self,
-                    DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "无法解码为任何支持的类型")
-                )
+        throw NtkError.Serialization.dataDecodingFailed(
+            request: nil,
+            clientResponse: nil,
+            recoveredResponse: nil,
+            rawPayload: nil,
+            underlyingError: DecodingError.typeMismatch(
+                NtkDynamicData.self,
+                DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "无法解码为任何支持的类型")
             )
         )
     }
@@ -281,7 +279,7 @@ extension NtkDynamicData {
             case .double(let v): return String(v) as! T
             case .bool(let v):   return String(v) as! T
             case .null:          return "" as! T
-            default:             throw NtkError.responseSerializationFailed(reason: .dataTypeMismatch(request: nil, clientResponse: nil, recoveredResponse: nil, underlyingError: nil))
+            default:             throw NtkError.Serialization.dataTypeMismatch(request: nil, clientResponse: nil, recoveredResponse: nil, underlyingError: nil)
             }
 
         case is Int.Type:
@@ -289,10 +287,10 @@ extension NtkDynamicData {
             case .int(let v):    return v as! T
             case .string(let v):
                 if let intValue = Int(v) { return intValue as! T }
-                throw NtkError.responseSerializationFailed(reason: .dataTypeMismatch(request: nil, clientResponse: nil, recoveredResponse: nil, underlyingError: nil))
+                throw NtkError.Serialization.dataTypeMismatch(request: nil, clientResponse: nil, recoveredResponse: nil, underlyingError: nil)
             case .double(let v): return Int(v) as! T
             case .bool(let v):   return (v ? 1 : 0) as! T
-            default:             throw NtkError.responseSerializationFailed(reason: .dataTypeMismatch(request: nil, clientResponse: nil, recoveredResponse: nil, underlyingError: nil))
+            default:             throw NtkError.Serialization.dataTypeMismatch(request: nil, clientResponse: nil, recoveredResponse: nil, underlyingError: nil)
             }
 
         case is Double.Type:
@@ -300,10 +298,10 @@ extension NtkDynamicData {
             case .double(let v): return v as! T
             case .string(let v):
                 if let doubleValue = Double(v) { return doubleValue as! T }
-                throw NtkError.responseSerializationFailed(reason: .dataTypeMismatch(request: nil, clientResponse: nil, recoveredResponse: nil, underlyingError: nil))
+                throw NtkError.Serialization.dataTypeMismatch(request: nil, clientResponse: nil, recoveredResponse: nil, underlyingError: nil)
             case .int(let v):    return Double(v) as! T
             case .bool(let v):   return (v ? 1.0 : 0.0) as! T
-            default:             throw NtkError.responseSerializationFailed(reason: .dataTypeMismatch(request: nil, clientResponse: nil, recoveredResponse: nil, underlyingError: nil))
+            default:             throw NtkError.Serialization.dataTypeMismatch(request: nil, clientResponse: nil, recoveredResponse: nil, underlyingError: nil)
             }
 
         case is Bool.Type:
@@ -314,19 +312,19 @@ extension NtkDynamicData {
                 return (lower == "true" || lower == "1") as! T
             case .int(let v):    return (v != 0) as! T
             case .double(let v): return (v != 0.0) as! T
-            default:             throw NtkError.responseSerializationFailed(reason: .dataTypeMismatch(request: nil, clientResponse: nil, recoveredResponse: nil, underlyingError: nil))
+            default:             throw NtkError.Serialization.dataTypeMismatch(request: nil, clientResponse: nil, recoveredResponse: nil, underlyingError: nil)
             }
 
         case is [String: any Sendable].Type:
             if let value = getDictionary() { return value as! T }
-            throw NtkError.responseSerializationFailed(reason: .dataTypeMismatch(request: nil, clientResponse: nil, recoveredResponse: nil, underlyingError: nil))
+            throw NtkError.Serialization.dataTypeMismatch(request: nil, clientResponse: nil, recoveredResponse: nil, underlyingError: nil)
 
         case is [any Sendable].Type:
             if let value = getArray() { return value as! T }
-            throw NtkError.responseSerializationFailed(reason: .dataTypeMismatch(request: nil, clientResponse: nil, recoveredResponse: nil, underlyingError: nil))
+            throw NtkError.Serialization.dataTypeMismatch(request: nil, clientResponse: nil, recoveredResponse: nil, underlyingError: nil)
 
         default:
-            throw NtkError.responseSerializationFailed(reason: .dataTypeMismatch(request: nil, clientResponse: nil, recoveredResponse: nil, underlyingError: nil))
+            throw NtkError.Serialization.dataTypeMismatch(request: nil, clientResponse: nil, recoveredResponse: nil, underlyingError: nil)
         }
     }
 }

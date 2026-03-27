@@ -7,6 +7,15 @@ import Alamofire
 
 struct AFErrorMappingTests {
     @Test
+    func ntkErrorExposesRenamedDomainTypes() {
+        let validationType: NtkError.Validation.Type = NtkError.Validation.self
+        let serializationType: NtkError.Serialization.Type = NtkError.Serialization.self
+
+        #expect(validationType == NtkError.Validation.self)
+        #expect(serializationType == NtkError.Serialization.self)
+    }
+
+    @Test
     func afErrorHelperStillMapsCancelToAFClientError() {
         let mapped = NtkError.Client.fromAFError(
             AFError.explicitlyCancelled,

@@ -59,13 +59,9 @@ struct NtkDefaultResponseParsingPolicyTests {
                 context: makePolicyContext()
             )
             Issue.record("期望抛出 serialization.dataMissing")
-        } catch let error as NtkError {
-            if case let .responseSerializationFailed(reason) = error {
-                if case .dataMissing = reason {
-                    #expect(hook.events == ["willValidate"])
-                } else {
-                    Issue.record("错误 reason 不符: \(reason)")
-                }
+        } catch let error as NtkError.Serialization {
+            if case .dataMissing = error {
+                #expect(hook.events == ["willValidate"])
             } else {
                 Issue.record("错误类型不符: \(error)")
             }
@@ -96,9 +92,8 @@ struct NtkDefaultResponseParsingPolicyTests {
                 context: makePolicyContext()
             )
             Issue.record("期望抛出 validation")
-        } catch let error as NtkError {
-            if case let .responseValidationFailed(reason) = error,
-               case .serviceRejected(let request, let response) = reason {
+        } catch let error as NtkError.Validation {
+            if case .serviceRejected(let request, let response) = error {
                 #expect(request.path == "/policy/test")
                 #expect(response.code.intValue == 999)
                 #expect(hook.events == ["willValidate", "didValidateFail"])
@@ -151,9 +146,8 @@ struct NtkDefaultResponseParsingPolicyTests {
                 context: makePolicyContext()
             )
             Issue.record("期望抛出 validation")
-        } catch let error as NtkError {
-            if case let .responseValidationFailed(reason) = error,
-               case .serviceRejected(let request, let response) = reason {
+        } catch let error as NtkError.Validation {
+            if case .serviceRejected(let request, let response) = error {
                 #expect(request.path == "/policy/test")
                 #expect(response.code.intValue == 999)
                 #expect(hook.events == ["willValidate", "didValidateFail"])
@@ -178,19 +172,15 @@ struct NtkDefaultResponseParsingPolicyTests {
                 context: makePolicyContext()
             )
             Issue.record("期望抛出 serialization.dataDecodeFailed")
-        } catch let error as NtkError {
-            if case let .responseSerializationFailed(reason) = error {
-                #expect(hook.events == ["willValidate"])
-                if case let .dataDecodingFailed(_, _, recoveredResponse, rawPayload, underlyingError) = reason {
-                    let response = try #require(recoveredResponse)
-                    #expect(response.code.intValue == 999)
-                    #expect(response.msg == "fail")
-                    #expect(response.data?["reason"]?.getString() == "mock")
-                    #expect(rawPayload != nil)
-                    #expect(underlyingError != nil)
-                } else {
-                    Issue.record("错误 reason 不符: \(reason)")
-                }
+        } catch let error as NtkError.Serialization {
+            #expect(hook.events == ["willValidate"])
+            if case let .dataDecodingFailed(_, _, recoveredResponse, rawPayload, underlyingError) = error {
+                let response = try #require(recoveredResponse)
+                #expect(response.code.intValue == 999)
+                #expect(response.msg == "fail")
+                #expect(response.data?["reason"]?.getString() == "mock")
+                #expect(rawPayload != nil)
+                #expect(underlyingError != nil)
             } else {
                 Issue.record("错误类型不符: \(error)")
             }
@@ -211,19 +201,15 @@ struct NtkDefaultResponseParsingPolicyTests {
                 context: makePolicyContext()
             )
             Issue.record("期望抛出 serialization.dataDecodeFailed")
-        } catch let error as NtkError {
-            if case let .responseSerializationFailed(reason) = error {
-                if case let .dataDecodingFailed(_, _, recoveredResponse, rawPayload, underlyingError) = reason {
-                    #expect(recoveredResponse == nil)
-                    #expect(rawPayload != nil)
-                    if let decodingError = underlyingError as? DecodingError,
-                       case .typeMismatch = decodingError {
-                        #expect(Bool(true))
-                    } else {
-                        Issue.record("underlyingError 类型不符: \(String(describing: underlyingError))")
-                    }
+        } catch let error as NtkError.Serialization {
+            if case let .dataDecodingFailed(_, _, recoveredResponse, rawPayload, underlyingError) = error {
+                #expect(recoveredResponse == nil)
+                #expect(rawPayload != nil)
+                if let decodingError = underlyingError as? DecodingError,
+                   case .typeMismatch = decodingError {
+                    #expect(Bool(true))
                 } else {
-                    Issue.record("错误 reason 不符: \(reason)")
+                    Issue.record("underlyingError 类型不符: \(String(describing: underlyingError))")
                 }
             } else {
                 Issue.record("错误类型不符: \(error)")
@@ -240,7 +226,7 @@ struct NtkDefaultResponseParsingPolicyTests {
             dispatcher: NtkParsingHookDispatcher(hooks: [hook])
         )
 
-        await #expect(throws: NtkError.self) {
+        await #expect(throws: NtkError.Serialization.self) {
             _ = try await policy.decide(
                 from: makeDecodeFailureWithHeaderInterpretation(),
                 context: makePolicyContext()
