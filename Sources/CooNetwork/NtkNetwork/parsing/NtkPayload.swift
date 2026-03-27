@@ -29,7 +29,7 @@ public enum NtkPayload: Sendable {
     ///
     /// - Parameter raw: 客户端返回的原始响应数据，通常来自 `NtkClientResponse.data`。
     /// - Returns: 可进入 transformer / decoder 阶段的统一 payload。
-    /// - Throws: 当原始值既不是 `Data`，也不是允许进入 pipeline 的顶层结构时抛出 `NtkError.Serialization.invalidJSON(rawPayload:)`。
+    /// - Throws: 当原始值既不是 `Data`，也不是允许进入 pipeline 的顶层结构时抛出 `NtkError.Serialization.invalidJSON`。
     /// - Note: 该步骤只保证“可进入 pipeline”，不负责递归归一化整棵树，也不负责解释业务字段。
     public static func normalize(from raw: Any) throws -> NtkPayload {
         if let data = raw as? Data {
@@ -37,7 +37,7 @@ public enum NtkPayload: Sendable {
         }
 
         guard let dynamic = try PayloadRootGate.normalizeRoot(raw) else {
-            throw NtkError.Serialization.invalidJSON(rawPayload: nil)
+            throw NtkError.Serialization.invalidJSON
         }
 
         return .dynamic(dynamic)

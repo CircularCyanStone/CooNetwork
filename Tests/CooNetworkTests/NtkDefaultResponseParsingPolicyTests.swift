@@ -182,7 +182,13 @@ struct NtkDefaultResponseParsingPolicyTests {
                 #expect(response.code.intValue == 999)
                 #expect(response.msg == "fail")
                 #expect(response.data?["reason"]?.getString() == "mock")
-                #expect(rawPayload != nil)
+                if case let .dynamic(payload)? = rawPayload {
+                    #expect(payload["retCode"]?.getInt() == 999)
+                    #expect(payload["retMsg"]?.getString() == "fail")
+                    #expect(payload["data"]?["reason"]?.getString() == "mock")
+                } else {
+                    Issue.record("期望保留 dynamic rawPayload，但实际为: \(String(describing: rawPayload))")
+                }
                 #expect(underlyingError != nil)
             } else {
                 Issue.record("错误类型不符: \(error)")
@@ -210,7 +216,11 @@ struct NtkDefaultResponseParsingPolicyTests {
                 let rawPayload = context.rawPayload
                 let underlyingError = context.underlyingError
                 #expect(recoveredResponse == nil)
-                #expect(rawPayload != nil)
+                if case let .data(payload)? = rawPayload {
+                    #expect(payload == Data("{}".utf8))
+                } else {
+                    Issue.record("期望保留 data rawPayload，但实际为: \(String(describing: rawPayload))")
+                }
                 if let decodingError = underlyingError as? DecodingError,
                    case .typeMismatch = decodingError {
                     #expect(Bool(true))

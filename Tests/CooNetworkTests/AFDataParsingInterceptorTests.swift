@@ -164,7 +164,11 @@ struct NtkDataParsingInterceptorTests {
                 #expect(response.code.intValue == 0)
                 #expect(response.msg == "ok")
                 #expect(response.data?.getString() == "not_an_object")
-                #expect(rawPayload != nil)
+                if case let .data(payload)? = rawPayload {
+                    #expect(payload == data)
+                } else {
+                    Issue.record("期望保留 data rawPayload，但实际为: \(String(describing: rawPayload))")
+                }
                 if let decodingError = underlyingError as? DecodingError,
                    case .typeMismatch = decodingError {
                     #expect(Bool(true))
@@ -226,7 +230,11 @@ struct NtkDataParsingInterceptorTests {
                 let recoveredResponse = context.recoveredResponse
                 let rawPayload = context.rawPayload
                 #expect(recoveredResponse == nil)
-                #expect(rawPayload != nil)
+                if case let .data(payload)? = rawPayload {
+                    #expect(payload == data)
+                } else {
+                    Issue.record("期望保留 data rawPayload，但实际为: \(String(describing: rawPayload))")
+                }
             } else {
                 Issue.record("错误类型不符: \(error)")
             }
@@ -554,6 +562,46 @@ struct NtkDataParsingInterceptorTests {
         #expect(typed.data.id == 1)
         #expect(typed.data.name == "test")
     }
+
+    @Test
+    @NtkActor
+    func transformerProducedDynamicPayloadIsPreservedWhenDecodeFails() async throws {
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
+            validation: AFTestPassValidation(),
+            transformers: [AFDataToJSONObjectTransformer()],
+            decoder: AFDynamicPayloadFailingDecoder()
+        )
+        let data = try JSONSerialization.data(withJSONObject: [
+            "retCode": 0,
+            "retMsg": "ok",
+            "data": ["id": 1, "name": "test"]
+        ])
+        let handler = AFTestDataHandler(data: data, request: AFTestRequest())
+
+        do {
+            _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
+            Issue.record("期望抛出 serialization.dataDecodeFailed")
+        } catch let error as NtkError.Serialization {
+            if case let .dataDecodingFailed(context) = error {
+                let rawPayload = context.rawPayload
+                let recoveredResponse = try #require(context.recoveredResponse)
+                #expect(recoveredResponse.code.intValue == 0)
+                #expect(recoveredResponse.msg == "ok")
+                #expect(recoveredResponse.data?["id"]?.getInt() == 1)
+                #expect(recoveredResponse.data?["name"]?.getString() == "test")
+                if case let .dynamic(payload)? = rawPayload {
+                    #expect(payload["retCode"]?.getInt() == 0)
+                    #expect(payload["retMsg"]?.getString() == "ok")
+                    #expect(payload["data"]?["id"]?.getInt() == 1)
+                    #expect(payload["data"]?["name"]?.getString() == "test")
+                } else {
+                    Issue.record("期望保留 dynamic rawPayload，但实际为: \(String(describing: rawPayload))")
+                }
+            } else {
+                Issue.record("错误类型不符: \(error)")
+            }
+        }
+    }
     @Test
     @NtkActor
     func throwingHookDoesNotBlockLaterHooksOnSameNotification() async throws {
@@ -779,6 +827,29 @@ private struct AFTestPlainResponseHandler: iNtkRequestHandler {
     let response: any iNtkResponse
     func handle(context: NtkInterceptorContext) async throws -> any iNtkResponse {
         response
+    }
+}
+
+private struct AFDynamicPayloadFailingDecoder: iNtkResponsePayloadDecoding {
+    func decode(
+        _ payload: NtkPayload,
+        context: NtkInterceptorContext
+    ) async throws -> NtkResponseDecoder<AFTestModel, AFTestKeys> {
+        throw DecodingError.typeMismatch(
+            AFTestModel.self,
+            .init(codingPath: [], debugDescription: "expected failure after transformer produced dynamic payload")
+        )
+    }
+
+    func extractHeader(_ payload: NtkPayload, request: iNtkRequest) throws -> NtkExtractedHeader? {
+        guard case let .dynamic(dynamicPayload) = payload else {
+            return nil
+        }
+        return NtkExtractedHeader(
+            code: NtkReturnCode(dynamicPayload["retCode"]?.getInt() ?? -1),
+            msg: dynamicPayload["retMsg"]?.getString(),
+            data: dynamicPayload["data"]
+        )
     }
 }
 

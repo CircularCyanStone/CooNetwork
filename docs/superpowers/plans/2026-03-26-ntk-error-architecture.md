@@ -255,7 +255,7 @@ Objective-C bridge 只反映最终 Swift public error shape，不得反向约束
 
 - [ ] **Step 4.1: 为 `NtkDataParsingInterceptor.acquire` / `prepare` 边界写 RED 测试**
 - [ ] **Step 4.2: 为 payload 入口与 decoder 输入形态写 RED 测试，锁死 `invalidJSON` / `invalidEnvelope` / `invalidDataPayload`**
-- [ ] **Step 4.3: 为真正 decode fail / dataTypeMismatch 写 RED 测试，锁死 `envelopeDecodingFailed` / `dataDecodingFailed` / `dataTypeMismatch`**
+- [ ] **Step 4.3: 为真正 decode fail / dataTypeMismatch 写 RED 测试，锁死 `dataDecodingFailed` / `dataTypeMismatch`**
 - [ ] **Step 4.4: 运行 serialization 相关测试确认失败**
 - [ ] **Step 4.5: 先修改 `NtkDataParsingInterceptor.swift`，稳定 `.invalidResponseType` / `.invalidRequest` 边界**
 - [ ] **Step 4.6: 修改 `NtkPayload.swift`**

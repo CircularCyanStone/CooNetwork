@@ -114,7 +114,7 @@ private struct DynamicToDataTransformer: iNtkResponsePayloadTransforming {
         guard case .dynamic(let dynamic) = payload,
               let dict = dynamic.getDictionary()
         else {
-            throw NtkError.Serialization.invalidEnvelope(rawPayload: nil)
+            throw NtkError.Serialization.invalidEnvelope
         }
 
         let data = try JSONSerialization.data(withJSONObject: dict)

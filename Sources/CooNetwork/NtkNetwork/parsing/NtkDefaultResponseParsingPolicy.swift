@@ -72,7 +72,7 @@ struct NtkDefaultResponseParsingPolicy<ResponseData: Sendable & Decodable> {
                     context: .init(
                         clientResponse: failure.clientResponse,
                         recoveredResponse: recoveredResponse,
-                        rawPayload: failure.clientResponse.data as? Data,
+                        rawPayload: failure.rawPayload,
                         underlyingError: failure.decodeError
                     )
                 )
@@ -81,7 +81,7 @@ struct NtkDefaultResponseParsingPolicy<ResponseData: Sendable & Decodable> {
                 context: .init(
                     clientResponse: failure.clientResponse,
                     recoveredResponse: nil,
-                    rawPayload: failure.clientResponse.data as? Data,
+                    rawPayload: failure.rawPayload,
                     underlyingError: failure.decodeError
                 )
             )

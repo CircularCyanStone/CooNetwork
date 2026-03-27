@@ -25,7 +25,7 @@ public struct NtkJSONObjectPayloadDecoder<
         context: NtkInterceptorContext
     ) async throws -> NtkResponseDecoder<ResponseData, Keys> {
         guard let dict = extractDict(payload) else {
-            throw NtkError.Serialization.invalidEnvelope(rawPayload: nil)
+            throw NtkError.Serialization.invalidEnvelope
         }
 
         let code = NtkReturnCode(dict[Keys.code])

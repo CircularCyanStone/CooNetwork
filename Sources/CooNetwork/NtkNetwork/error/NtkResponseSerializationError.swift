@@ -5,13 +5,13 @@ public extension NtkError {
         public struct DecodingFailureContext: @unchecked Sendable {
             public let clientResponse: NtkClientResponse?
             public let recoveredResponse: NtkResponse<NtkDynamicData?>?
-            public let rawPayload: Data?
+            public let rawPayload: NtkPayload?
             public let underlyingError: Error?
 
             public init(
                 clientResponse: NtkClientResponse?,
                 recoveredResponse: NtkResponse<NtkDynamicData?>?,
-                rawPayload: Data?,
+                rawPayload: NtkPayload?,
                 underlyingError: Error?
             ) {
                 self.clientResponse = clientResponse
@@ -21,14 +21,9 @@ public extension NtkError {
             }
         }
 
-        case invalidJSON(rawPayload: Data?)
-        case invalidEnvelope(rawPayload: Data?)
+        case invalidJSON
+        case invalidEnvelope
         case invalidDataPayload(recoveredResponse: NtkResponse<NtkDynamicData?>?)
-        case envelopeDecodingFailed(
-            clientResponse: NtkClientResponse?,
-            rawPayload: Data?,
-            underlyingError: Error?
-        )
         case dataDecodingFailed(context: DecodingFailureContext)
         case dataMissing(clientResponse: NtkClientResponse)
         case dataTypeMismatch(underlyingError: Error?)
