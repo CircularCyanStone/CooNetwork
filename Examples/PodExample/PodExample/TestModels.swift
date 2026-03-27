@@ -135,7 +135,7 @@ struct DirectDataParsingInterceptor<ResponseData: Decodable & Sendable>: iNtkRes
 
         // 期待拿到客户端原始响应
         guard let clientResponse = response as? NtkClientResponse else {
-            throw NtkError.typeMismatch
+            throw NtkError.invalidResponseType(response: response)
         }
         guard let afRequest = context.mutableRequest.originalRequest as? iAFRequest else {
             fatalError("request must be iAFRequest type")
@@ -148,7 +148,7 @@ struct DirectDataParsingInterceptor<ResponseData: Decodable & Sendable>: iNtkRes
         } else if let d = clientResponse.response as? Data {
             rawData = d
         } else {
-            throw NtkError.typeMismatch
+            throw NtkError.invalidResponseType(response: response)
         }
 
         // 日志输出
@@ -187,10 +187,12 @@ struct DirectDataParsingInterceptor<ResponseData: Decodable & Sendable>: iNtkRes
                 isCache: clientResponse.isCache
             )
         } catch let error as DecodingError {
-            throw NtkError.decodeInvalid(
-                .init(
-                    underlyingError: error,
-                    rawValue: rawData
+            throw NtkError.Serialization.dataDecodingFailed(
+                context: .init(
+                    clientResponse: clientResponse,
+                    recoveredResponse: nil,
+                    rawPayload: .data(rawData),
+                    underlyingError: error
                 )
             )
         } catch {

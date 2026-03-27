@@ -287,37 +287,43 @@ struct IPv6ParsingInterceptor: iNtkResponseParser {
             } else if let d = clientResponse.response as? Data {
                 rawData = d
             } else {
-                throw NtkError.serviceDataEmpty
+                throw NtkError.Serialization.dataMissing(clientResponse: clientResponse)
             }
         } else {
-             throw NtkError.typeMismatch
+             throw NtkError.invalidResponseType(response: response)
         }
 
         guard let string = String(data: rawData, encoding: .utf8) else {
-            throw NtkError.decodeInvalid(
-                .init(
-                    underlyingError: DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Invalid UTF8 Data")),
-                    rawValue: rawData
+            throw NtkError.Serialization.dataDecodingFailed(
+                context: .init(
+                    clientResponse: nil,
+                    recoveredResponse: nil,
+                    rawPayload: .data(rawData),
+                    underlyingError: DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Invalid UTF8 Data"))
                 )
             )
         }
 
         guard let firstBrace = string.firstIndex(of: "{"),
               let lastBrace = string.lastIndex(of: "}") else {
-            throw NtkError.decodeInvalid(
-                .init(
-                    underlyingError: DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Invalid JSONP format")),
-                    rawValue: rawData
+            throw NtkError.Serialization.dataDecodingFailed(
+                context: .init(
+                    clientResponse: nil,
+                    recoveredResponse: nil,
+                    rawPayload: .data(rawData),
+                    underlyingError: DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Invalid JSONP format"))
                 )
             )
         }
 
         let jsonString = String(string[firstBrace...lastBrace])
         guard let jsonBytes = jsonString.data(using: .utf8) else {
-             throw NtkError.decodeInvalid(
-                .init(
-                    underlyingError: DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Invalid JSON string")),
-                    rawValue: rawData
+            throw NtkError.Serialization.dataDecodingFailed(
+                context: .init(
+                    clientResponse: nil,
+                    recoveredResponse: nil,
+                    rawPayload: .data(rawData),
+                    underlyingError: DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Invalid JSON string"))
                 )
             )
         }

@@ -29,6 +29,38 @@
 
 响应解析与拦截器解耦：`iNtkResponseParser` 不直接实现 `iNtkInterceptor`，由框架通过 `NtkResponseParserBox` 包装为优先级锁定为 `innerHigh` 的拦截器注入链中。实现者无需也无法干预优先级。
 
+## 数据解析架构
+
+响应解析采用稳定的多阶段流水线：payload 先经过 `normalize`，再执行 `transformers`，随后由 decoder 解释协议数据，最后由 policy 决定最终 outcome。
+
+- **parser / interceptor**：负责流程编排与阶段衔接，不承担最终成功/失败裁决
+- **decoder**：负责解释 payload，并在必要时恢复最小 header 信息，不直接决定最终结果
+- **policy**：唯一允许影响最终 outcome 的裁决层，统一处理 validation、header fallback、空 data、`NtkNever` 等规则
+- **hooks**：只做日志、埋点、广播等观察型副作用，不参与裁决，也不改写最终结果
+
+最小术语对照：
+- **normalize**：payload 入口结构 gate，决定原始响应是否能进入解析流水线
+- **transformers**：payload 预处理层，负责解密、解包、结构改写等输入改造
+- **decoder**：协议解释层，负责 decode 与最小 header 恢复
+- **policy**：结果裁决层，负责输出最终成功或最终错误
+- **hooks**：只读观察点，负责旁路副作用
+
+这套边界的目标是把“解释输入”和“决定结果”分离，避免 parser 再次退化为规则汇聚点。
+
+## 执行器生命周期与状态一致性
+
+单次请求生命周期内共享同一个 `NtkNetworkExecutor`。`request()`、`requestWithCache()`、进度回调等执行路径都必须在同一 executor 上运行，避免出现多个 executor 各自持有 `mutableRequest` 拷贝、导致拦截器状态和请求上下文分叉。
+
+## 后端适配边界
+
+核心层负责抽象与通用执行链，具体网络后端只负责适配：
+
+- **核心抽象**：`iNtkClient`、`iNtkRequest`、`iNtkResponse`、`iNtkInterceptor`
+- **核心通用能力**：并发隔离、拦截器链、去重、缓存、解析流水线
+- **后端适配层**：如 AlamofireClient，负责把具体库语义翻译到核心抽象，不反向污染核心层
+
+新增后端时，应优先通过稳定扩展点承接差异：实现 `iNtkClient`、提供适配用 decoder / transformer、配置 parser / policy / hooks。核心模块不应直接引入具体后端类型，也不应为了单一后端语义反向修改核心抽象。
+
 ## fatalError 策略
 
 仅用于开发期契约错误（无法恢复 + 状态不可信 + 内部强约束）。运行期可恢复异常一律 `throw`。

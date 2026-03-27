@@ -23,6 +23,28 @@
 - **NtkError 使用最小顶层 + 域错误直抛模型** — `NtkError` 只保留跨域公共错误（如 `invalidRequest`、`invalidResponseType`、`requestTimeout` 等）；`NtkError.Validation`、`NtkError.Serialization`、`NtkError.Client`、`NtkError.Cache` 作为正式域错误类型直接抛出与捕获。框架不再使用 `responseValidationFailed(reason:)`、`responseSerializationFailed(reason:)`、`clientFailed(reason:)` 这类无信息增量的顶层包装 case，消费端按“具体域优先，顶层兜底”的顺序处理错误。
 - **NtkNetworkExecutor 三个方法的拦截器链构建"重复"** — 组合策略和错误处理完全不同，仅排序逻辑重复（已提取为 `sortInterceptors`），强行统一降低可读性
 
+## 数据解析职责边界
+
+- **parser 只负责解释流程，不负责最终裁决** — `NtkDataParsingInterceptor` 的职责是编排 acquire / prepare / interpret / decide / notify 阶段，避免把规则继续堆回 parser 中央
+- **policy 是唯一 outcome 决策点** — `validation`、header fallback、`NtkNever`、空 data 等最终成功/失败判断统一收口到 policy，避免多处共同裁决
+- **hooks 只保留 observer 语义** — hooks 只做日志、埋点、广播等旁路副作用；不吞错、不恢复、不改结果
+- **decoder 负责协议解释，不负责命运裁决** — `extractHeader` 仍属于解释 payload 的一部分，但 fallback 后返回什么错误或是否放行，必须由 policy 决定
+
+## 错误模型与错误消费约定
+
+- **顶层公共错误与域错误分层消费** — 调用方优先捕获 `NtkError.Validation`、`NtkError.Serialization`、`NtkError.Client`、`NtkError.Cache` 等具体域错误；顶层 `NtkError` 只负责跨域公共语义兜底
+- **边界错误语义固定** — `invalidRequest`、`invalidResponseType`、`invalidTypedResponse` 分别对应请求构造边界、响应形态边界、最终类型交付边界，不互相兜底，不再复用模糊错误语义
+- **避免为简单错误再包一层领域壳** — 简单且稳定的失败直接用顶层 case；只有需要额外上下文的复杂错误才进入正式域错误类型
+
+## 执行器一致性
+
+- **单次请求共享 executor 是刻意设计** — `requestWithCache()`、普通请求和相关执行路径必须复用同一个 `NtkNetworkExecutor`，以保证 `mutableRequest`、拦截器修改和上下文状态的一致性
+
+## 目录与模块归属原则
+
+- **按职责分层，不按临时实现堆叠** — 协议、模型、解析器、后端适配层应各自收敛，不把长期边界建立在一次性搬迁步骤上
+- **核心模块优先承载跨后端通用能力** — 解析流水线、拦截器链、错误模型等应留在核心层；具体 client 差异由适配层吸收
+
 ## 其他
 
 - **缓存过期用时间戳比较** — `timeIntervalSince1970` 是 UTC 秒数，与时区无关，性能优于创建 Date 对象
