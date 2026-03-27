@@ -170,7 +170,7 @@ struct DirectDataParsingInterceptor<ResponseData: Decodable & Sendable>: iNtkRes
 
         do {
             if rawData.isEmpty {
-                throw NtkError.responseBodyEmpty(afRequest, clientResponse)
+                throw NtkError.responseBodyEmpty(clientResponse: clientResponse)
             }
 
             // 直接解码为目标类型

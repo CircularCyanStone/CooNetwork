@@ -41,7 +41,7 @@ public final class AFClient: iNtkClient {
     @NtkActor
     private func sendRequest(_ request: NtkMutableRequest) async throws -> NtkClientResponse {
         guard let ntkRequest = request.originalRequest as? iAFRequest else {
-            throw NtkError.unsupportedRequestType
+            throw NtkError.unsupportedRequestType(request: request.originalRequest)
         }
 
         // 构建完整URL
@@ -141,10 +141,12 @@ public final class AFClient: iNtkClient {
                 }
                 throw NtkError.Client.external(
                     reason: NtkError.Client.AF.requestFailed,
-                    request: ntkRequest,
-                    clientResponse: nil,
-                    underlyingError: urlError,
-                    message: urlError.localizedDescription
+                    context: .init(
+                        request: ntkRequest,
+                        clientResponse: nil,
+                        underlyingError: urlError,
+                        message: urlError.localizedDescription
+                    )
                 )
             }
             let fixResponse = NtkResponse<Data?>(
@@ -157,16 +159,18 @@ public final class AFClient: iNtkClient {
             )
             throw NtkError.Client.external(
                 reason: NtkError.Client.AF.requestFailed,
-                request: ntkRequest,
-                clientResponse: NtkClientResponse(
-                    data: response.data,
-                    msg: nil,
-                    response: fixResponse,
+                context: .init(
                     request: ntkRequest,
-                    isCache: false
-                ),
-                underlyingError: error,
-                message: error.errorDescription ?? error.localizedDescription
+                    clientResponse: NtkClientResponse(
+                        data: response.data,
+                        msg: nil,
+                        response: fixResponse,
+                        request: ntkRequest,
+                        isCache: false
+                    ),
+                    underlyingError: error,
+                    message: error.errorDescription ?? error.localizedDescription
+                )
             )
         }
     }

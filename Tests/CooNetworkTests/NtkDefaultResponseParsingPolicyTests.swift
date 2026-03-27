@@ -93,8 +93,8 @@ struct NtkDefaultResponseParsingPolicyTests {
             )
             Issue.record("期望抛出 validation")
         } catch let error as NtkError.Validation {
-            if case .serviceRejected(let request, let response) = error {
-                #expect(request.path == "/policy/test")
+            if case .serviceRejected(let response) = error {
+                #expect(response.request.path == "/policy/test")
                 #expect(response.code.intValue == 999)
                 #expect(hook.events == ["willValidate", "didValidateFail"])
             } else {
@@ -147,8 +147,8 @@ struct NtkDefaultResponseParsingPolicyTests {
             )
             Issue.record("期望抛出 validation")
         } catch let error as NtkError.Validation {
-            if case .serviceRejected(let request, let response) = error {
-                #expect(request.path == "/policy/test")
+            if case .serviceRejected(let response) = error {
+                #expect(response.request.path == "/policy/test")
                 #expect(response.code.intValue == 999)
                 #expect(hook.events == ["willValidate", "didValidateFail"])
             } else {
@@ -174,7 +174,10 @@ struct NtkDefaultResponseParsingPolicyTests {
             Issue.record("期望抛出 serialization.dataDecodeFailed")
         } catch let error as NtkError.Serialization {
             #expect(hook.events == ["willValidate"])
-            if case let .dataDecodingFailed(_, _, recoveredResponse, rawPayload, underlyingError) = error {
+            if case let .dataDecodingFailed(context) = error {
+                let recoveredResponse = context.recoveredResponse
+                let rawPayload = context.rawPayload
+                let underlyingError = context.underlyingError
                 let response = try #require(recoveredResponse)
                 #expect(response.code.intValue == 999)
                 #expect(response.msg == "fail")
@@ -202,7 +205,10 @@ struct NtkDefaultResponseParsingPolicyTests {
             )
             Issue.record("期望抛出 serialization.dataDecodeFailed")
         } catch let error as NtkError.Serialization {
-            if case let .dataDecodingFailed(_, _, recoveredResponse, rawPayload, underlyingError) = error {
+            if case let .dataDecodingFailed(context) = error {
+                let recoveredResponse = context.recoveredResponse
+                let rawPayload = context.rawPayload
+                let underlyingError = context.underlyingError
                 #expect(recoveredResponse == nil)
                 #expect(rawPayload != nil)
                 if let decodingError = underlyingError as? DecodingError,

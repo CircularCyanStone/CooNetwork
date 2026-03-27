@@ -23,10 +23,12 @@ public extension NtkError.Client {
     ) -> NtkError.Client {
         .external(
             reason: AF.requestFailed,
-            request: request,
-            clientResponse: clientResponse,
-            underlyingError: error,
-            message: error.errorDescription ?? error.localizedDescription
+            context: .init(
+                request: request,
+                clientResponse: clientResponse,
+                underlyingError: error,
+                message: error.errorDescription ?? error.localizedDescription
+            )
         )
     }
 }

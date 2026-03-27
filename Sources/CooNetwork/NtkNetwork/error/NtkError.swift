@@ -11,10 +11,10 @@ import Foundation
 /// 定义了网络请求过程中对外暴露的公共失败事件
 public enum NtkError: Error, Sendable {
     case invalidRequest
-    case unsupportedRequestType
-    case invalidResponseType
+    case unsupportedRequestType(request: any iNtkRequest)
+    case invalidResponseType(response: any iNtkResponse)
     case invalidTypedResponse
-    case responseBodyEmpty
+    case responseBodyEmpty(clientResponse: NtkClientResponse)
     case requestCancelled
     case requestTimeout
 

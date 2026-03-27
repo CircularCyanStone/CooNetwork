@@ -667,6 +667,8 @@ struct NtkTaskManagerTests {
         followerRequest.responseType = "String"
         followerRequest.isCancelledRef = NtkCancellableState()
 
+        let ownerOriginalRequest = ownerRequest.originalRequest
+
         // owner 发起请求，最终会抛出网络错误
         let ownerTask = Task {
             do {
@@ -677,9 +679,13 @@ struct NtkTaskManagerTests {
                     await gate.waitForFirstRelease()
                     // 模拟网络错误
                     throw NtkError.Serialization.dataMissing(
-                        request: nil,
-                        clientResponse: nil,
-                        recoveredResponse: nil
+                        clientResponse: NtkClientResponse(
+                            data: Data(),
+                            msg: nil,
+                            response: Data(),
+                            request: ownerOriginalRequest,
+                            isCache: false
+                        )
                     )
                 }
                 return Result<String, Error>.success(value)

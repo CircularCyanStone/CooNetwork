@@ -101,7 +101,6 @@ struct NtkRetryInterceptorTests {
         #expect(policy.shouldRetry(
             attemptCount: 1,
             error: NtkError.Validation.serviceRejected(
-                request: DummyRequest(),
                 response: NtkResponse<Bool>(
                     code: NtkReturnCode(999),
                     data: false,
@@ -121,9 +120,13 @@ struct NtkRetryInterceptorTests {
         #expect(policy.shouldRetry(
             attemptCount: 1,
             error: NtkError.Serialization.dataMissing(
-                request: nil,
-                clientResponse: nil,
-                recoveredResponse: nil
+                clientResponse: NtkClientResponse(
+                    data: Data(),
+                    msg: nil,
+                    response: Data(),
+                    request: DummyRequest(),
+                    isCache: false
+                )
             )
         ) == false)
     }
@@ -136,10 +139,12 @@ struct NtkRetryInterceptorTests {
             attemptCount: 1,
             error: NtkError.Client.external(
                 reason: NtkError.Client.AF.requestFailed,
-                request: DummyRequest(),
-                clientResponse: nil,
-                underlyingError: URLError(.timedOut),
-                message: URLError(.timedOut).localizedDescription
+                context: .init(
+                    request: DummyRequest(),
+                    clientResponse: nil,
+                    underlyingError: URLError(.timedOut),
+                    message: URLError(.timedOut).localizedDescription
+                )
             )
         ) == true)
     }
@@ -152,10 +157,12 @@ struct NtkRetryInterceptorTests {
             attemptCount: 1,
             error: NtkError.Client.external(
                 reason: NtkError.Client.AF.requestFailed,
-                request: DummyRequest(),
-                clientResponse: nil,
-                underlyingError: URLError(.badURL),
-                message: URLError(.badURL).localizedDescription
+                context: .init(
+                    request: DummyRequest(),
+                    clientResponse: nil,
+                    underlyingError: URLError(.badURL),
+                    message: URLError(.badURL).localizedDescription
+                )
             )
         ) == false)
     }

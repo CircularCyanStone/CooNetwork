@@ -37,11 +37,12 @@ extension iNtkRetryPolicy {
         if let ntkError = error as? NtkError {
             switch ntkError {
             case .invalidRequest,
-                 .unsupportedRequestType,
-                 .invalidResponseType,
                  .invalidTypedResponse,
-                 .responseBodyEmpty,
                  .requestCancelled:
+                return false
+            case .unsupportedRequestType,
+                 .invalidResponseType,
+                 .responseBodyEmpty:
                 return false
             case .requestTimeout:
                 return true
@@ -54,8 +55,8 @@ extension iNtkRetryPolicy {
 
         if let clientError = error as? NtkError.Client {
             switch clientError {
-            case let .external(_, _, _, underlyingError, _):
-                if let urlError = underlyingError as? URLError {
+            case let .external(_, context):
+                if let urlError = context.underlyingError as? URLError {
                     return shouldRetryForURLError(urlError)
                 }
                 return false

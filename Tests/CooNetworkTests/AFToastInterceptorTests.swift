@@ -85,8 +85,9 @@ struct AFToastInterceptorTests {
             _ = try await interceptor.intercept(context: context, next: ToastClientErrorHandler())
             Issue.record("期望抛出 client error")
         } catch let error as NtkError.Client {
-            if case .external = error {
+            if case .external(_, let context) = error {
                 let messages = recorder.messages()
+                #expect(context.request?.path == "/toast/test")
                 #expect(messages.count == 1)
                 #expect(messages[0].contains("The operation couldn’t be completed") || messages[0].contains("timed out") || messages[0].contains("超时"))
             } else {
@@ -131,7 +132,6 @@ private struct ToastDummyClient: iNtkClient {
 private struct ToastValidationFailureHandler: iNtkRequestHandler {
     func handle(context: NtkInterceptorContext) async throws -> any iNtkResponse {
         throw NtkError.Validation.serviceRejected(
-            request: ToastTestRequest(),
             response: NtkResponse<Bool>(
                 code: NtkReturnCode(999),
                 data: false,
@@ -148,7 +148,6 @@ private struct ToastValidationFailureHandler: iNtkRequestHandler {
 private struct ToastIgnoredValidationFailureHandler: iNtkRequestHandler {
     func handle(context: NtkInterceptorContext) async throws -> any iNtkResponse {
         throw NtkError.Validation.serviceRejected(
-            request: ToastTestRequest(),
             response: NtkResponse<Bool>(
                 code: NtkReturnCode(401),
                 data: false,
@@ -173,10 +172,12 @@ private struct ToastClientErrorHandler: iNtkRequestHandler {
     func handle(context: NtkInterceptorContext) async throws -> any iNtkResponse {
         throw NtkError.Client.external(
             reason: NtkError.Client.AF.requestFailed,
-            request: ToastTestRequest(),
-            clientResponse: nil,
-            underlyingError: URLError(.timedOut),
-            message: URLError(.timedOut).localizedDescription
+            context: .init(
+                request: ToastTestRequest(),
+                clientResponse: nil,
+                underlyingError: URLError(.timedOut),
+                message: URLError(.timedOut).localizedDescription
+            )
         )
     }
 }

@@ -55,7 +55,7 @@ public struct AFToastInterceptor: iNtkInterceptor {
     }
 
     private func handleValidationDomainError(_ error: NtkError.Validation, request: iAFRequest) {
-        if case let .serviceRejected(_, response) = error {
+        if case let .serviceRejected(response) = error {
             if ignoreCode.contains(response.code.intValue) {
                 return
             }
@@ -73,13 +73,13 @@ public struct AFToastInterceptor: iNtkInterceptor {
 
     private func handleClientError(_ failure: NtkError.Client) {
         switch failure {
-        case let .external(reason, _, _, underlyingError, message):
+        case let .external(reason, context):
             guard reason is NtkError.Client.AF else { return }
-            if let urlError = underlyingError as? URLError {
+            if let urlError = context.underlyingError as? URLError {
                 handleSystemError(urlError as NSError)
                 return
             }
-            if let message {
+            if let message = context.message {
                 toastHandler(message)
             }
         }

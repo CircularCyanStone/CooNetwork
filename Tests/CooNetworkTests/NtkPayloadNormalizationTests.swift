@@ -10,7 +10,9 @@ struct NtkPayloadNormalizationTests {
             _ = try NtkDynamicData(from: PayloadTestFailingDecoder())
             Issue.record("期望抛出 serialization.dataDecodeFailed")
         } catch let error as NtkError.Serialization {
-            if case let .dataDecodingFailed(request: _, clientResponse: _, recoveredResponse: recoveredResponse, rawPayload: _, underlyingError: underlyingError) = error {
+            if case let .dataDecodingFailed(context) = error {
+                let recoveredResponse = context.recoveredResponse
+                let underlyingError = context.underlyingError
                 #expect(recoveredResponse == nil)
                 if let decodingError = underlyingError as? DecodingError,
                    case .typeMismatch = decodingError {

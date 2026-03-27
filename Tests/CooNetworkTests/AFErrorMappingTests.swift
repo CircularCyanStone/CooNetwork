@@ -23,11 +23,11 @@ struct AFErrorMappingTests {
             clientResponse: nil
         )
 
-        if case let .external(reason, request, clientResponse, underlyingError, message) = mapped {
-            #expect(request?.path == "/af/mapping")
-            #expect(clientResponse == nil)
-            #expect(underlyingError != nil)
-            #expect(message != nil)
+        if case let .external(reason, context) = mapped {
+            #expect(context.request?.path == "/af/mapping")
+            #expect(context.clientResponse == nil)
+            #expect(context.underlyingError != nil)
+            #expect(context.message != nil)
             #expect(reason is NtkError.Client.AF)
         } else {
             Issue.record("错误类型不符: \(mapped)")
@@ -43,12 +43,12 @@ struct AFErrorMappingTests {
             clientResponse: nil
         )
 
-        if case let .external(reason, request, clientResponse, underlyingError, message) = mapped {
-            #expect(request?.path == "/af/mapping")
-            #expect(clientResponse == nil)
-            let capturedAFError = underlyingError as? AFError
+        if case let .external(reason, context) = mapped {
+            #expect(context.request?.path == "/af/mapping")
+            #expect(context.clientResponse == nil)
+            let capturedAFError = context.underlyingError as? AFError
             #expect(capturedAFError != nil)
-            #expect(message != nil)
+            #expect(context.message != nil)
             #expect(reason is NtkError.Client.AF)
         } else {
             Issue.record("错误类型不符: \(mapped)")
