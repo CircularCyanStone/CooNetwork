@@ -44,6 +44,7 @@ public final class NtkUnfairLock: @unchecked Sendable {
     /// 在锁保护下执行闭包
     /// - Parameter body: 需要保护的代码块
     /// - Returns: 代码块的返回值
+    @discardableResult
     public func withLock<T>(_ body: () throws -> T) rethrows -> T {
         lock()
         defer { unlock() }

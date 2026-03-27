@@ -6,7 +6,12 @@
       "mcp__plugin_context7_context7__query-docs",
       "Bash(xcrun swift:*)",
       "Bash(curl:*)",
-      "Bash(swiftc:*)"
+      "Bash(swiftc:*)",
+      "Bash(xcrun llvm-profdata:*)",
+      "Bash(cd:*)",
+      "Bash(xcodebuild:*)",
+      "Bash(xcrun simctl:*)",
+      "Bash(python3:*)"
     ]
   }
 }

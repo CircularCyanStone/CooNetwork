@@ -11,6 +11,7 @@
 - `iNtkClient` - 网络客户端抽象
 - `iNtkRequest` - 请求定义
 - `iNtkResponse` - 响应抽象
-- `iNtkInterceptor` - 拦截器接口
-- `iNtkResponseValidation` - 响应验证
-- `iNtkResponseMapKeys` - 响应映射键
+- `iNtkInterceptor` - 拦截器接口（含 `NtkInterceptorPriority` 三层 Tier 优先级）
+- `iNtkResponseMapKeys` - 响应键映射协议（定义在 model/NtkResponseDecoder.swift，因与 NtkResponseDecoder 强绑定）
+- `iNtkResponseParser` - 响应解析器（框架通过 `NtkResponseParserBox` 包装为 `innerHigh` 拦截器）
+- `iNtkCacheProvider` - 缓存能力提供者（拦截器遵循后 executor 可通过协议发现获取缓存读取能力）

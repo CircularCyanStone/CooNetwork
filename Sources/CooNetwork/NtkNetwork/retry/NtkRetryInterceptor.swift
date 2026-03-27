@@ -22,66 +22,76 @@ public struct NtkRetryInterceptor: iNtkInterceptor {
     ///   - priority: 拦截器优先级，默认为高优先级
     public init(
         retryPolicy: iNtkRetryPolicy,
-        priority: NtkInterceptorPriority = .priority(.high)
+        priority: NtkInterceptorPriority = .high
     ) {
         self.retryPolicy = retryPolicy
         self.priority = priority
     }
     
+    /// 拦截请求并在失败时按策略重试
+    ///
+    /// 执行流程：首次执行 + 最多 maxRetryCount 次重试
+    /// - maxRetryCount=0：只执行一次，不重试
+    /// - maxRetryCount=3：首次执行 + 最多 3 次重试 = 最多 4 次执行
     @NtkActor
-    public func intercept(context: NtkInterceptorContext, next: NtkRequestHandler) async throws -> any iNtkResponse {
-        var attemptCount = 0
-        var lastError: Error?
-        
-        // 执行重试循环
-        while attemptCount < retryPolicy.maxRetryCount {
-            attemptCount += 1
-            
+    public func intercept(context: NtkInterceptorContext, next: iNtkRequestHandler) async throws -> any iNtkResponse {
+        // 首次执行
+        do {
+            return try await next.handle(context: context)
+        } catch {
+            // 首次失败，检查是否需要重试
+            guard retryPolicy.maxRetryCount > 0,
+                  retryPolicy.shouldRetry(attemptCount: 1, error: error) else {
+                throw error
+            }
+
+            // 进入重试循环
+            return try await retryLoop(context: context, next: next, firstError: error)
+        }
+    }
+
+    /// 重试循环（首次执行已失败后调用）
+    private func retryLoop(
+        context: NtkInterceptorContext,
+        next: iNtkRequestHandler,
+        firstError: Error
+    ) async throws -> any iNtkResponse {
+        var lastError = firstError
+        var retryCount = 0
+
+        while retryCount < retryPolicy.maxRetryCount {
+            retryCount += 1
+
+            // 计算延迟时间
+            guard let delay = retryPolicy.retryDelay(for: retryCount, error: lastError) else {
+                await recordRetryFailure(retryCount: retryCount - 1, finalError: lastError)
+                throw lastError
+            }
+
+            await recordRetryAttempt(retryCount: retryCount, delay: delay, error: lastError)
+
+            if delay > 0 {
+                try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            }
+
             do {
-                // 尝试执行请求
                 let response = try await next.handle(context: context)
-                // 请求成功，记录重试统计信息
-                if attemptCount > 1 {
-                    await recordRetrySuccess(attemptCount: attemptCount - 1)
-                }
+                await recordRetrySuccess(retryCount: retryCount)
                 return response
             } catch {
                 lastError = error
-                
-                // 检查是否应该重试
-                guard retryPolicy.shouldRetry(attemptCount: attemptCount, error: error) else {
-                    // 不应该重试，记录失败并抛出错误
-                    await recordRetryFailure(attemptCount: attemptCount - 1, finalError: error)
+
+                // 检查是否继续重试
+                guard retryPolicy.shouldRetry(attemptCount: retryCount + 1, error: error) else {
+                    await recordRetryFailure(retryCount: retryCount, finalError: error)
                     throw error
-                }
-                
-                // 如果已达到最大重试次数，抛出错误
-                guard attemptCount < retryPolicy.maxRetryCount else {
-                    await recordRetryFailure(attemptCount: attemptCount - 1, finalError: error)
-                    throw error
-                }
-                
-                // 计算延迟时间
-                guard let delay = retryPolicy.retryDelay(for: attemptCount, error: error) else {
-                    // 策略返回nil，不应该重试
-                    await recordRetryFailure(attemptCount: attemptCount - 1, finalError: error)
-                    throw error
-                }
-                
-                // 记录重试尝试
-                await recordRetryAttempt(attemptCount: attemptCount, delay: delay, error: error)
-                
-                // 延迟后重试
-                if delay > 0 {
-                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 }
             }
         }
-        
-        // 重试次数用完，抛出最后的错误
-        let finalError = lastError ?? NtkError.other("Network timeout" as! Error)
-        await recordRetryFailure(attemptCount: retryPolicy.maxRetryCount, finalError: finalError)
-        throw finalError
+
+        // 重试次数用完
+        await recordRetryFailure(retryCount: retryCount, finalError: lastError)
+        throw lastError
     }
 }
 
@@ -89,39 +99,21 @@ public struct NtkRetryInterceptor: iNtkInterceptor {
 private extension NtkRetryInterceptor {
     /// 记录重试尝试
     func recordRetryAttempt(
-        attemptCount: Int,
+        retryCount: Int,
         delay: TimeInterval,
         error: Error
     ) async {
-        #if DEBUG
-        print("[NtkRetry] Attempt \(attemptCount) failed, retrying in \(delay)s. Error: \(error)")
-        #endif
-        
-        // 这里可以添加更详细的统计信息收集
-        // 例如发送到分析服务或本地存储
+        logger.debug("[NtkRetry] Retry #\(retryCount) in \(delay)s. Error: \(error)", category: .retry)
     }
-    
+
     /// 记录重试成功
-    func recordRetrySuccess(
-        attemptCount: Int
-    ) async {
-        #if DEBUG
-        print("[NtkRetry] Request succeeded after \(attemptCount) retries")
-        #endif
-        
-        // 记录成功的重试统计
+    func recordRetrySuccess(retryCount: Int) async {
+        logger.debug("[NtkRetry] Request succeeded after \(retryCount) retries", category: .retry)
     }
-    
+
     /// 记录重试失败
-    func recordRetryFailure(
-        attemptCount: Int,
-        finalError: Error
-    ) async {
-        #if DEBUG
-        print("[NtkRetry] Request failed after \(attemptCount) retries. Final error: \(finalError)")
-        #endif
-        
-        // 记录失败的重试统计
+    func recordRetryFailure(retryCount: Int, finalError: Error) async {
+        logger.error("[NtkRetry] Request failed after \(retryCount) retries. Final error: \(finalError)", category: .retry)
     }
 }
 

@@ -20,6 +20,10 @@ public struct NtkLoadingInterceptor: iNtkInterceptor, Sendable {
     public var interceptAfter: (@Sendable (_ request: iNtkRequest, _ response: (any iNtkResponse)?, _ error: (any Error)?) -> Void)?
     
     
+    /// 初始化 Loading 拦截器
+    /// - Parameters:
+    ///   - interceptBefore: 请求前回调
+    ///   - interceptAfter: 请求后回调
     public init(interceptBefore: (@Sendable (_: iNtkRequest, _ loadingText: String?) -> Void)? = nil, interceptAfter: (@Sendable (_: iNtkRequest, _: (any iNtkResponse)?, _: (any Error)?) -> Void)? = nil) {
         self.interceptBefore = interceptBefore
         self.interceptAfter = interceptAfter
@@ -32,7 +36,7 @@ public struct NtkLoadingInterceptor: iNtkInterceptor, Sendable {
     ///   - next: 下一个请求处理器
     /// - Returns: 网络响应对象
     /// - Throws: 网络请求过程中的错误
-    public func intercept(context: NtkInterceptorContext, next: any NtkRequestHandler) async throws -> any iNtkResponse {
+    public func intercept(context: NtkInterceptorContext, next: iNtkRequestHandler) async throws -> any iNtkResponse {
         let mutableRequest = context.mutableRequest
         let showLoading = mutableRequest.showLoading
         let loadingText = mutableRequest.loadingText

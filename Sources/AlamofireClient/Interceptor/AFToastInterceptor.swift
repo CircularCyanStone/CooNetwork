@@ -32,56 +32,56 @@ public struct AFToastInterceptor: iNtkInterceptor {
         self.toastHandler = toastHandler
     }
     
-    public func intercept(context: NtkInterceptorContext, next: any NtkRequestHandler) async throws -> any iNtkResponse {
+    /// 拦截请求并处理错误 Toast 提示
+    public func intercept(context: NtkInterceptorContext, next: iNtkRequestHandler) async throws -> any iNtkResponse {
         guard let afRequest = context.mutableRequest.originalRequest as? iAFRequest else {
             return try await next.handle(context: context)
         }
         do {
             let response = try await next.handle(context: context)
             return response
-        } catch let error as NtkError {
-            handleNtkError(error, request: afRequest)
+        } catch let error as NtkError.Validation {
+            handleValidationDomainError(error, request: afRequest)
             throw error
-        } catch let afError as NtkError.AF {
-            handleAFError(afError)
-            throw afError
+        } catch let error as NtkError.Client {
+            handleClientError(error)
+            throw error
+        } catch let error as NtkError {
+            handleTopLevelError(error)
+            throw error
         } catch {
-            // 处理其他未知的 Error
             throw error
         }
     }
-    
-    private func handleNtkError(_ error: NtkError, request: iAFRequest) {
-        if case let .validation(_, response) = error {
+
+    private func handleValidationDomainError(_ error: NtkError.Validation, request: iAFRequest) {
+        if case let .serviceRejected(response) = error {
             if ignoreCode.contains(response.code.intValue) {
                 return
             }
-            // 服务端验证失败，提示消息。
             if request.toastRetErrorMsg(response.code.stringValue), let msg = response.msg {
-                // toast提示
                 toastHandler(msg)
             }
-        } else if case .requestTimeout = error {
-            toastHandler("连接超时~")
-        } else if case .other(let innerError) = error {
-            // 系统级别错误
-            let nsError = innerError as NSError
-            handleSystemError(nsError)
         }
     }
-    
-    private func handleAFError(_ error: NtkError.AF) {
-        var msg: String?
-        switch error {
-        case .responseTypeError:
-            msg = "接口数据类型异常"
-        case let .afError(error, _, _):
-            msg = error.errorDescription ?? error.localizedDescription
-        case .unknown(let message):
-            msg = message
+
+    private func handleTopLevelError(_ error: NtkError) {
+        if case .requestTimeout = error {
+            toastHandler("连接超时~")
         }
-        if let msg = msg {
-            toastHandler(msg)
+    }
+
+    private func handleClientError(_ failure: NtkError.Client) {
+        switch failure {
+        case let .external(reason, context):
+            guard reason is NtkError.Client.AF else { return }
+            if let urlError = context.underlyingError as? URLError {
+                handleSystemError(urlError as NSError)
+                return
+            }
+            if let message = context.message {
+                toastHandler(message)
+            }
         }
     }
     

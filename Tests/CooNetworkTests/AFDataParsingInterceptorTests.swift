@@ -1,0 +1,871 @@
+import Testing
+import Foundation
+@testable import CooNetwork
+@testable import AlamofireClient
+
+struct NtkDataParsingInterceptorTests {
+
+    // MARK: - 已是目标类型直接返回
+
+    @Test
+    @NtkActor
+    func alreadyTypedResponsePassesThrough() async throws {
+        let interceptor = NtkDataParsingInterceptor<Bool, AFTestKeys>(validation: AFTestPassValidation())
+        let existing = NtkResponse<Bool>(
+            code: NtkReturnCode(0), data: true, msg: "ok",
+            response: true, request: AFTestRequest(), isCache: false
+        )
+        let handler = AFTestAlreadyTypedHandler(response: existing)
+        let context = makeAFContext()
+        let result = try await interceptor.intercept(context: context, next: handler)
+        let typed = try #require(result as? NtkResponse<Bool>)
+        #expect(typed.data == true)
+    }
+
+    // MARK: - NtkNever 类型正常返回
+
+    @Test
+    @NtkActor
+    func ntkNeverTypeReturnsSuccessfully() async throws {
+        let json: [String: Any] = ["retCode": 0, "data": NSNull(), "retMsg": "ok"]
+        let data = try JSONSerialization.data(withJSONObject: json)
+        let interceptor = NtkDataParsingInterceptor<NtkNever, AFTestKeys>(validation: AFTestPassValidation())
+        let handler = AFTestDataHandler(data: data, request: AFTestRequest())
+        let context = makeAFContext()
+        let result = try await interceptor.intercept(context: context, next: handler)
+        #expect(result is NtkResponse<NtkNever>)
+        #expect(result.code.intValue == 0)
+    }
+
+    @Test
+    @NtkActor
+    func acquireRejectsNonClientResponseAsInvalidResponseType() async {
+        let interceptor = NtkDataParsingInterceptor<Bool, AFTestKeys>(validation: AFTestPassValidation())
+        let handler = AFTestPlainResponseHandler(response: AFPlainResponse(request: AFTestRequest()))
+
+        do {
+            _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
+            Issue.record("期望抛出 invalidResponseType")
+        } catch let error as NtkError {
+            if case .invalidResponseType(let response) = error {
+                #expect(response.request.path == "/af/test")
+                #expect(Bool(true))
+            } else {
+                Issue.record("错误类型不符: \(error)")
+            }
+        } catch {
+            Issue.record("抛出了未知错误类型: \(error)")
+        }
+    }
+
+    // MARK: - 常规 Decodable 模型解析
+
+    @Test
+    @NtkActor
+    func decodableModelParsesCorrectly() async throws {
+        let json: [String: Any] = ["retCode": 0, "data": ["id": 1, "name": "test"], "retMsg": "ok"]
+        let data = try JSONSerialization.data(withJSONObject: json)
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(validation: AFTestPassValidation())
+        let handler = AFTestDataHandler(data: data, request: AFTestRequest())
+        let context = makeAFContext()
+        let result = try await interceptor.intercept(context: context, next: handler)
+        let typed = try #require(result as? NtkResponse<AFTestModel>)
+        #expect(typed.data.id == 1)
+        #expect(typed.data.name == "test")
+        #expect(typed.code.intValue == 0)
+    }
+
+    // MARK: - data 为 nil + validation 通过 → serialization.dataMissing
+
+    @Test
+    @NtkActor
+    func nilDataWithValidationPassThrowsDataMissing() async throws {
+        let json: [String: Any] = ["retCode": 0, "retMsg": "ok"]
+        let data = try JSONSerialization.data(withJSONObject: json)
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(validation: AFTestPassValidation())
+        let handler = AFTestDataHandler(data: data, request: AFTestRequest())
+        let context = makeAFContext()
+        do {
+            _ = try await interceptor.intercept(context: context, next: handler)
+            Issue.record("期望抛出 serialization.dataMissing")
+        } catch let error as NtkError.Serialization {
+            if case .dataMissing = error {
+                #expect(Bool(true))
+            } else {
+                Issue.record("错误类型不符: \(error)")
+            }
+        }
+    }
+
+    // MARK: - data 为 nil + validation 失败 → validation 错误
+
+    @Test
+    @NtkActor
+    func nilDataWithValidationFailThrowsValidation() async throws {
+        let json: [String: Any] = ["retCode": 999, "retMsg": "fail"]
+        let data = try JSONSerialization.data(withJSONObject: json)
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(validation: AFTestFailValidation())
+        let handler = AFTestDataHandler(data: data, request: AFTestRequest())
+        let context = makeAFContext()
+        do {
+            _ = try await interceptor.intercept(context: context, next: handler)
+            Issue.record("期望抛出 validation 错误")
+        } catch let error as NtkError.Validation {
+            if case .serviceRejected = error {
+                #expect(Bool(true))
+            } else {
+                Issue.record("错误类型不符: \(error)")
+            }
+        }
+    }
+
+    // MARK: - 空响应体 → response.bodyEmpty
+
+    @Test
+    @NtkActor
+    func emptyResponseBodyThrowsBodyEmpty() async throws {
+        let data = Data()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(validation: AFTestPassValidation())
+        let handler = AFTestDataHandler(data: data, request: AFTestRequest())
+        let context = makeAFContext()
+        do {
+            _ = try await interceptor.intercept(context: context, next: handler)
+            Issue.record("期望抛出 response.bodyEmpty")
+        } catch let error as NtkError {
+            if case .responseBodyEmpty(let clientResponse) = error {
+                #expect(clientResponse.request.path == "/af/test")
+                #expect(Bool(true))
+            } else {
+                Issue.record("错误类型不符: \(error)")
+            }
+        }
+    }
+
+    // MARK: - JSON 解码失败 → serialization.dataDecodeFailed
+
+    @Test
+    @NtkActor
+    func invalidJsonThrowsDataDecodeFailed() async throws {
+        // data 字段类型不匹配：期望对象但给了字符串
+        let json: [String: Any] = ["retCode": 0, "data": "not_an_object", "retMsg": "ok"]
+        let data = try JSONSerialization.data(withJSONObject: json)
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(validation: AFTestPassValidation())
+        let handler = AFTestDataHandler(data: data, request: AFTestRequest())
+        let context = makeAFContext()
+        do {
+            _ = try await interceptor.intercept(context: context, next: handler)
+            Issue.record("期望抛出 serialization.dataDecodeFailed")
+        } catch let error as NtkError.Serialization {
+            if case let .dataDecodingFailed(context) = error {
+                let recoveredResponse = context.recoveredResponse
+                let rawPayload = context.rawPayload
+                let underlyingError = context.underlyingError
+                let response = try #require(recoveredResponse)
+                #expect(response.code.intValue == 0)
+                #expect(response.msg == "ok")
+                #expect(response.data?.getString() == "not_an_object")
+                if case let .data(payload)? = rawPayload {
+                    #expect(payload == data)
+                } else {
+                    Issue.record("期望保留 data rawPayload，但实际为: \(String(describing: rawPayload))")
+                }
+                if let decodingError = underlyingError as? DecodingError,
+                   case .typeMismatch = decodingError {
+                    #expect(Bool(true))
+                } else {
+                    Issue.record("underlyingError 类型不符")
+                }
+            } else {
+                Issue.record("错误类型不符: \(error)")
+            }
+        }
+    }
+
+    // MARK: - decoder 失败路径与 hooks 语义
+
+    @Test
+    @NtkActor
+    func customDecoderCanExtractHeaderWithRequest() async throws {
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
+            validation: AFTestFailValidation(),
+            decoder: AFTestHeaderOnlyDecoder()
+        )
+        let data = try JSONSerialization.data(withJSONObject: ["retCode": 0, "data": ["id": 1, "name": "ok"], "retMsg": "ok"])
+        let handler = AFTestDataHandler(data: data, request: AFConfiguredTestRequest())
+
+        do {
+            _ = try await interceptor.intercept(context: makeConfiguredAFContext(), next: handler)
+            Issue.record("期望抛出 validation 错误")
+        } catch let error as NtkError.Validation {
+            if case .serviceRejected(let response) = error {
+                let typed = try #require(response as? NtkResponse<NtkDynamicData?>)
+                #expect(typed.code.intValue == 999)
+                #expect(typed.msg == "fail")
+                #expect(typed.data?["reason"]?.getString() == "mock")
+            } else {
+                Issue.record("错误类型不符: \(error)")
+            }
+        }
+    }
+
+    @Test
+    @NtkActor
+    func decodeFailureWithoutRecoveredHeaderThrowsDataDecodeFailed() async throws {
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
+            validation: AFTestPassValidation(),
+            decoder: AFTestNoHeaderDecoder()
+        )
+        let data = try JSONSerialization.data(withJSONObject: [
+            "retCode": 0,
+            "data": ["id": 1, "name": "ok"],
+            "retMsg": "ok"
+        ])
+        let handler = AFTestDataHandler(data: data, request: AFTestRequest())
+
+        do {
+            _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
+            Issue.record("期望抛出 serialization.dataDecodeFailed")
+        } catch let error as NtkError.Serialization {
+            if case let .dataDecodingFailed(context) = error {
+                let recoveredResponse = context.recoveredResponse
+                let rawPayload = context.rawPayload
+                #expect(recoveredResponse == nil)
+                if case let .data(payload)? = rawPayload {
+                    #expect(payload == data)
+                } else {
+                    Issue.record("期望保留 data rawPayload，但实际为: \(String(describing: rawPayload))")
+                }
+            } else {
+                Issue.record("错误类型不符: \(error)")
+            }
+        }
+    }
+
+    @Test
+    @NtkActor
+    func ntkNeverStillTriggersWillValidateAndDidComplete() async throws {
+        let hook = AFTestRecordingHook()
+        let json: [String: Any] = ["retCode": 0, "data": NSNull(), "retMsg": "ok"]
+        let data = try JSONSerialization.data(withJSONObject: json)
+        let interceptor = NtkDataParsingInterceptor<NtkNever, AFTestKeys>(
+            validation: AFTestPassValidation(),
+            hooks: [hook]
+        )
+        let handler = AFTestDataHandler(data: data, request: AFTestRequest())
+
+        _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
+
+        #expect(hook.events.contains("didDecodeHeader"))
+        #expect(hook.events.contains("willValidate"))
+        #expect(hook.events.contains("didComplete"))
+    }
+
+    @Test
+    @NtkActor
+    func transformErrorStopsBeforeDecodeAndHooks() async throws {
+        let hook = AFTestRecordingHook()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
+            validation: AFTestPassValidation(),
+            hooks: [hook],
+            transformers: [AFTestFailingTransformer()]
+        )
+        let data = try JSONSerialization.data(withJSONObject: ["retCode": 0, "data": ["id": 1, "name": "ok"], "retMsg": "ok"])
+        let handler = AFTestDataHandler(data: data, request: AFTestRequest())
+
+        await #expect(throws: NtkError.self) {
+            _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
+        }
+
+        #expect(hook.events.isEmpty)
+    }
+
+    @Test
+    @NtkActor
+    func didCompleteOnlyRunsOnSuccess() async throws {
+        let hook = AFTestRecordingHook()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
+            validation: AFTestPassValidation(),
+            hooks: [hook]
+        )
+        let data = try JSONSerialization.data(withJSONObject: ["retCode": 0, "data": ["id": 1, "name": "ok"], "retMsg": "ok"])
+        let handler = AFTestDataHandler(data: data, request: AFTestRequest())
+
+        _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
+
+        #expect(hook.events.contains("didComplete"))
+    }
+
+    @Test
+    @NtkActor
+    func didValidateFailOnlyRunsOnValidationFailure() async throws {
+        let hook = AFTestRecordingHook()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
+            validation: AFTestFailValidation(),
+            hooks: [hook]
+        )
+        let data = try JSONSerialization.data(withJSONObject: ["retCode": 999, "retMsg": "fail"])
+        let handler = AFTestDataHandler(data: data, request: AFTestRequest())
+
+        await #expect(throws: NtkError.Validation.self) {
+            _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
+        }
+
+        #expect(hook.events.contains("didValidateFail"))
+        #expect(!hook.events.contains("didComplete"))
+    }
+
+    @Test
+    @NtkActor
+    func didDecodeHeaderHookErrorDoesNotAbortSuccessfulParse() async throws {
+        let throwingHook = AFThrowingHook(throwPoint: .didDecodeHeader)
+        let recordingHook = AFTestRecordingHook()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
+            validation: AFTestPassValidation(),
+            hooks: [throwingHook, recordingHook]
+        )
+        let data = try JSONSerialization.data(withJSONObject: ["retCode": 0, "data": ["id": 1, "name": "test"], "retMsg": "ok"])
+        let handler = AFTestDataHandler(data: data, request: AFTestRequest())
+
+        let result = try await interceptor.intercept(context: makeAFContext(), next: handler)
+        let typed = try #require(result as? NtkResponse<AFTestModel>)
+        #expect(typed.data.id == 1)
+        #expect(typed.data.name == "test")
+        #expect(throwingHook.events == ["didDecodeHeader", "willValidate", "didComplete"])
+        #expect(recordingHook.events == ["didDecodeHeader", "willValidate", "didComplete"])
+    }
+
+    @Test
+    @NtkActor
+    func willValidateHookErrorDoesNotAbortSuccessfulParse() async throws {
+        let throwingHook = AFThrowingHook(throwPoint: .willValidate)
+        let recordingHook = AFTestRecordingHook()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
+            validation: AFTestPassValidation(),
+            hooks: [throwingHook, recordingHook]
+        )
+        let data = try JSONSerialization.data(withJSONObject: ["retCode": 0, "data": ["id": 1, "name": "test"], "retMsg": "ok"])
+        let handler = AFTestDataHandler(data: data, request: AFTestRequest())
+
+        let result = try await interceptor.intercept(context: makeAFContext(), next: handler)
+        let typed = try #require(result as? NtkResponse<AFTestModel>)
+        #expect(typed.data.id == 1)
+        #expect(typed.data.name == "test")
+        #expect(throwingHook.events == ["didDecodeHeader", "willValidate", "didComplete"])
+        #expect(recordingHook.events == ["didDecodeHeader", "willValidate", "didComplete"])
+    }
+
+    @Test
+    @NtkActor
+    func didValidateFailHookErrorDoesNotReplaceValidation() async throws {
+        let throwingHook = AFThrowingHook(throwPoint: .didValidateFail)
+        let recordingHook = AFTestRecordingHook()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
+            validation: AFTestFailValidation(),
+            hooks: [throwingHook, recordingHook]
+        )
+        let data = try JSONSerialization.data(withJSONObject: ["retCode": 999, "retMsg": "fail"])
+        let handler = AFTestDataHandler(data: data, request: AFTestRequest())
+
+        do {
+            _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
+            Issue.record("期望抛出 validation 错误")
+        } catch let error as NtkError.Validation {
+            if case .serviceRejected = error {
+                #expect(throwingHook.events == ["didDecodeHeader", "willValidate", "didValidateFail"])
+                #expect(recordingHook.events == ["didDecodeHeader", "willValidate", "didValidateFail"])
+            } else {
+                Issue.record("错误类型不符: \(error)")
+            }
+        }
+    }
+
+    @Test
+    @NtkActor
+    func didCompleteHookErrorDoesNotReplaceSuccessfulResult() async throws {
+        let throwingHook = AFThrowingHook(throwPoint: .didComplete)
+        let recordingHook = AFTestRecordingHook()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
+            validation: AFTestPassValidation(),
+            hooks: [throwingHook, recordingHook]
+        )
+        let data = try JSONSerialization.data(withJSONObject: ["retCode": 0, "data": ["id": 1, "name": "test"], "retMsg": "ok"])
+        let handler = AFTestDataHandler(data: data, request: AFTestRequest())
+
+        let result = try await interceptor.intercept(context: makeAFContext(), next: handler)
+        let typed = try #require(result as? NtkResponse<AFTestModel>)
+        #expect(typed.code.intValue == 0)
+        #expect(typed.data.id == 1)
+        #expect(throwingHook.events == ["didDecodeHeader", "willValidate", "didComplete"])
+        #expect(recordingHook.events == ["didDecodeHeader", "willValidate", "didComplete"])
+    }
+
+    @Test
+    @NtkActor
+    func dataNullBehavesSameAsMissingData() async throws {
+        let json: [String: Any] = ["retCode": 0, "data": NSNull(), "retMsg": "ok"]
+        let data = try JSONSerialization.data(withJSONObject: json)
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(validation: AFTestPassValidation())
+        let handler = AFTestDataHandler(data: data, request: AFTestRequest())
+
+        do {
+            _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
+            Issue.record("期望抛出 serialization.dataMissing")
+        } catch let error as NtkError.Serialization {
+            if case .dataMissing = error {
+                #expect(Bool(true))
+            } else {
+                Issue.record("错误类型不符: \(error)")
+            }
+        }
+    }
+
+    @Test
+    @NtkActor
+    func topLevelObjectWithDefaultDataDecoderThrowsDataDecodeFailed() async throws {
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(validation: AFTestPassValidation())
+        let rawObject: [String: any Sendable] = [
+            "retCode": 0,
+            "retMsg": "ok",
+            "data": ["id": 1, "name": "test"] as [String: any Sendable]
+        ]
+        let handler = AFTestRawClientResponseHandler(raw: rawObject, request: AFTestRequest())
+
+        do {
+            _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
+            Issue.record("期望抛出 serialization.dataDecodeFailed")
+        } catch let error as NtkError.Serialization {
+            if case .invalidDataPayload = error {
+                #expect(Bool(true))
+            } else {
+                Issue.record("错误类型不符: \(error)")
+            }
+        }
+    }
+
+    @Test
+    @NtkActor
+    func topLevelArrayWithDefaultDataDecoderFailsWithoutRecoveredHeader() async throws {
+        let hook = AFTestRecordingHook()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
+            validation: AFTestPassValidation(),
+            hooks: [hook]
+        )
+        let rawArray: [any Sendable] = [
+            ["id": 1, "name": "a"] as [String: any Sendable],
+            ["id": 2, "name": "b"] as [String: any Sendable]
+        ]
+        let handler = AFTestRawClientResponseHandler(raw: rawArray, request: AFTestRequest())
+
+        do {
+            _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
+            Issue.record("期望抛出 serialization.dataDecodeFailed")
+        } catch let error as NtkError.Serialization {
+            if case let .invalidDataPayload(recoveredResponse) = error {
+                #expect(recoveredResponse == nil)
+                #expect(hook.events.isEmpty)
+            } else {
+                Issue.record("错误类型不符: \(error)")
+            }
+        }
+    }
+
+    @Test
+    @NtkActor
+    func topLevelScalarPayloadIsRejectedAtNormalizeBoundary() async throws {
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(validation: AFTestPassValidation())
+        let handler = AFTestRawClientResponseHandler(raw: "ok", request: AFTestRequest())
+
+        do {
+            _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
+            Issue.record("期望抛出 serialization.invalidJSON")
+        } catch let error as NtkError.Serialization {
+            if case .invalidJSON = error {
+                #expect(Bool(true))
+            } else {
+                Issue.record("错误类型不符: \(error)")
+            }
+        }
+    }
+
+    @Test
+    @NtkActor
+    func decodeFailureWithHeaderDoesNotTriggerDidDecodeHeaderOrDidComplete() async throws {
+        let hook = AFTestRecordingHook()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
+            validation: AFTestPassValidation(),
+            hooks: [hook],
+            decoder: AFTestHeaderOnlyDecoder()
+        )
+        let data = try JSONSerialization.data(withJSONObject: ["retCode": 0, "data": ["id": 1, "name": "ok"], "retMsg": "ok"])
+        let handler = AFTestDataHandler(data: data, request: AFConfiguredTestRequest())
+
+        do {
+            _ = try await interceptor.intercept(context: makeConfiguredAFContext(), next: handler)
+            Issue.record("期望抛出 serialization.dataDecodeFailed")
+        } catch let error as NtkError.Serialization {
+            if case let .dataDecodingFailed(context) = error {
+                let recoveredResponse = context.recoveredResponse
+                let response = try #require(recoveredResponse)
+                #expect(response.code.intValue == 999)
+                #expect(response.msg == "fail")
+                #expect(response.data?["reason"]?.getString() == "mock")
+                #expect(hook.events == ["willValidate"])
+            } else {
+                Issue.record("错误类型不符: \(error)")
+            }
+        }
+    }
+
+    @Test
+    @NtkActor
+    func decodeFailureWithHeaderValidationFailureTriggersDidValidateFailOnly() async throws {
+        let hook = AFTestRecordingHook()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
+            validation: AFTestFailValidation(),
+            hooks: [hook],
+            decoder: AFTestHeaderOnlyDecoder()
+        )
+        let data = try JSONSerialization.data(withJSONObject: ["retCode": 0, "data": ["id": 1, "name": "ok"], "retMsg": "ok"])
+        let handler = AFTestDataHandler(data: data, request: AFConfiguredTestRequest())
+
+        do {
+            _ = try await interceptor.intercept(context: makeConfiguredAFContext(), next: handler)
+            Issue.record("期望抛出 validation 错误")
+        } catch let error as NtkError.Validation {
+            if case .serviceRejected(let response) = error {
+                #expect(response.code.intValue == 999)
+                #expect(hook.events == ["willValidate", "didValidateFail"])
+            } else {
+                Issue.record("错误类型不符: \(error)")
+            }
+        }
+    }
+
+    @Test
+    @NtkActor
+    func transformerCanConvertDataPayloadToDynamicObjectForJSONObjectDecoder() async throws {
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
+            validation: AFTestPassValidation(),
+            transformers: [AFDataToJSONObjectTransformer()],
+            decoder: NtkJSONObjectPayloadDecoder<AFTestModel, AFTestKeys>()
+        )
+        let data = try JSONSerialization.data(withJSONObject: [
+            "retCode": 0,
+            "retMsg": "ok",
+            "data": ["id": 1, "name": "test"]
+        ])
+        let handler = AFTestDataHandler(data: data, request: AFTestRequest())
+
+        let result = try await interceptor.intercept(context: makeAFContext(), next: handler)
+        let typed = try #require(result as? NtkResponse<AFTestModel>)
+        #expect(typed.code.intValue == 0)
+        #expect(typed.data.id == 1)
+        #expect(typed.data.name == "test")
+    }
+
+    @Test
+    @NtkActor
+    func transformerProducedDynamicPayloadIsPreservedWhenDecodeFails() async throws {
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
+            validation: AFTestPassValidation(),
+            transformers: [AFDataToJSONObjectTransformer()],
+            decoder: AFDynamicPayloadFailingDecoder()
+        )
+        let data = try JSONSerialization.data(withJSONObject: [
+            "retCode": 0,
+            "retMsg": "ok",
+            "data": ["id": 1, "name": "test"]
+        ])
+        let handler = AFTestDataHandler(data: data, request: AFTestRequest())
+
+        do {
+            _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
+            Issue.record("期望抛出 serialization.dataDecodeFailed")
+        } catch let error as NtkError.Serialization {
+            if case let .dataDecodingFailed(context) = error {
+                let rawPayload = context.rawPayload
+                let recoveredResponse = try #require(context.recoveredResponse)
+                #expect(recoveredResponse.code.intValue == 0)
+                #expect(recoveredResponse.msg == "ok")
+                #expect(recoveredResponse.data?["id"]?.getInt() == 1)
+                #expect(recoveredResponse.data?["name"]?.getString() == "test")
+                if case let .dynamic(payload)? = rawPayload {
+                    #expect(payload["retCode"]?.getInt() == 0)
+                    #expect(payload["retMsg"]?.getString() == "ok")
+                    #expect(payload["data"]?["id"]?.getInt() == 1)
+                    #expect(payload["data"]?["name"]?.getString() == "test")
+                } else {
+                    Issue.record("期望保留 dynamic rawPayload，但实际为: \(String(describing: rawPayload))")
+                }
+            } else {
+                Issue.record("错误类型不符: \(error)")
+            }
+        }
+    }
+    @Test
+    @NtkActor
+    func throwingHookDoesNotBlockLaterHooksOnSameNotification() async throws {
+        let throwingHook = AFThrowingHook(throwPoint: .willValidate)
+        let recordingHook = AFTestRecordingHook()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
+            validation: AFTestPassValidation(),
+            hooks: [throwingHook, recordingHook]
+        )
+        let data = try JSONSerialization.data(withJSONObject: ["retCode": 0, "data": ["id": 1, "name": "test"], "retMsg": "ok"])
+        let handler = AFTestDataHandler(data: data, request: AFTestRequest())
+
+        _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
+
+        #expect(throwingHook.events == ["didDecodeHeader", "willValidate", "didComplete"])
+        #expect(recordingHook.events == ["didDecodeHeader", "willValidate", "didComplete"])
+    }
+}
+
+// MARK: - Helpers
+
+@NtkActor
+private func makeAFContext() -> NtkInterceptorContext {
+    NtkInterceptorContext(
+        mutableRequest: NtkMutableRequest(AFTestRequest()),
+        client: AFTestDummyClient()
+    )
+}
+
+@NtkActor
+private func makeConfiguredAFContext() -> NtkInterceptorContext {
+    NtkInterceptorContext(
+        mutableRequest: NtkMutableRequest(AFConfiguredTestRequest()),
+        client: AFTestDummyClient()
+    )
+}
+
+// MARK: - Test Doubles
+
+private struct AFTestKeys: iNtkResponseMapKeys {
+    static let code = "retCode"
+    static let data = "data"
+    static let msg = "retMsg"
+}
+
+private struct AFTestModel: Codable, Sendable {
+    let id: Int
+    let name: String
+}
+
+private struct AFTestRequest: iAFRequest {
+    var baseURL: URL? { URL(string: "https://test.example.com") }
+    var path: String { "/af/test" }
+    var method: NtkHTTPMethod { .get }
+}
+
+private struct AFConfiguredTestRequest: iAFRequest {
+    var baseURL: URL? { URL(string: "https://test.example.com") }
+    var path: String { "/af/test/configured" }
+    var method: NtkHTTPMethod { .get }
+    var requestConfiguration: NtkRequestConfiguration? { .default() }
+}
+
+private struct AFTestPassValidation: iNtkResponseValidation {
+    func isServiceSuccess(_ response: any iNtkResponse) -> Bool { true }
+}
+
+private struct AFTestFailValidation: iNtkResponseValidation {
+    func isServiceSuccess(_ response: any iNtkResponse) -> Bool { false }
+}
+
+private struct AFTestDummyClient: iNtkClient {
+    @NtkActor
+    func execute(_ request: NtkMutableRequest) async throws -> NtkClientResponse {
+        NtkClientResponse(data: true, msg: nil, response: true, request: request, isCache: false)
+    }
+}
+
+private enum AFHookThrowPoint: Equatable {
+    case didDecodeHeader
+    case willValidate
+    case didValidateFail
+    case didComplete
+}
+
+private struct AFHookObserverError: Error, Equatable {
+    let point: AFHookThrowPoint
+}
+
+private final class AFThrowingHook: iNtkParsingHooks, @unchecked Sendable {
+    let throwPoint: AFHookThrowPoint
+    var events: [String] = []
+
+    init(throwPoint: AFHookThrowPoint) {
+        self.throwPoint = throwPoint
+    }
+
+    func didDecodeHeader(retCode: Int, msg: String?, context: NtkInterceptorContext) async throws {
+        events.append("didDecodeHeader")
+        if throwPoint == .didDecodeHeader {
+            throw AFHookObserverError(point: .didDecodeHeader)
+        }
+    }
+
+    func willValidate(_ response: any iNtkResponse, context: NtkInterceptorContext) async throws {
+        events.append("willValidate")
+        if throwPoint == .willValidate {
+            throw AFHookObserverError(point: .willValidate)
+        }
+    }
+
+    func didValidateFail(_ response: any iNtkResponse, context: NtkInterceptorContext) async throws {
+        events.append("didValidateFail")
+        if throwPoint == .didValidateFail {
+            throw AFHookObserverError(point: .didValidateFail)
+        }
+    }
+
+    func didComplete(_ response: any iNtkResponse, context: NtkInterceptorContext) async throws {
+        events.append("didComplete")
+        if throwPoint == .didComplete {
+            throw AFHookObserverError(point: .didComplete)
+        }
+    }
+}
+
+private final class AFTestRecordingHook: iNtkParsingHooks, @unchecked Sendable {
+    var events: [String] = []
+
+    func didDecodeHeader(retCode: Int, msg: String?, context: NtkInterceptorContext) async throws {
+        events.append("didDecodeHeader")
+    }
+
+    func willValidate(_ response: any iNtkResponse, context: NtkInterceptorContext) async throws {
+        events.append("willValidate")
+    }
+
+    func didValidateFail(_ response: any iNtkResponse, context: NtkInterceptorContext) async throws {
+        events.append("didValidateFail")
+    }
+
+    func didComplete(_ response: any iNtkResponse, context: NtkInterceptorContext) async throws {
+        events.append("didComplete")
+    }
+}
+
+private struct AFTestFailingTransformer: iNtkResponsePayloadTransforming {
+    func transform(_ payload: NtkPayload, context: NtkInterceptorContext) async throws -> NtkPayload {
+        throw NtkError.invalidRequest
+    }
+}
+
+private struct AFTestHeaderOnlyDecoder: iNtkResponsePayloadDecoding {
+    func decode(
+        _ payload: NtkPayload,
+        context: NtkInterceptorContext
+    ) async throws -> NtkResponseDecoder<AFTestModel, AFTestKeys> {
+        throw DecodingError.dataCorrupted(
+            .init(codingPath: [], debugDescription: "expected failure for header extraction")
+        )
+    }
+
+    func extractHeader(_ payload: NtkPayload, request: iNtkRequest) throws -> NtkExtractedHeader? {
+        guard request.requestConfiguration != nil else { return nil }
+        return NtkExtractedHeader(
+            code: NtkReturnCode(999),
+            msg: "fail",
+            data: NtkDynamicData(dictionary: ["reason": "mock"])
+        )
+    }
+}
+
+private struct AFTestNoHeaderDecoder: iNtkResponsePayloadDecoding {
+    func decode(
+        _ payload: NtkPayload,
+        context: NtkInterceptorContext
+    ) async throws -> NtkResponseDecoder<AFTestModel, AFTestKeys> {
+        throw DecodingError.dataCorrupted(
+            .init(codingPath: [], debugDescription: "expected failure without header extraction")
+        )
+    }
+}
+
+/// 返回已有 NtkResponse 的 handler（用于 already-typed 测试）
+@NtkActor
+private struct AFTestAlreadyTypedHandler: iNtkRequestHandler {
+    let response: any iNtkResponse
+    func handle(context: NtkInterceptorContext) async throws -> any iNtkResponse {
+        return response
+    }
+}
+
+/// 返回携带 Data 的 NtkClientResponse 的 handler
+@NtkActor
+private struct AFTestDataHandler: iNtkRequestHandler {
+    let data: Data
+    let request: iNtkRequest
+    func handle(context: NtkInterceptorContext) async throws -> any iNtkResponse {
+        return NtkClientResponse(data: data, msg: nil, response: data, request: request, isCache: false)
+    }
+}
+
+@NtkActor
+private struct AFTestRawClientResponseHandler: iNtkRequestHandler {
+    let raw: any Sendable
+    let request: iNtkRequest
+    func handle(context: NtkInterceptorContext) async throws -> any iNtkResponse {
+        NtkClientResponse(data: raw, msg: nil, response: raw, request: request, isCache: false)
+    }
+}
+
+private struct AFPlainResponse: iNtkResponse {
+    let code = NtkReturnCode(200)
+    let data: Bool = true
+    let msg: String? = nil
+    let response: any Sendable = true
+    let request: any iNtkRequest
+    let isCache = false
+}
+
+@NtkActor
+private struct AFTestPlainResponseHandler: iNtkRequestHandler {
+    let response: any iNtkResponse
+    func handle(context: NtkInterceptorContext) async throws -> any iNtkResponse {
+        response
+    }
+}
+
+private struct AFDynamicPayloadFailingDecoder: iNtkResponsePayloadDecoding {
+    func decode(
+        _ payload: NtkPayload,
+        context: NtkInterceptorContext
+    ) async throws -> NtkResponseDecoder<AFTestModel, AFTestKeys> {
+        throw DecodingError.typeMismatch(
+            AFTestModel.self,
+            .init(codingPath: [], debugDescription: "expected failure after transformer produced dynamic payload")
+        )
+    }
+
+    func extractHeader(_ payload: NtkPayload, request: iNtkRequest) throws -> NtkExtractedHeader? {
+        guard case let .dynamic(dynamicPayload) = payload else {
+            return nil
+        }
+        return NtkExtractedHeader(
+            code: NtkReturnCode(dynamicPayload["retCode"]?.getInt() ?? -1),
+            msg: dynamicPayload["retMsg"]?.getString(),
+            data: dynamicPayload["data"]
+        )
+    }
+}
+
+private struct AFDataToJSONObjectTransformer: iNtkResponsePayloadTransforming {
+    func transform(_ payload: NtkPayload, context: NtkInterceptorContext) async throws -> NtkPayload {
+        guard case .data(let data) = payload else {
+            throw NtkError.Serialization.dataDecodingFailed(
+                context: .init(
+                    clientResponse: nil,
+                    recoveredResponse: nil,
+                    rawPayload: nil,
+                    underlyingError: nil
+                )
+            )
+        }
+        let raw = try JSONSerialization.jsonObject(with: data)
+        return try NtkPayload.normalize(from: raw)
+    }
+}

@@ -91,16 +91,17 @@ public extension iNtkRequest {
         nil
     }
     
-    /// 默认超时时间为20秒
+    /// 默认超时时间，使用全局配置
     var timeout: TimeInterval {
-        20
+        NtkConfiguration.current.builder.defaultTimeout
     }
     
     /// 默认请求策略配置为空
     /// 可以通过以下方式自定义策略：
     /// 1. 使用NtkRequestConfiguration.default()获取默认配置
     /// 2. 使用NtkRequestConfiguration.custom(duration:)自定义缓存时间
-    /// 3. 使用NtkRequestConfiguration.noCache()禁用缓存
+    /// 3. 不需要缓存或参数过滤时返回 nil
+    /// 4. 如需显式禁用缓存，可使用 NtkRequestConfiguration(cacheTime: 0)
     var requestConfiguration: NtkRequestConfiguration? {
         nil
     }

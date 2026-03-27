@@ -49,8 +49,8 @@ struct NtkInterceptorChainManager {
         }
     }
     
-    /// 临时处理器，用于适配闭包到NtkRequestHandler接口
-    private struct TempHandler: NtkRequestHandler {
+    /// 临时处理器，用于适配闭包到iNtkRequestHandler接口
+    private struct TempHandler: iNtkRequestHandler {
         let handler: @Sendable (NtkInterceptorContext) async throws -> any iNtkResponse
         
         func handle(context: NtkInterceptorContext) async throws -> any iNtkResponse {

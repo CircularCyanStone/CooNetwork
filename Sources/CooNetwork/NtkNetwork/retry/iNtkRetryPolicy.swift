@@ -29,29 +29,38 @@ public protocol iNtkRetryPolicy: Sendable {
 
 /// 重试策略的默认实现
 extension iNtkRetryPolicy {
+    /// 默认实现：根据错误类型判断是否应该重试
     public func shouldRetry(attemptCount: Int, error: Error) -> Bool {
         guard attemptCount <= maxRetryCount else { return false }
         
         // 检查是否是可重试的错误
         if let ntkError = error as? NtkError {
             switch ntkError {
-            case .validation, .jsonInvalid, .decodeInvalid, .responseBodyEmpty, .serviceDataEmpty, .serviceDataTypeInvalid,
-                 .typeMismatch, .requestCancelled:
+            case .invalidRequest,
+                 .invalidTypedResponse,
+                 .requestCancelled:
+                return false
+            case .unsupportedRequestType,
+                 .invalidResponseType,
+                 .responseBodyEmpty:
                 return false
             case .requestTimeout:
-                return true  // 超时错误应该重试
-            case .other(let error):
-                // 如果关联值是 URLError，使用 URLError 的重试逻辑
-                if let urlError = error as? URLError {
+                return true
+            }
+        }
+
+        if error is NtkError.Validation || error is NtkError.Serialization || error is NtkError.Cache {
+            return false
+        }
+
+        if let clientError = error as? NtkError.Client {
+            switch clientError {
+            case let .external(_, context):
+                if let urlError = context.underlyingError as? URLError {
                     return shouldRetryForURLError(urlError)
                 }
                 return false
             }
-        }
-        
-        // 检查缓存错误
-        if error is NtkError.Cache {
-            return false
         }
         
         // 对于其他网络相关错误，默认可以重试

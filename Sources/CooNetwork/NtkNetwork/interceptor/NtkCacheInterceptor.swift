@@ -14,29 +14,33 @@ public typealias ResponseExtractor = @Sendable (any iNtkResponse) -> Sendable?
 
 /// 默认缓存拦截器实现
 /// 提供基础的响应缓存功能，支持自定义缓存策略
-public struct NtkCacheSaveInterceptor: iNtkInterceptor {
+/// 同时遵循 iNtkCacheProvider，使 executor 可通过协议发现获取缓存读取能力
+public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
     /// 拦截器优先级
     /// 使用最低优先级（0），确保在所有其他拦截器之后执行
-    public var priority: NtkInterceptorPriority
-    
+    public let priority: NtkInterceptorPriority = .innerLow
+
+    /// 缓存存储器
+    private let storage: iNtkCacheStorage
+
     /// 响应提取器，用于从响应中提取需要缓存的数据
     private let responseExtractor: ResponseExtractor
-    
+
     /// 默认初始化方法，使用默认的响应提取器
-    public init(priority: NtkInterceptorPriority = .priority(0)) {
-        self.priority = priority
+    public init(storage: iNtkCacheStorage) {
+        self.storage = storage
         self.responseExtractor = Self.defaultResponseExtractor
     }
-    
+
     /// 自定义初始化方法，允许传入自定义的响应提取器
     /// - Parameters:
-    ///   - priority: 拦截器优先级
+    ///   - storage: 缓存存储器
     ///   - responseExtractor: 自定义的响应提取器闭包
-    public init(priority: NtkInterceptorPriority = .priority(0), responseExtractor: @escaping ResponseExtractor) {
-        self.priority = priority
+    public init(storage: iNtkCacheStorage, responseExtractor: @escaping ResponseExtractor) {
+        self.storage = storage
         self.responseExtractor = responseExtractor
     }
-    
+
     /// 默认的响应提取器实现，保持原有的response.response转换逻辑
     /// 以闭包常量的形式声明，确保其为 @Sendable 类型，避免隐式转换产生的数据竞争警告
     private static let defaultResponseExtractor: ResponseExtractor = { response in
@@ -48,17 +52,30 @@ public struct NtkCacheSaveInterceptor: iNtkInterceptor {
     ///   - next: 下一个请求处理器
     /// - Returns: 处理后的响应对象
     /// - Throws: 处理过程中的错误
-    public func intercept(context: NtkInterceptorContext, next: any NtkRequestHandler) async throws -> any iNtkResponse {
+    public func intercept(context: NtkInterceptorContext, next: iNtkRequestHandler) async throws -> any iNtkResponse {
         let response = try await next.handle(context: context)
         // 能走到这里说明已经通过了NtkValidationInterceptor的校验
         guard let requestPolicy = context.mutableRequest.requestConfiguration else { return response }
         if requestPolicy.cacheTime > 0 && requestPolicy.shouldCache(response) {
             // 根据缓存时间和自定义策略保存响应到缓存
             if let extractedResponse = responseExtractor(response) {
-                let result = await context.client.saveCache(context.mutableRequest, response: extractedResponse)
-                NtkLogger.shared.debug("NTK请求缓存\(result ? "成功" : "失败")")
+                let cache = NtkNetworkCache(storage: storage)
+                let result = await cache.save(data: extractedResponse, for: context.mutableRequest)
+                logger.debug("NTK请求缓存\(result ? "成功" : "失败")")
             }
         }
         return response
+    }
+
+    // MARK: - iNtkCacheProvider
+
+    public func loadCacheData(for request: NtkMutableRequest) async throws -> (any Sendable)? {
+        let cache = NtkNetworkCache(storage: storage)
+        return try await cache.loadData(for: request)
+    }
+
+    public func hasCacheData(for request: NtkMutableRequest) async -> Bool {
+        let cache = NtkNetworkCache(storage: storage)
+        return await cache.hasData(for: request)
     }
 }

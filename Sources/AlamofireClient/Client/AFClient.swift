@@ -12,23 +12,17 @@ import CooNetwork
 @preconcurrency import Alamofire
 
 /// AF 客户端请求执行实现
-/// 负责执行基于Alamofire的网络请求，支持泛型响应键映射
-/// 去除了缓存功能，Toast使用闭包回调
-public final class AFClient<Keys: iNtkResponseMapKeys>: iNtkClient {
-    
-    /// 缓存存储实现 (占位实现，不进行实际缓存)
-    public let storage: any iNtkCacheStorage
-    
+/// 负责执行基于Alamofire的网络请求
+public final class AFClient: iNtkClient {
+
     /// Alamofire Session
     private let session: Session
-    
+
     /// 初始化
     /// - Parameters:
     ///   - session: Alamofire Session，默认为 .default
-    ///   - storage: 缓存存储实现，默认为不缓存
-    public init(session: Session = .default, storage: iNtkCacheStorage = AFNoCacheStorage()) {
+    public init(session: Session = AF) {
         self.session = session
-        self.storage = storage
     }
     
     /// 执行网络请求
@@ -46,51 +40,83 @@ public final class AFClient<Keys: iNtkResponseMapKeys>: iNtkClient {
     /// - Note: 标记为 nonisolated 以规避在 Actor 中使用非 Sendable 类型 (Any) 的参数传递问题
     @NtkActor
     private func sendRequest(_ request: NtkMutableRequest) async throws -> NtkClientResponse {
-        guard let mRequest = request.originalRequest as? iAFRequest else {
-            fatalError("request must be iAFRequest")
+        guard let ntkRequest = request.originalRequest as? iAFRequest else {
+            throw NtkError.unsupportedRequestType(request: request.originalRequest)
         }
-        
+
         // 构建完整URL
         let url = (request.baseURL?.absoluteString ?? "") + request.path
         let method = HTTPMethod(rawValue: request.method.rawValue.uppercased())
         let headers = HTTPHeaders(request.headers ?? [:])
-        
+
         // 准备请求配置
-        let finalRequestModifier = createRequestModifier(for: mRequest)
-        
+        let finalRequestModifier = createRequestModifier(for: ntkRequest)
+
         // 检查任务取消
-        try Task.checkCancellation()
-        
+        if Task.isCancelled {
+            throw NtkError.requestCancelled
+        }
+
         // 创建请求任务
-        let requestTask: DataRequest
-        
-        if let parameters = request.parameters, !parameters.isEmpty {
+        var afRequest: DataRequest
+
+        if let uploadRequest = ntkRequest as? iAFUploadRequest {
+            // Upload 分支
+            switch uploadRequest.uploadSource {
+            case .data(let data):
+                afRequest = session.upload(
+                    data, to: url, method: method, headers: headers,
+                    requestModifier: finalRequestModifier
+                )
+            case .fileURL(let fileURL):
+                afRequest = session.upload(
+                    fileURL, to: url, method: method, headers: headers,
+                    requestModifier: finalRequestModifier
+                )
+            case .multipart(let formBuilder):
+                afRequest = session.upload(
+                    multipartFormData: formBuilder,
+                    to: url, method: method, headers: headers,
+                    requestModifier: finalRequestModifier
+                )
+            }
+            // 挂载上传进度（链式 API > 协议属性）
+            let progressHandler = resolveTransferProgressHandler(
+                request, protocolHandler: uploadRequest.onTransferProgress
+            )
+            if let progressHandler {
+                (afRequest as? UploadRequest)?.uploadProgress { progress in
+                    progressHandler(NtkTransferProgress(from: progress))
+                }
+            }
+        } else if let parameters = request.parameters, !parameters.isEmpty {
             // 处理参数：直接转换为 [String: Any]? 供 Alamofire 使用
             // 使用 iAFRequest 指定的 encoding
-            requestTask = session.request(
+            afRequest = session.request(
                 url,
                 method: method,
                 parameters: parameters,
-                encoding: mRequest.encoding,
+                encoding: ntkRequest.encoding,
                 headers: headers,
                 requestModifier: finalRequestModifier
             )
         } else {
             // 无参数请求
-            requestTask = session.request(
+            afRequest = session.request(
                 url,
                 method: method,
                 headers: headers,
                 requestModifier: finalRequestModifier
             )
         }
+
+        afRequest = ntkRequest.chainConfigureAFRequest(for: afRequest)
         
         // 配置验证策略
-        let configuredRequest = applyValidation(requestTask, request: mRequest)
-
+        let configuredRequest = applyValidation(afRequest, request: ntkRequest)
         // 执行请求并序列化响应
         // 使用 iAFRequest 配置的序列化方式，支持自定义 emptyResponseCodes 等参数
-        let serializationTask = mRequest.configureSerialization(for: configuredRequest)
+        let serializationTask = ntkRequest.configureSerialization(for: configuredRequest)
         let response = await serializationTask.response
         
         switch response.result {
@@ -100,24 +126,52 @@ public final class AFClient<Keys: iNtkResponseMapKeys>: iNtkClient {
                 data: data,
                 msg: nil,
                 response: response,
-                request: mRequest,
+                request: ntkRequest,
                 isCache: false
             )
         case .failure(let error):
             // 5. 错误处理
             
-            if let urlError = error.underlyingError as? URLError, urlError.code == .timedOut {
-                throw NtkError.requestTimeout
+            if let urlError = error.underlyingError as? URLError {
+                if urlError.code == .cancelled {
+                    throw NtkError.requestCancelled
+                }
+                if urlError.code == .timedOut {
+                    throw NtkError.requestTimeout
+                }
+                throw NtkError.Client.external(
+                    reason: NtkError.Client.AF.requestFailed,
+                    context: .init(
+                        request: ntkRequest,
+                        clientResponse: nil,
+                        underlyingError: urlError,
+                        message: urlError.localizedDescription
+                    )
+                )
             }
             let fixResponse = NtkResponse<Data?>(
                 code: NtkReturnCode(response.response?.statusCode ?? 0),
                 data: nil,
                 msg: "",
                 response: response,
-                request: mRequest,
+                request: ntkRequest,
                 isCache: false
             )
-            throw NtkError.AF.afError(error, mRequest, fixResponse)
+            throw NtkError.Client.external(
+                reason: NtkError.Client.AF.requestFailed,
+                context: .init(
+                    request: ntkRequest,
+                    clientResponse: NtkClientResponse(
+                        data: response.data,
+                        msg: nil,
+                        response: fixResponse,
+                        request: ntkRequest,
+                        isCache: false
+                    ),
+                    underlyingError: error,
+                    message: error.errorDescription ?? error.localizedDescription
+                )
+            )
         }
     }
     
@@ -140,25 +194,15 @@ public final class AFClient<Keys: iNtkResponseMapKeys>: iNtkClient {
             return request.validate() // 默认验证 200...299
         }
     }
-    
-}
 
-/// 内部使用的无缓存存储实现
-public struct AFNoCacheStorage: iNtkCacheStorage {
-    public init() {}
-    
-    @NtkActor
-    public func setData(metaData: NtkCacheMeta, key: String, for request: NtkMutableRequest) async -> Bool {
-        return false
+    /// 解析传输进度回调（链式 API > 协议属性）
+    /// Upload/Download 共用
+    private func resolveTransferProgressHandler(
+        _ request: NtkMutableRequest,
+        protocolHandler: (@Sendable (NtkTransferProgress) -> Void)?
+    ) -> (@Sendable (NtkTransferProgress) -> Void)? {
+        request[NtkRequestTransferProgressKey] as? @Sendable (NtkTransferProgress) -> Void
+            ?? protocolHandler
     }
-    
-    @NtkActor
-    public func getData(key: String, for request: NtkMutableRequest) async -> NtkCacheMeta? {
-        return nil
-    }
-    
-    @NtkActor
-    public func hasData(key: String, for request: NtkMutableRequest) async -> Bool {
-        return false
-    }
+
 }

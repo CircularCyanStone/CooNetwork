@@ -11,193 +11,72 @@ import Foundation
 /// 用于处理网络响应中的动态数据，支持 Dictionary<String, any Sendable>、Int、Bool、String 等多种类型
 /// 提供类型安全的访问接口和便利的下标语法支持
 @objcMembers
+@dynamicMemberLookup
 public final class NtkDynamicData: NSObject, Sendable, Codable {
-    
-    /// 内部存储的原始值
-    private let rawValue: any Sendable
-    
-    /// 值类型枚举
-    private enum ValueType: String, Codable {
-        case dictionary = "dictionary"
-        case array = "array"
-        case string = "string"
-        case int = "int"
-        case double = "double"
-        case bool = "bool"
-        case null = "null"
+
+    // MARK: - Core Storage
+
+    /// 内部存储枚举
+    /// 将类型标记与值绑定在一起，确保类型与值始终一致
+    private enum Storage: Sendable {
+        case dictionary([String: any Sendable])
+        case array([any Sendable])
+        case string(String)
+        case int(Int)
+        case double(Double)
+        case bool(Bool)
+        case null
     }
-    
-    /// 当前值的类型
-    private let valueType: ValueType
-    
-    // MARK: - 初始化方法
-    
+
+    /// 状态码的内部存储
+    private let storage: Storage
+
+    // MARK: - Initializers
+
     /// 从字典初始化
     public init(dictionary: [String: any Sendable]) {
-        self.rawValue = dictionary
-        self.valueType = .dictionary
+        self.storage = .dictionary(dictionary)
         super.init()
     }
-    
+
     /// 从数组初始化
     public init(array: [any Sendable]) {
-        self.rawValue = array
-        self.valueType = .array
+        self.storage = .array(array)
         super.init()
     }
-    
+
     /// 从字符串初始化
     public init(string: String) {
-        self.rawValue = string
-        self.valueType = .string
+        self.storage = .string(string)
         super.init()
     }
-    
+
     /// 从整数初始化
     public init(int: Int) {
-        self.rawValue = int
-        self.valueType = .int
+        self.storage = .int(int)
         super.init()
     }
-    
+
     /// 从双精度浮点数初始化
     public init(double: Double) {
-        self.rawValue = double
-        self.valueType = .double
+        self.storage = .double(double)
         super.init()
     }
-    
+
     /// 从布尔值初始化
     public init(bool: Bool) {
-        self.rawValue = bool
-        self.valueType = .bool
+        self.storage = .bool(bool)
         super.init()
     }
-    
+
     /// 空值初始化
     public override init() {
-        self.rawValue = NSNull()
-        self.valueType = .null
+        self.storage = .null
         super.init()
     }
-    
-    // MARK: - Codable实现
-    
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        
-        // 尝试按优先级解码不同类型
-        if container.decodeNil() {
-            self.rawValue = NSNull()
-            self.valueType = .null
-            return
-        }
-        
-        // 尝试解码为字典
-        if let dict = try? container.decode([String: NtkDynamicData].self) {
-            var convertedDict: [String: any Sendable] = [:]
-            for (key, value) in dict {
-                convertedDict[key] = value.rawValue
-            }
-            self.rawValue = convertedDict
-            self.valueType = .dictionary
-            return
-        }
-        
-        // 尝试解码为数组
-        if let array = try? container.decode([NtkDynamicData].self) {
-            let convertedArray = array.map { $0.rawValue }
-            self.rawValue = convertedArray
-            self.valueType = .array
-            return
-        }
-        
-        // 尝试解码为字符串
-        if let string = try? container.decode(String.self) {
-            self.rawValue = string
-            self.valueType = .string
-            return
-        }
-        
-        // 尝试解码为整数
-        if let int = try? container.decode(Int.self) {
-            self.rawValue = int
-            self.valueType = .int
-            return
-        }
-        
-        // 尝试解码为双精度浮点数
-        if let double = try? container.decode(Double.self) {
-            self.rawValue = double
-            self.valueType = .double
-            return
-        }
-        
-        // 尝试解码为布尔值
-        if let bool = try? container.decode(Bool.self) {
-            self.rawValue = bool
-            self.valueType = .bool
-            return
-        }
-        
-        // 如果所有类型都无法解码，抛出错误
-        throw NtkError.decodeInvalid(
-            DecodingError.typeMismatch(
-                NtkDynamicData.self,
-                DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "无法解码为任何支持的类型")
-            ),
-            "解码失败的数据"
-        )
-    }
-    
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        
-        switch valueType {
-        case .dictionary:
-            guard let dict = rawValue as? [String: any Sendable] else {
-                throw NtkError.decodeInvalid(
-                    EncodingError.invalidValue(
-                        rawValue,
-                        EncodingError.Context(codingPath: encoder.codingPath, debugDescription: "字典类型编码失败")
-                    ),
-                    rawValue
-                )
-            }
-            var dynamicDict: [String: NtkDynamicData] = [:]
-            for (key, value) in dict {
-                dynamicDict[key] = NtkDynamicData.from(value)
-            }
-            try container.encode(dynamicDict)
-            
-        case .array:
-            guard let array = rawValue as? [any Sendable] else {
-                throw NtkError.decodeInvalid(
-                    EncodingError.invalidValue(
-                        rawValue,
-                        EncodingError.Context(codingPath: encoder.codingPath, debugDescription: "数组类型编码失败")
-                    ),
-                    rawValue
-                )
-            }
-            let dynamicArray = array.map { NtkDynamicData.from($0) }
-            try container.encode(dynamicArray)
-            
-        case .string:
-            try container.encode(rawValue as! String)
-        case .int:
-            try container.encode(rawValue as! Int)
-        case .double:
-            try container.encode(rawValue as! Double)
-        case .bool:
-            try container.encode(rawValue as! Bool)
-        case .null:
-            try container.encodeNil()
-        }
-    }
-    
-    // MARK: - 辅助方法
-    
+
+    // MARK: - Static Factories
+
     /// 从任意Sendable值创建NtkDynamicData
     public static func from(_ value: any Sendable) -> NtkDynamicData {
         switch value {
@@ -205,175 +84,256 @@ public final class NtkDynamicData: NSObject, Sendable, Codable {
             return NtkDynamicData(dictionary: dict)
         case let array as [any Sendable]:
             return NtkDynamicData(array: array)
-        case let string as String:
-            return NtkDynamicData(string: string)
-        case let int as Int:
-            return NtkDynamicData(int: int)
-        case let double as Double:
-            return NtkDynamicData(double: double)
-        case let bool as Bool:
-            return NtkDynamicData(bool: bool)
-        case is NSNull:
-            return NtkDynamicData()
+        case let dict as NSDictionary:
+            if let bridged = dict as? [String: any Sendable] {
+                return NtkDynamicData(dictionary: bridged)
+            }
+            return NtkDynamicData(string: String(describing: dict))
+        case let array as NSArray:
+            if let bridged = array as? [any Sendable] {
+                return NtkDynamicData(array: bridged)
+            }
+            return NtkDynamicData(string: String(describing: array))
+        case let string as NSString:
+            return NtkDynamicData(string: String(string))
+        case let number as NSNumber:
+            if CFGetTypeID(number) == CFBooleanGetTypeID() {
+                return NtkDynamicData(bool: number.boolValue)
+            }
+
+            let doubleValue = number.doubleValue
+            if floor(doubleValue) == doubleValue,
+               doubleValue >= Double(Int.min),
+               doubleValue <= Double(Int.max) {
+                return NtkDynamicData(int: Int(doubleValue))
+            }
+            return NtkDynamicData(double: doubleValue)
         default:
             // 对于其他类型，尝试转换为字符串
             return NtkDynamicData(string: String(describing: value))
         }
     }
+
+
+    // MARK: - Codable
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+
+        if container.decodeNil() {
+            self.storage = .null
+            return
+        }
+
+        if let dict = try? container.decode([String: NtkDynamicData].self) {
+            var convertedDict: [String: any Sendable] = [:]
+            for (key, value) in dict {
+                convertedDict[key] = value.sendableValue
+            }
+            self.storage = .dictionary(convertedDict)
+            return
+        }
+
+        if let array = try? container.decode([NtkDynamicData].self) {
+            let convertedArray = array.map { $0.sendableValue }
+            self.storage = .array(convertedArray)
+            return
+        }
+
+        if let string = try? container.decode(String.self) {
+            self.storage = .string(string)
+            return
+        }
+
+        if let int = try? container.decode(Int.self) {
+            self.storage = .int(int)
+            return
+        }
+
+        if let double = try? container.decode(Double.self) {
+            self.storage = .double(double)
+            return
+        }
+
+        if let bool = try? container.decode(Bool.self) {
+            self.storage = .bool(bool)
+            return
+        }
+
+        throw NtkError.Serialization.dataDecodingFailed(
+            context: .init(
+                clientResponse: nil,
+                recoveredResponse: nil,
+                rawPayload: nil,
+                underlyingError: DecodingError.typeMismatch(
+                    NtkDynamicData.self,
+                    DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "无法解码为任何支持的类型")
+                )
+            )
+        )
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+
+        switch storage {
+        case .dictionary(let dict):
+            var dynamicDict: [String: NtkDynamicData] = [:]
+            for (key, value) in dict {
+                dynamicDict[key] = NtkDynamicData.from(value)
+            }
+            try container.encode(dynamicDict)
+        case .array(let array):
+            let dynamicArray = array.map { NtkDynamicData.from($0) }
+            try container.encode(dynamicArray)
+        case .string(let v):
+            try container.encode(v)
+        case .int(let v):
+            try container.encode(v)
+        case .double(let v):
+            try container.encode(v)
+        case .bool(let v):
+            try container.encode(v)
+        case .null:
+            try container.encodeNil()
+        }
+    }
+
+    // MARK: - Internal Bridging
+
+    /// 获取内部存储的 Sendable 值
+    private var sendableValue: any Sendable {
+        switch storage {
+        case .dictionary(let v): return v
+        case .array(let v):      return v
+        case .string(let v):     return v
+        case .int(let v):        return v
+        case .double(let v):     return v
+        case .bool(let v):       return v
+        case .null:              return NSNull()
+        }
+    }
 }
 
-// MARK: - 类型安全的访问接口
+// MARK: - Typed Accessors
 
 extension NtkDynamicData {
-    
+
     /// 获取字典值
     /// - Returns: 字典值或nil
     public func getDictionary() -> [String: any Sendable]? {
-        guard valueType == .dictionary else { return nil }
-        return rawValue as? [String: any Sendable]
+        if case .dictionary(let v) = storage { return v }
+        return nil
     }
-    
+
     /// 获取数组值
     /// - Returns: 数组值或nil
     public func getArray() -> [any Sendable]? {
-        guard valueType == .array else { return nil }
-        return rawValue as? [any Sendable]
+        if case .array(let v) = storage { return v }
+        return nil
     }
-    
+
     /// 获取字符串值
     /// - Returns: 字符串值或nil
     public func getString() -> String? {
-        guard valueType == .string else { return nil }
-        return rawValue as? String
+        if case .string(let v) = storage { return v }
+        return nil
     }
-    
+
     /// 获取整数值
     /// - Returns: 整数值或nil
     public func getInt() -> Int? {
-        guard valueType == .int else { return nil }
-        return rawValue as? Int
+        if case .int(let v) = storage { return v }
+        return nil
     }
-    
+
     /// 获取双精度浮点数值
     /// - Returns: 双精度浮点数值或nil
     public func getDouble() -> Double? {
-        guard valueType == .double else { return nil }
-        return rawValue as? Double
+        if case .double(let v) = storage { return v }
+        return nil
     }
-    
+
     /// 获取布尔值
     /// - Returns: 布尔值或nil
     public func getBool() -> Bool? {
-        guard valueType == .bool else { return nil }
-        return rawValue as? Bool
+        if case .bool(let v) = storage { return v }
+        return nil
     }
-    
+
     /// 检查是否为空值
     /// - Returns: 是否为空值
     public func isNull() -> Bool {
-        return valueType == .null
+        if case .null = storage { return true }
+        return false
     }
-    
+
     /// 通用获取值方法，支持类型转换
     /// - Parameter type: 目标类型
     /// - Returns: 转换后的值或抛出错误
     public func getValue<T>(as type: T.Type) throws -> T {
         switch type {
         case is String.Type:
-            if let value = getString() {
-                return value as! T
+            switch storage {
+            case .string(let v): return v as! T
+            case .int(let v):    return String(v) as! T
+            case .double(let v): return String(v) as! T
+            case .bool(let v):   return String(v) as! T
+            case .null:          return "" as! T
+            default:             throw NtkError.Serialization.dataTypeMismatch(underlyingError: nil)
             }
-            // 尝试类型转换
-            switch valueType {
-            case .int:
-                return String(rawValue as! Int) as! T
-            case .double:
-                return String(rawValue as! Double) as! T
-            case .bool:
-                return String(rawValue as! Bool) as! T
-            case .null:
-                return "" as! T
-            default:
-                throw NtkError.serviceDataTypeInvalid
-            }
-            
+
         case is Int.Type:
-            if let value = getInt() {
-                return value as! T
+            switch storage {
+            case .int(let v):    return v as! T
+            case .string(let v):
+                if let intValue = Int(v) { return intValue as! T }
+                throw NtkError.Serialization.dataTypeMismatch(underlyingError: nil)
+            case .double(let v): return Int(v) as! T
+            case .bool(let v):   return (v ? 1 : 0) as! T
+            default:             throw NtkError.Serialization.dataTypeMismatch(underlyingError: nil)
             }
-            // 尝试类型转换
-            switch valueType {
-            case .string:
-                if let intValue = Int(rawValue as! String) {
-                    return intValue as! T
-                }
-                throw NtkError.serviceDataTypeInvalid
-            case .double:
-                return Int(rawValue as! Double) as! T
-            case .bool:
-                return (rawValue as! Bool ? 1 : 0) as! T
-            default:
-                throw NtkError.serviceDataTypeInvalid
-            }
-            
+
         case is Double.Type:
-            if let value = getDouble() {
-                return value as! T
+            switch storage {
+            case .double(let v): return v as! T
+            case .string(let v):
+                if let doubleValue = Double(v) { return doubleValue as! T }
+                throw NtkError.Serialization.dataTypeMismatch(underlyingError: nil)
+            case .int(let v):    return Double(v) as! T
+            case .bool(let v):   return (v ? 1.0 : 0.0) as! T
+            default:             throw NtkError.Serialization.dataTypeMismatch(underlyingError: nil)
             }
-            // 尝试类型转换
-            switch valueType {
-            case .string:
-                if let doubleValue = Double(rawValue as! String) {
-                    return doubleValue as! T
-                }
-                throw NtkError.serviceDataTypeInvalid
-            case .int:
-                return Double(rawValue as! Int) as! T
-            case .bool:
-                return (rawValue as! Bool ? 1.0 : 0.0) as! T
-            default:
-                throw NtkError.serviceDataTypeInvalid
-            }
-            
+
         case is Bool.Type:
-            if let value = getBool() {
-                return value as! T
+            switch storage {
+            case .bool(let v):   return v as! T
+            case .string(let v):
+                let lower = v.lowercased()
+                return (lower == "true" || lower == "1") as! T
+            case .int(let v):    return (v != 0) as! T
+            case .double(let v): return (v != 0.0) as! T
+            default:             throw NtkError.Serialization.dataTypeMismatch(underlyingError: nil)
             }
-            // 尝试类型转换
-            switch valueType {
-            case .string:
-                let stringValue = (rawValue as! String).lowercased()
-                return (stringValue == "true" || stringValue == "1") as! T
-            case .int:
-                return (rawValue as! Int != 0) as! T
-            case .double:
-                return (rawValue as! Double != 0.0) as! T
-            default:
-                throw NtkError.serviceDataTypeInvalid
-            }
-            
+
         case is [String: any Sendable].Type:
-            if let value = getDictionary() {
-                return value as! T
-            }
-            throw NtkError.serviceDataTypeInvalid
-            
+            if let value = getDictionary() { return value as! T }
+            throw NtkError.Serialization.dataTypeMismatch(underlyingError: nil)
+
         case is [any Sendable].Type:
-            if let value = getArray() {
-                return value as! T
-            }
-            throw NtkError.serviceDataTypeInvalid
-            
+            if let value = getArray() { return value as! T }
+            throw NtkError.Serialization.dataTypeMismatch(underlyingError: nil)
+
         default:
-            throw NtkError.typeMismatch
+            throw NtkError.Serialization.dataTypeMismatch(underlyingError: nil)
         }
     }
 }
 
-// MARK: - 下标语法支持
+// MARK: - Subscripts
 
 extension NtkDynamicData {
-    
+
     /// 字典类型的字符串下标访问
     /// - Parameter key: 字典键
     /// - Returns: 对应的NtkDynamicData值或nil
@@ -382,7 +342,7 @@ extension NtkDynamicData {
         guard let value = dict[key] else { return nil }
         return NtkDynamicData.from(value)
     }
-    
+
     /// 数组类型的整数下标访问
     /// - Parameter index: 数组索引
     /// - Returns: 对应的NtkDynamicData值或nil
@@ -391,7 +351,7 @@ extension NtkDynamicData {
         guard index >= 0 && index < array.count else { return nil }
         return NtkDynamicData.from(array[index])
     }
-    
+
     /// 支持链式访问的下标方法
     /// 例如: data["user"]["name"] 或 data["items"][0]
     /// - Parameter keyPath: 键路径（字符串或整数）
@@ -402,43 +362,43 @@ extension NtkDynamicData {
     }
 }
 
-// MARK: - 便利扩展
+// MARK: - Convenience Navigation
 
 extension NtkDynamicData {
-    
+
     /// 获取嵌套字典中的值
     /// - Parameter keyPath: 点分隔的键路径，如 "user.profile.name"
     /// - Returns: 对应的NtkDynamicData值或nil
     public func getValue(forKeyPath keyPath: String) -> NtkDynamicData? {
         let keys = keyPath.split(separator: ".").map(String.init)
         var current: NtkDynamicData? = self
-        
+
         for key in keys {
             current = current?[key]
             if current == nil {
                 return nil
             }
         }
-        
+
         return current
     }
-    
+
     /// 获取嵌套数组中的值
     /// - Parameter indexPath: 索引路径数组，如 [0, 1, 2]
     /// - Returns: 对应的NtkDynamicData值或nil
     public func getValue(forIndexPath indexPath: [Int]) -> NtkDynamicData? {
         var current: NtkDynamicData? = self
-        
+
         for index in indexPath {
             current = current?[index]
             if current == nil {
                 return nil
             }
         }
-        
+
         return current
     }
-    
+
     /// 安全获取值的便利方法
     /// - Parameters:
     ///   - key: 键名
@@ -448,7 +408,7 @@ extension NtkDynamicData {
         guard let value = self[key] else { return defaultValue }
         return (try? value.getValue(as: T.self)) ?? defaultValue
     }
-    
+
     /// 安全获取数组元素的便利方法
     /// - Parameters:
     ///   - index: 索引
