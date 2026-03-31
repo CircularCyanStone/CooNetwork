@@ -144,7 +144,7 @@ extension NtkNetwork {
 
     /// 取消当前请求
     public func cancel() async {
-        let requestToCancel = mutableRequest
+        let requestToCancel = lock.withLock { mutableRequest }
         // 取消通过引用类型状态
         requestToCancel.isCancelledRef?.cancel()
         await NtkTaskManager.shared.cancelRequest(request: requestToCancel)

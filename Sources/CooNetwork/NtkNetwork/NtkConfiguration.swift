@@ -28,17 +28,23 @@ public struct NtkConfiguration: Sendable {
         public var defaultTimeout: TimeInterval = 20
     }
 
-    /// 内部存储
+    /// 内部存储 — nonisolated(unsafe) 是必需的，因为 static 存储属性需要在全局隔离域外访问。
+    /// 所有对 _current 的读写必须通过 withLock 进行，禁止直接访问。
     nonisolated(unsafe) private static var _current = NtkConfiguration()
 
     private static let lock = NtkUnfairLock()
 
+    /// 在锁保护下访问 _current 的唯一入口
+    private static func withLock<R>(_ body: (inout NtkConfiguration) throws -> R) rethrows -> R {
+        lock.lock()
+        defer { lock.unlock() }
+        return try body(&_current)
+    }
+
     /// 当前配置的不可变快照（线程安全）
     /// 每次读取返回一份值拷贝，不会读到半更新状态
     public static var current: NtkConfiguration {
-        lock.lock()
-        defer { lock.unlock() }
-        return _current
+        withLock { $0 }
     }
 
     /// 配置快照，创建后不可变
@@ -51,10 +57,10 @@ public struct NtkConfiguration: Sendable {
     /// 更新全局配置（生成新快照，原子替换）
     /// - Parameter configuration: 配置修改闭包
     public static func configure(_ configuration: (inout Builder) -> Void) {
-        lock.lock()
-        defer { lock.unlock() }
-        var newBuilder = _current.builder
-        configuration(&newBuilder)
-        _current = NtkConfiguration(builder: newBuilder)
+        withLock { config in
+            var newBuilder = config.builder
+            configuration(&newBuilder)
+            config = NtkConfiguration(builder: newBuilder)
+        }
     }
 }

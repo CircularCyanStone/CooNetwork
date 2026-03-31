@@ -55,9 +55,9 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
         interceptorsToRun.append(NtkDeduplicationInterceptor())
         let allInterceptors = sortInterceptors(interceptorsToRun)
         
-        let realChainManager = NtkInterceptorChainManager(interceptors: allInterceptors) { [weak self] context in
+        let realChainManager = NtkInterceptorChainManager(interceptors: allInterceptors) { [self] context in
             // 在执行链末端更新请求对象
-            self?.mutableRequest = context.mutableRequest
+            self.mutableRequest = context.mutableRequest
             let response = try await context.client.execute(context.mutableRequest)
             return response
         }
@@ -80,8 +80,8 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
 
         let tmpInterceptors = config.interceptors.filter { $0 is NtkResponseParserBox }
 
-        let realChainManager = NtkInterceptorChainManager(interceptors: tmpInterceptors) { [weak self] context in
-            self?.mutableRequest = context.mutableRequest
+        let realChainManager = NtkInterceptorChainManager(interceptors: tmpInterceptors) { [self] context in
+            self.mutableRequest = context.mutableRequest
             guard let data = try await cacheProvider.loadCacheData(for: context.mutableRequest) else {
                 throw NtkError.Cache.noCache
             }

@@ -44,8 +44,9 @@ public final class AFClient: iNtkClient {
             throw NtkError.unsupportedRequestType(request: request.originalRequest)
         }
 
-        // 构建完整URL
-        let url = (request.baseURL?.absoluteString ?? "") + request.path
+        // 构建完整URL，处理 slash 边界
+        let base = request.baseURL?.absoluteString ?? ""
+        let url = base + (base.hasSuffix("/") || request.path.hasPrefix("/") ? "" : "/") + request.path
         let method = HTTPMethod(rawValue: request.method.rawValue.uppercased())
         let headers = HTTPHeaders(request.headers ?? [:])
 

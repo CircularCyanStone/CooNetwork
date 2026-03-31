@@ -87,6 +87,7 @@ public struct NtkDataParsingInterceptor<
         )
     }
 
+    @NtkActor
     private func prepare(
         _ acquired: AcquiredResponse,
         context: NtkInterceptorContext
@@ -109,6 +110,7 @@ public struct NtkDataParsingInterceptor<
         )
     }
 
+    @NtkActor
     private func interpret(
         _ prepared: PreparedPayload,
         context: NtkInterceptorContext
@@ -137,6 +139,7 @@ public struct NtkDataParsingInterceptor<
         }
     }
 
+    @NtkActor
     private func decide(
         _ interpretation: NtkInterpretation<ResponseData>,
         context: NtkInterceptorContext
@@ -149,13 +152,7 @@ public struct NtkDataParsingInterceptor<
         request: iNtkRequest
     ) {
         logger.debug(
-            """
-            ---------------------Data response start-------------------------
-            \(request)
-            参数：\(request.parameters as [String: any Sendable]? ?? [:])
-            code: \(decoderResponse.code)  msg: \(decoderResponse.msg ?? "")
-            ---------------------Data response end-------------------------
-            """,
+            "[Response] \(request) params=\(request.parameters as [String: any Sendable]? ?? [:]) code=\(decoderResponse.code) msg=\(decoderResponse.msg ?? "")",
             category: .network
         )
     }

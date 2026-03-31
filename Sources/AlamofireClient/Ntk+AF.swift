@@ -11,10 +11,16 @@ import CooNetwork
 #endif
 import Alamofire
 
-/// 类型别名，便捷用于后端返回值JSON key的映射模式为AFResponseMapKeys。
+/// Alamofire 便捷类型别名。
+///
+/// 使用指引：
+/// - ``NtkAF<T>`` — 等同于 `Ntk<T>`，用于声明 AF 后端的网络请求变量。
+///   创建实例时使用 `NtkAF<T>.withAF(request)` 便捷方法，自动注入 AF 客户端和默认验证器。
+/// - ``NtkAFBool`` — 等同于 `Ntk<Bool>`，用于只需判断成功/失败的请求。
+/// - 当不需要耦合 Alamofire 时（如测试或使用其他后端），直接使用核心层的 `Ntk<T>`。
 public typealias NtkAF<ResponseData> = Ntk<ResponseData>
 
-/// 类型别名，用于返回值为Bool类型的情况，后端JSON key的映射模式为AFResponseMapKeys。
+/// Bool 响应的 AF 便捷别名，用于只需判断成功/失败的请求。
 public typealias NtkAFBool = Ntk<Bool>
 
 /// AF网络请求管理器扩展
