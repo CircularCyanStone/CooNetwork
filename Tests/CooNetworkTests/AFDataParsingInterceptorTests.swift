@@ -97,11 +97,11 @@ struct NtkDataParsingInterceptorTests {
         }
     }
 
-    // MARK: - data 为 nil + validation 失败 → validation 错误
+    // MARK: - data 为 nil + validation 失败 → serialization.dataMissing
 
     @Test
     @NtkActor
-    func nilDataWithValidationFailThrowsValidation() async throws {
+    func nilDataWithValidationFailThrowsDataMissing() async throws {
         let json: [String: Any] = ["retCode": 999, "retMsg": "fail"]
         let data = try JSONSerialization.data(withJSONObject: json)
         let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(validation: AFTestFailValidation())
@@ -109,9 +109,9 @@ struct NtkDataParsingInterceptorTests {
         let context = makeAFContext()
         do {
             _ = try await interceptor.intercept(context: context, next: handler)
-            Issue.record("期望抛出 validation 错误")
-        } catch let error as NtkError.Validation {
-            if case .serviceRejected = error {
+            Issue.record("期望抛出 serialization.dataMissing")
+        } catch let error as NtkError.Serialization {
+            if case .dataMissing = error {
                 #expect(Bool(true))
             } else {
                 Issue.record("错误类型不符: \(error)")
@@ -306,11 +306,11 @@ struct NtkDataParsingInterceptorTests {
         let data = try JSONSerialization.data(withJSONObject: ["retCode": 999, "retMsg": "fail"])
         let handler = AFTestDataHandler(data: data, request: AFTestRequest())
 
-        await #expect(throws: NtkError.Validation.self) {
+        await #expect(throws: NtkError.Serialization.self) {
             _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
         }
 
-        #expect(hook.events.contains("didValidateFail"))
+        #expect(!hook.events.contains("didValidateFail"))
         #expect(!hook.events.contains("didComplete"))
     }
 
@@ -356,7 +356,7 @@ struct NtkDataParsingInterceptorTests {
 
     @Test
     @NtkActor
-    func didValidateFailHookErrorDoesNotReplaceValidation() async throws {
+    func didValidateFailHookErrorDoesNotReplaceDataMissing() async throws {
         let throwingHook = AFThrowingHook(throwPoint: .didValidateFail)
         let recordingHook = AFTestRecordingHook()
         let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
@@ -368,11 +368,11 @@ struct NtkDataParsingInterceptorTests {
 
         do {
             _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
-            Issue.record("期望抛出 validation 错误")
-        } catch let error as NtkError.Validation {
-            if case .serviceRejected = error {
-                #expect(throwingHook.events == ["didDecodeHeader", "willValidate", "didValidateFail"])
-                #expect(recordingHook.events == ["didDecodeHeader", "willValidate", "didValidateFail"])
+            Issue.record("期望抛出 serialization.dataMissing")
+        } catch let error as NtkError.Serialization {
+            if case .dataMissing = error {
+                #expect(throwingHook.events == ["didDecodeHeader"])
+                #expect(recordingHook.events == ["didDecodeHeader"])
             } else {
                 Issue.record("错误类型不符: \(error)")
             }

@@ -61,7 +61,7 @@ struct NtkDefaultResponseParsingPolicyTests {
             Issue.record("期望抛出 serialization.dataMissing")
         } catch let error as NtkError.Serialization {
             if case .dataMissing = error {
-                #expect(hook.events == ["willValidate"])
+                #expect(hook.events.isEmpty)
             } else {
                 Issue.record("错误类型不符: \(error)")
             }
@@ -70,7 +70,7 @@ struct NtkDefaultResponseParsingPolicyTests {
 
     @Test
     @NtkActor
-    func decodedResultWithNilDataAndValidationFailThrowsValidation() async throws {
+    func decodedResultWithNilDataAndValidationFailThrowsDataMissing() async throws {
         let hook = PolicyTestRecordingHook()
         let policy = NtkDefaultResponseParsingPolicy<PolicyTestModel>(
             validation: PolicyTestFailValidation(),
@@ -91,12 +91,10 @@ struct NtkDefaultResponseParsingPolicyTests {
                 ),
                 context: makePolicyContext()
             )
-            Issue.record("期望抛出 validation")
-        } catch let error as NtkError.Validation {
-            if case .serviceRejected(let response) = error {
-                #expect(response.request.path == "/policy/test")
-                #expect(response.code.intValue == 999)
-                #expect(hook.events == ["willValidate", "didValidateFail"])
+            Issue.record("期望抛出 serialization.dataMissing")
+        } catch let error as NtkError.Serialization {
+            if case .dataMissing = error {
+                #expect(hook.events.isEmpty)
             } else {
                 Issue.record("错误类型不符: \(error)")
             }

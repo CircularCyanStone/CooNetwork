@@ -33,15 +33,6 @@ struct NtkDefaultResponseParsingPolicy<ResponseData: Sendable & Decodable> {
             }
 
             guard let data = decoded.data else {
-                let response = NtkResponse<ResponseData?>(
-                    code: decoded.code,
-                    data: nil,
-                    msg: decoded.msg,
-                    response: decoded.clientResponse,
-                    request: decoded.request,
-                    isCache: decoded.isCache
-                )
-                try await validateServiceSuccess(response, request: decoded.request, context: context)
                 throw NtkError.Serialization.dataMissing(clientResponse: decoded.clientResponse)
             }
 
