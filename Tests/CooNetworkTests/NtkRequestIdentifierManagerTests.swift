@@ -256,6 +256,66 @@ struct NtkRequestIdentifierManagerTests {
         #expect(list.count == 10)
     }
 
+    // MARK: - weak prev 引用验证
+
+    /// 测试：移除尾部节点后，被移除节点的引用已断开
+    @Test
+    func lruList_removed_tail_node_has_no_references() {
+        let list = LRUList<String, Int>()
+        let node1 = list.addFirst(key: "a", value: 1)
+        let node2 = list.addFirst(key: "b", value: 2)
+        _ = list.addFirst(key: "c", value: 3)
+
+        // 当前顺序: c -> b -> a
+        _ = list.removeLast()
+
+        // 被移除的 node1 的引用应已清理
+        #expect(node1.prev == nil)
+        #expect(node1.next == nil)
+
+        // 新尾部 node2 的 next 应为 nil
+        #expect(node2.next == nil)
+    }
+
+    /// 测试：移除中间节点后，链表完整性保持
+    @Test
+    func lruList_move_from_middle_maintains_integrity() {
+        let list = LRUList<String, Int>()
+        let nodeA = list.addFirst(key: "a", value: 1)
+        let nodeB = list.addFirst(key: "b", value: 2)
+        let nodeC = list.addFirst(key: "c", value: 3)
+
+        // 当前顺序: c -> b -> a，移动中间的 b 到头部
+        list.moveToFirst(nodeB)
+
+        // 新顺序: b -> c -> a
+        #expect(list.head === nodeB)
+        #expect(nodeB.prev == nil)
+        #expect(nodeB.next === nodeC)
+        #expect(nodeC.prev === nodeB)
+        #expect(nodeC.next === nodeA)
+        #expect(nodeA.prev === nodeC)
+        #expect(nodeA.next == nil)
+        #expect(list.count == 3)
+    }
+
+    /// 测试：连续移除所有节点后，head/tail 均为 nil
+    @Test
+    func lruList_remove_all_nodes_leaves_empty() {
+        let list = LRUList<String, Int>()
+        _ = list.addFirst(key: "a", value: 1)
+        _ = list.addFirst(key: "b", value: 2)
+        _ = list.addFirst(key: "c", value: 3)
+
+        _ = list.removeLast()
+        _ = list.removeLast()
+        _ = list.removeLast()
+
+        #expect(list.head == nil)
+        #expect(list.tail == nil)
+        #expect(list.count == 0)
+    }
+
     // MARK: - NtkRequestIdentifierManager 集成测试
 
     /// 测试：缓存键生成的一致性

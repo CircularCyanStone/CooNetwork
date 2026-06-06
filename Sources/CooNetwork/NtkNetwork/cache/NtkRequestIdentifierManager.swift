@@ -16,7 +16,7 @@ import CryptoKit
 internal final class LRUNode<Key: Hashable, Value> {
     var key: Key
     var value: Value
-    var prev: LRUNode?
+    weak var prev: LRUNode?
     var next: LRUNode?
 
     init(key: Key, value: Value) {
