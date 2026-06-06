@@ -62,6 +62,12 @@ public struct NtkInterceptorPriority: Comparable, Sendable {
     /// 高优先级（1000）
     public static let high   = Self(tier: .standard, value: 1000)
 
+    /// 原始响应进入解析器前的处理点。
+    ///
+    /// 请求流中位于解析器内侧；响应流中早于解析器返回。
+    /// 用于需要在 `iNtkResponseParser` 读取响应包前完成的原始响应转换。
+    public static let beforeResponseParsing = Self(tier: .inner, value: 250)
+
     // ── 框架内部常量 ──
     /// Dedup 使用：最外层
     static let outerHighest = Self(tier: .outer,    value: 1000)
@@ -153,4 +159,3 @@ extension iNtkInterceptor {
         .medium
     }
 }
-
