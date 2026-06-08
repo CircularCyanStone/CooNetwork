@@ -8,6 +8,7 @@
 
 import Foundation
 import Reachability
+import CoreTelephony
 
 enum EWNetworkType: String {
     case NotReachable = "无网络"
