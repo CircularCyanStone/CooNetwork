@@ -3,7 +3,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Swift-6.0-orange.svg" />
   <img src="https://img.shields.io/badge/platform-iOS%2013%2B%20%7C%20macOS%2010.15%2B-lightgrey.svg" />
-  <img src="https://img.shields.io/badge/version-0.0.17-blue.svg" />
+  <img src="https://img.shields.io/badge/version-0.0.18-blue.svg" />
   <img src="https://img.shields.io/badge/license-MIT-green.svg" />
 </p>
 
@@ -109,7 +109,7 @@ let response: LoginResponse = try await Ntk.api(request).request()
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/CircularCyanStone/CooNetwork.git", from: "0.0.17")
+    .package(url: "https://github.com/CircularCyanStone/CooNetwork.git", from: "0.0.18")
 ]
 ```
 
@@ -130,7 +130,7 @@ dependencies: [
 在 `Podfile` 中添加：
 
 ```ruby
-pod 'CooNetwork/Alamofire', '~> 0.0.17'
+pod 'CooNetwork/Alamofire', '~> 0.0.18'
 ```
 
 执行安装：
