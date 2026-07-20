@@ -119,14 +119,8 @@ struct NtkRetryInterceptorTests {
         let policy = NtkFixedIntervalRetryPolicy.precise(maxRetryCount: 3, interval: 0)
         #expect(policy.shouldRetry(
             attemptCount: 1,
-            error: NtkError.Serialization.dataMissing(
-                clientResponse: NtkClientResponse(
-                    data: Data(),
-                    msg: nil,
-                    response: Data(),
-                    request: DummyRequest(),
-                    isCache: false
-                )
+            error: NtkError.Serialization.invalidDataPayload(
+                recoveredResponse: nil
             )
         ) == false)
     }

@@ -287,7 +287,7 @@ struct IPv6ParsingInterceptor: iNtkResponseParser {
             } else if let d = clientResponse.response as? Data {
                 rawData = d
             } else {
-                throw NtkError.Serialization.dataMissing(clientResponse: clientResponse)
+                throw NtkError.Serialization.invalidDataPayload(recoveredResponse: nil)
             }
         } else {
              throw NtkError.invalidResponseType(response: response)
