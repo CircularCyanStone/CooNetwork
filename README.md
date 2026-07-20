@@ -7,40 +7,67 @@
   <img src="https://img.shields.io/badge/license-MIT-green.svg" />
 </p>
 
-为 Swift 项目提供**类型安全**、**并发安全**的统一网络抽象层。
+类型安全、并发安全的 Swift 网络抽象层。
 
-## 为什么选择 CooNetwork？
+## 为什么需要它？
 
-现代 iOS/macOS 项目的网络层往往面临这些问题：
+如果你的项目遇到这些问题：
 
-- **底层库耦合严重** — 直接使用 Alamofire/URLSession，迁移成本高，难以适配企业内部网络组件（如 mPaaS）
-- **并发安全难保证** — 手动管理线程和锁，Swift 6 严格并发检查下代码难以通过编译
-- **重复造轮子** — 每个项目都要实现缓存、重试、鉴权、日志等通用功能
-- **类型不安全** — 运行时类型转换、字典传参，容易出现崩溃和数据错误
+- **网络库切换成本高** — 直接依赖 Alamofire/URLSession，后续想换库或接入内部组件（如 mPaaS）改动巨大
+- **Swift 6 并发检查过不了** — 手动管理线程和锁，代码到处是 warning 和编译错误
+- **每个项目重复写** — 缓存、重试、鉴权、日志这些逻辑每次都要重新实现
+- **类型不安全容易崩** — 字典传参、运行时类型转换，线上偶尔出现解析崩溃
 
-**CooNetwork 提供的解决方案：**
+**CooNetwork 的做法：**
 
-✅ **统一抽象，后端无关** — 通过协议抽象网络层，可以无缝切换 Alamofire、URLSession 或企业内部网络库，业务代码零改动
+✅ **统一抽象** — 业务代码只依赖协议，底层可以随时换 Alamofire、URLSession 或自定义实现
 
-✅ **Swift 6 并发安全** — 采用双层设计（配置层 + Actor 执行层），编译期保证线程安全，无需手动管理锁和队列
+✅ **Swift 6 原生支持** — 双层设计（配置层 + Actor 执行层），通过 Swift 6 严格并发检查，不需要手动加锁
 
-✅ **企业级特性开箱即用** — 内置拦截器链、缓存系统、重试策略、请求去重、进度监听等复杂功能，开箱即用无需重复实现
+✅ **通用功能内置** — 拦截器链、缓存、重试、去重、进度监听，直接用不用自己写
 
-✅ **类型安全 + 编译期检查** — 泛型响应类型、协议约束，避免运行时类型错误和字典取值崩溃
+✅ **编译期类型检查** — 泛型约束 + 协议，类型错误编译时就能发现
 
-✅ **清晰的职责边界** — 解析流水线（normalize → transform → decode → validate）分离关注点，避免逻辑混乱和维护困难
+✅ **职责清晰** — 解析流水线（normalize → transform → decode → validate）每个环节独立，不会混在一起
 
 ---
 
-## 一个完整的示例
+## 快速开始
+
+**第一步：项目中创建统一扩展**（只需配置一次）
 
 ```swift
+// Ntk+MyApp.swift
 import CooNetwork
 import AlamofireClient
 
-// 1. 定义请求（类型安全）
-struct LoginRequest: iAFRequest {
-    var baseURL: URL? { URL(string: "https://api.example.com") }
+extension Ntk {
+    static func api<T: Decodable>(_ request: iAFRequest) -> NtkNetwork<T> {
+        let network = NtkAF<T>.withAF(request)
+        // 统一添加日志拦截器
+        network.addInterceptor(LoggingInterceptor())
+        // 统一添加鉴权拦截器
+        network.addInterceptor(TokenInterceptor())
+        return network
+    }
+}
+
+// 定义项目的基础请求协议
+protocol MyAppRequest: iAFRequest {}
+
+extension MyAppRequest {
+    var baseURL: URL? { URL(string: "https://api.myapp.com") }
+    var headers: [String: String]? {
+        ["Content-Type": "application/json"]
+    }
+}
+```
+
+**第二步：业务代码只需定义接口**
+
+```swift
+// 定义登录接口
+struct LoginRequest: MyAppRequest {
     var path: String { "/auth/login" }
     var method: NtkHTTPMethod { .post }
     var parameters: [String: Any]? {
@@ -51,24 +78,12 @@ struct LoginRequest: iAFRequest {
     let password: String
 }
 
-// 2. 发起请求（并发安全 + 自动解析）
+// 发起请求（只需 2 行）
 let request = LoginRequest(username: "user", password: "pass")
-let network = NtkAF<LoginResponse>.withAF(request)
-
-// 3. 添加拦截器（灵活扩展）
-network.addInterceptor(LoggingInterceptor())
-network.addInterceptor(TokenRefreshInterceptor())
-
-// 4. 执行并处理结果（分层错误处理）
-do {
-    let response = try await network.request()
-    print("登录成功: \(response.token)")
-} catch let error as NtkError.Validation {
-    print("业务错误: \(error.message)")
-} catch {
-    print("网络错误: \(error)")
-}
+let response: LoginResponse = try await Ntk.api(request).request()
 ```
+
+**这就是全部代码。** baseURL、拦截器、日志、鉴权都在扩展中统一配置好了，业务代码只关注接口本身。
 
 ---
 
@@ -83,29 +98,6 @@ do {
 - **请求去重** — 自动合并相同请求，避免重复调用
 - **进度监听** — 上传/下载进度实时回调
 - **分层错误** — 域错误优先（Validation/Serialization/Client/Cache），精准捕获和处理
-
----
-
-## 🚀 快速开始
-
-定义请求并发起调用，只需几行代码：
-
-```swift
-import CooNetwork
-import AlamofireClient
-
-// 1. 定义请求
-struct UserRequest: iAFRequest {
-    var baseURL: URL? { URL(string: "https://api.example.com") }
-    var path: String { "/users/123" }
-    var method: NtkHTTPMethod { .get }
-}
-
-// 2. 发起请求
-let network = NtkAF<User>.withAF(UserRequest())
-let user = try await network.request()
-print("用户名: \(user.name)")
-```
 
 ---
 
