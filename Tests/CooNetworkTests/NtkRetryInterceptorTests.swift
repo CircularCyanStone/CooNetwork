@@ -202,7 +202,7 @@ private struct CountingFailHandler: iNtkRequestHandler {
     let counter: RetryExecutionCounter
     func handle(context: NtkInterceptorContext) async throws -> any iNtkResponse {
         await counter.increment()
-        throw NtkError.requestTimeout
+        throw NtkError.requestTimeout(.framework(timeout: 30))
     }
 }
 
@@ -225,7 +225,7 @@ private struct FailNTimesThenSucceedHandler: iNtkRequestHandler {
         await counter.increment()
         let current = await counter.value()
         if current <= failCount {
-            throw NtkError.requestTimeout
+            throw NtkError.requestTimeout(.framework(timeout: 30))
         }
         return NtkResponse(code: NtkReturnCode(200), data: true, msg: nil, response: true, request: request, isCache: false)
     }
@@ -268,7 +268,7 @@ private struct DummyClient: iNtkClient {
 
     @NtkActor
     func execute(_ request: NtkMutableRequest) async throws -> NtkClientResponse {
-        throw NtkError.requestTimeout
+        throw NtkError.requestTimeout(.framework(timeout: 30))
     }
     
     @NtkActor
@@ -314,6 +314,6 @@ private struct DummyCacheStorage: iNtkCacheStorage {
 @NtkActor
 private struct AlwaysFailHandler: iNtkRequestHandler {
     func handle(context: NtkInterceptorContext) async throws -> any iNtkResponse {
-        throw NtkError.requestTimeout
+        throw NtkError.requestTimeout(.framework(timeout: 30))
     }
 }

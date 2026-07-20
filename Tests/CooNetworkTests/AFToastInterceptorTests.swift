@@ -163,7 +163,7 @@ private struct ToastIgnoredValidationFailureHandler: iNtkRequestHandler {
 @NtkActor
 private struct ToastTimeoutHandler: iNtkRequestHandler {
     func handle(context: NtkInterceptorContext) async throws -> any iNtkResponse {
-        throw NtkError.requestTimeout
+        throw NtkError.requestTimeout(.framework(timeout: 30))
     }
 }
 

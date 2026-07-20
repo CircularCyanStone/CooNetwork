@@ -251,7 +251,7 @@ private struct ChainTieredInterceptor: iNtkInterceptor {
 @NtkActor
 private struct ChainThrowingInterceptor: iNtkInterceptor {
     func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
-        throw NtkError.requestTimeout
+        throw NtkError.requestTimeout(.framework(timeout: 30))
     }
 }
 
