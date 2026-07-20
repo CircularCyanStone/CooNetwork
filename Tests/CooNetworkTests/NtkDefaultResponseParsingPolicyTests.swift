@@ -37,35 +37,31 @@ struct NtkDefaultResponseParsingPolicyTests {
 
     @Test
     @NtkActor
-    func decodedResultWithNilDataAndValidationPassThrowsDataMissing() async throws {
+    func decodedResultWithNilDataAndValidationPassReturnsOptionalResponse() async throws {
         let hook = PolicyTestRecordingHook()
         let policy = NtkDefaultResponseParsingPolicy<PolicyTestModel>(
             validation: PolicyTestPassValidation(),
             dispatcher: NtkParsingHookDispatcher(hooks: [hook])
         )
 
-        do {
-            _ = try await policy.decide(
-                from: .decoded(
-                    .init(
-                        code: NtkReturnCode(0),
-                        msg: "ok",
-                        data: nil,
-                        request: PolicyTestRequest(),
-                        clientResponse: makePolicyClientResponse(),
-                        isCache: false
-                    )
-                ),
-                context: makePolicyContext()
-            )
-            Issue.record("期望抛出 serialization.dataMissing")
-        } catch let error as NtkError.Serialization {
-            if case .dataMissing = error {
-                #expect(hook.events == ["willValidate"])
-            } else {
-                Issue.record("错误类型不符: \(error)")
-            }
-        }
+        let result = try await policy.decide(
+            from: .decoded(
+                .init(
+                    code: NtkReturnCode(0),
+                    msg: "ok",
+                    data: nil,
+                    request: PolicyTestRequest(),
+                    clientResponse: makePolicyClientResponse(),
+                    isCache: false
+                )
+            ),
+            context: makePolicyContext()
+        )
+
+        // 验证通过时，data=nil 是合法响应，应返回 NtkResponse<PolicyTestModel?>
+        #expect(result.code.intValue == 0)
+        #expect(result.msg == "ok")
+        #expect(hook.events == ["willValidate", "didComplete"])
     }
 
     @Test

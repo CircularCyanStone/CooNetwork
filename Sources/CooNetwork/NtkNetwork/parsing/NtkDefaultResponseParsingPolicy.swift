@@ -42,7 +42,9 @@ struct NtkDefaultResponseParsingPolicy<ResponseData: Sendable & Decodable> {
                     isCache: decoded.isCache
                 )
                 try await validateServiceSuccess(validationResponse, request: decoded.request, context: context)
-                throw NtkError.Serialization.dataMissing(clientResponse: decoded.clientResponse)
+                // 如果 validation 通过，说明 data=null 是合法响应，直接返回
+                await dispatcher.didComplete(validationResponse, context: context)
+                return validationResponse
             }
 
             let response = NtkResponse(

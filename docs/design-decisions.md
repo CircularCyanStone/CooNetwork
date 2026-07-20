@@ -63,7 +63,7 @@
 
 **修复项:**
 
-- **C1** `NtkDefaultResponseParsingPolicy` data-nil 分支先执行 validation 再决定错误类型 — 业务失败响应缺失 `data` 是合法场景，应优先抛 `Validation.serviceRejected` 保留业务错误码；只有 validation 通过但目标 `ResponseData` 缺失时才抛 `Serialization.dataMissing`。该分支使用 `NtkResponse<ResponseData?>` 仅作为 validation 候选响应，不作为成功结果返回给 executor。
+- **C1** `NtkDefaultResponseParsingPolicy` data-nil 分支先执行 validation 再决定成功或失败 — 业务失败响应缺失 `data` 是合法场景，应优先抛 `Validation.serviceRejected` 保留业务错误码；如果 validation 通过，说明服务端认为请求成功，此时 `data=null` 是合法响应（如删除、更新等操作），应返回 `NtkResponse<ResponseData?>` 而非抛错。`dataMissing` 错误已被移除，因为 "validation 通过但 data 缺失应抛错" 这一设计本身存在逻辑矛盾。
 - **H1** 移除 `iNtkCacheStorage.setData` 冗余 `@available(iOS 13.0.0, *)` — Package.swift 已设置 `.iOS(.v13)`
 - **H2** `LRUNode.prev` 改为 `weak` — 打破双向链表循环引用，新增 3 个测试覆盖
 
