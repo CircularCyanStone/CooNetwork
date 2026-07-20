@@ -7,20 +7,82 @@
   <img src="https://img.shields.io/badge/license-MIT-green.svg" />
 </p>
 
-统一的网络工具库，为 Swift 项目提供类型安全的网络抽象层。
+为 Swift 项目提供**类型安全**、**并发安全**的统一网络抽象层。
 
-**CooNetwork** 采用 Swift 6 并发模型，通过统一的协议抽象支持多种网络后端（如 Alamofire），提供类型安全的请求构建、灵活的拦截器链、内置缓存和重试等开箱即用的功能。
+## 为什么选择 CooNetwork？
+
+现代 iOS/macOS 项目的网络层往往面临这些问题：
+
+- **底层库耦合严重** — 直接使用 Alamofire/URLSession，迁移成本高，难以适配企业内部网络组件（如 mPaaS）
+- **并发安全难保证** — 手动管理线程和锁，Swift 6 严格并发检查下代码难以通过编译
+- **重复造轮子** — 每个项目都要实现缓存、重试、鉴权、日志等通用功能
+- **类型不安全** — 运行时类型转换、字典传参，容易出现崩溃和数据错误
+
+**CooNetwork 提供的解决方案：**
+
+✅ **统一抽象，后端无关** — 通过协议抽象网络层，可以无缝切换 Alamofire、URLSession 或企业内部网络库，业务代码零改动
+
+✅ **Swift 6 并发安全** — 采用双层设计（配置层 + Actor 执行层），编译期保证线程安全，无需手动管理锁和队列
+
+✅ **企业级特性开箱即用** — 内置拦截器链、缓存系统、重试策略、请求去重、进度监听等复杂功能，开箱即用无需重复实现
+
+✅ **类型安全 + 编译期检查** — 泛型响应类型、协议约束，避免运行时类型错误和字典取值崩溃
+
+✅ **清晰的职责边界** — 解析流水线（normalize → transform → decode → validate）分离关注点，避免逻辑混乱和维护困难
+
+---
+
+## 一个完整的示例
+
+```swift
+import CooNetwork
+import AlamofireClient
+
+// 1. 定义请求（类型安全）
+struct LoginRequest: iAFRequest {
+    var baseURL: URL? { URL(string: "https://api.example.com") }
+    var path: String { "/auth/login" }
+    var method: NtkHTTPMethod { .post }
+    var parameters: [String: Any]? {
+        ["username": username, "password": password]
+    }
+    
+    let username: String
+    let password: String
+}
+
+// 2. 发起请求（并发安全 + 自动解析）
+let request = LoginRequest(username: "user", password: "pass")
+let network = NtkAF<LoginResponse>.withAF(request)
+
+// 3. 添加拦截器（灵活扩展）
+network.addInterceptor(LoggingInterceptor())
+network.addInterceptor(TokenRefreshInterceptor())
+
+// 4. 执行并处理结果（分层错误处理）
+do {
+    let response = try await network.request()
+    print("登录成功: \(response.token)")
+} catch let error as NtkError.Validation {
+    print("业务错误: \(error.message)")
+} catch {
+    print("网络错误: \(error)")
+}
+```
 
 ---
 
 ## ✨ 核心特性
 
-- ✅ **Swift 6 并发安全** — 基于 Actor 隔离模型，线程安全无需手动管理
-- ✅ **类型安全** — 编译期类型检查，避免运行时类型错误
-- ✅ **统一抽象** — 支持多种网络后端（当前支持 Alamofire），可扩展
-- ✅ **灵活拦截器链** — 洋葱模型，支持请求/响应全流程拦截
-- ✅ **开箱即用** — 内置缓存、重试、去重、进度监听
-- ✅ **完善的错误处理** — 分层错误模型，精准捕获和处理
+- **统一抽象** — 协议驱动设计，支持 Alamofire、URLSession、mPaaS 等多种后端
+- **Swift 6 并发** — Actor 隔离 + 双层设计，编译期保证线程安全
+- **类型安全** — 泛型响应类型，编译期检查，避免运行时错误
+- **拦截器链** — 洋葱模型，三层优先级（outer/standard/inner），支持请求/响应全流程拦截
+- **缓存系统** — 内存/磁盘缓存，支持自定义存储策略和过期时间
+- **重试策略** — 内置固定间隔和指数退避策略，可自定义重试逻辑
+- **请求去重** — 自动合并相同请求，避免重复调用
+- **进度监听** — 上传/下载进度实时回调
+- **分层错误** — 域错误优先（Validation/Serialization/Client/Cache），精准捕获和处理
 
 ---
 
