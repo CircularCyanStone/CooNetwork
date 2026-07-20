@@ -678,14 +678,8 @@ struct NtkTaskManagerTests {
                     await gate.signalFirstStarted()
                     await gate.waitForFirstRelease()
                     // 模拟网络错误
-                    throw NtkError.Serialization.dataMissing(
-                        clientResponse: NtkClientResponse(
-                            data: Data(),
-                            msg: nil,
-                            response: Data(),
-                            request: ownerOriginalRequest,
-                            isCache: false
-                        )
+                    throw NtkError.Serialization.invalidDataPayload(
+                        recoveredResponse: nil
                     )
                 }
                 return Result<String, Error>.success(value)
@@ -725,10 +719,10 @@ struct NtkTaskManagerTests {
         // owner 收到的是网络错误（未被取消）
         if case .failure(let error) = ownerResult {
             if let serialization = error as? NtkError.Serialization,
-               case .dataMissing = serialization {
+               case .invalidDataPayload = serialization {
                 // 预期行为
             } else {
-                Issue.record("owner 应该收到 NtkError.Serialization.dataMissing，实际收到: \(error)")
+                Issue.record("owner 应该收到 NtkError.Serialization.invalidDataPayload，实际收到: \(error)")
             }
         } else {
             Issue.record("owner 应该收到错误")

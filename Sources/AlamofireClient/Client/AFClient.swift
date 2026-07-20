@@ -138,7 +138,7 @@ public final class AFClient: iNtkClient {
                     throw NtkError.requestCancelled
                 }
                 if urlError.code == .timedOut {
-                    throw NtkError.requestTimeout
+                    throw NtkError.requestTimeout(.urlSession(timeout: request.timeout))
                 }
                 throw NtkError.Client.external(
                     reason: NtkError.Client.AF.requestFailed,

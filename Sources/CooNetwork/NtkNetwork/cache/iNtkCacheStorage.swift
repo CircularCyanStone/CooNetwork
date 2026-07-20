@@ -18,7 +18,6 @@ public protocol iNtkCacheStorage: Sendable {
     ///   - metaData: 包含数据和元信息的缓存元数据
     ///   - key: 唯一的缓存键，用于标识和检索缓存数据
     /// - Returns: 存储操作是否成功
-    @available(iOS 13.0.0, *)
     @NtkActor
     func setData(metaData: NtkCacheMeta, key: String, for request: NtkMutableRequest) async -> Bool
     

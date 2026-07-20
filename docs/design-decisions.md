@@ -50,3 +50,27 @@
 - **缓存过期用时间戳比较** — `timeIntervalSince1970` 是 UTC 秒数，与时区无关，性能优于创建 Date 对象
 - **NtkLogger 日志级别** — `log()` 方法已实现级别检查，所有便捷方法均经过检查，无绕过调用
 - **NtkCacheMeta 用 NSSecureCoding 不用 Codable** — 设计定位为接口缓存，NSSecureCoding 满足 OC 组件存储需求，Codable 非核心需求
+- **`Error?` / `any Error` 持有非 Sendable 是可接受的 `@unchecked Sendable` 用法** — `Error` 协议不要求 `Sendable` 是 Swift 类型系统的已知限制；实际传入的 `URLError`/`AFError` 都是 Sendable 的，`@unchecked Sendable` 是标准做法，不应作为 review 问题提出（如 `NtkError.Client.ExternalContext`）
+- **协议方法数量不作为 review 问题** — 适配层协议（如 `iAFRequest`）的方法数量由后端能力决定，不是代码质量问题
+- **`NtkReturnCode` 两个 init 是刻意设计** — `init(_ value: Any?)` failable 用于 `JSONSerialization` 解析入口，`init(_ value: Sendable?)` non-failable 用于通用构造，语义不同不应合并
+- **`NtkResponseDecoder` 中 `NtkCodingKeys(stringValue:)!` 是安全的** — 任何字符串都是合法 `CodingKey`，不可能返回 nil
+
+## 代码评审记录
+
+### 2026-04-04 全量评审
+
+**范围**: Sources/ 全部 60 个 Swift 文件（CooNetwork 核心 + AlamofireClient 适配层）
+
+**修复项:**
+
+- **C1** `NtkDefaultResponseParsingPolicy` data-nil 分支先执行 validation 再决定成功或失败 — 业务失败响应缺失 `data` 是合法场景，应优先抛 `Validation.serviceRejected` 保留业务错误码；如果 validation 通过，说明服务端认为请求成功，此时 `data=null` 是合法响应（如删除、更新等操作），应返回 `NtkResponse<ResponseData?>` 而非抛错。`dataMissing` 错误已被移除，因为 "validation 通过但 data 缺失应抛错" 这一设计本身存在逻辑矛盾。
+- **H1** 移除 `iNtkCacheStorage.setData` 冗余 `@available(iOS 13.0.0, *)` — Package.swift 已设置 `.iOS(.v13)`
+- **H2** `LRUNode.prev` 改为 `weak` — 打破双向链表循环引用，新增 3 个测试覆盖
+
+**确认无需修改:**
+
+- **H3** `NtkNetwork.cancel()` TOCTOU — `cancelRequest` 读取的字段 init 后不可变，实际无竞争
+- **H4** `requestWithCache()` 缓存失败 debug 日志 — `noCache` 已在 executor 层单独 catch，debug 只对真正的存储异常触发，级别合理
+- **H5** `ExternalContext` 持有非 Sendable `Error?` — 见上方"其他"章节
+- **M1** loading key 全局常量 — `Ntk` 前缀 + `internal` 修饰，无冲突风险
+- **M2-M5** 见上方"其他"章节对应条目

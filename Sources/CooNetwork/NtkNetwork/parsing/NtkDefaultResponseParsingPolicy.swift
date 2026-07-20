@@ -33,16 +33,18 @@ struct NtkDefaultResponseParsingPolicy<ResponseData: Sendable & Decodable> {
             }
 
             guard let data = decoded.data else {
-                let response = NtkResponse<ResponseData?>(
+                let validationResponse = NtkResponse<ResponseData?>(
                     code: decoded.code,
-                    data: nil,
+                    data: decoded.data,
                     msg: decoded.msg,
                     response: decoded.clientResponse,
                     request: decoded.request,
                     isCache: decoded.isCache
                 )
-                try await validateServiceSuccess(response, request: decoded.request, context: context)
-                throw NtkError.Serialization.dataMissing(clientResponse: decoded.clientResponse)
+                try await validateServiceSuccess(validationResponse, request: decoded.request, context: context)
+                // 如果 validation 通过，说明 data=null 是合法响应，直接返回
+                await dispatcher.didComplete(validationResponse, context: context)
+                return validationResponse
             }
 
             let response = NtkResponse(

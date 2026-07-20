@@ -8,4 +8,5 @@ target 'PodExample' do
   pod 'CooNetwork', :path => '../../'
   pod 'CooNetwork/Alamofire', :path => '../../'
 
+  pod 'Reachability'
 end

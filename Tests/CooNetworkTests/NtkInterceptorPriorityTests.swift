@@ -39,6 +39,15 @@ struct NtkInterceptorPriorityTests {
         #expect(highStandard > medStandard)
     }
 
+    @Test
+    func beforeResponseParsingRunsInsideParserOnRequestPath() {
+        let parserPriority = NtkInterceptorPriority.innerHigh
+        let transformPriority = NtkInterceptorPriority.beforeResponseParsing
+
+        #expect(parserPriority > transformPriority)
+        #expect(transformPriority == NtkInterceptorPriority.innerLow)
+    }
+
     // MARK: - priority() 工厂方法
 
     @Test

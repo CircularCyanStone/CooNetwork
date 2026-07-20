@@ -22,6 +22,12 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				NetworkDiagnostics/EWDomainDiagnosticsAPI.swift,
+				NetworkDiagnostics/EWNetworkDiagnosticsViewController.swift,
+				NetworkDiagnostics/EWNetworkDiagnosticsViewModel.swift,
+				NetworkDiagnostics/EWNetworkInfoUtils.swift,
+				NetworkDiagnostics/EWNetworkReachabilityManager.swift,
+				NetworkDiagnostics/EWPublicIPFetchAPI.swift,
 			);
 			target = FB7391DB2F0E2AF100331C4E /* PodExample */;
 		};
@@ -163,9 +169,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-PodExample/Pods-PodExample-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-PodExample/Pods-PodExample-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;

@@ -25,7 +25,6 @@ public extension NtkError {
         case invalidEnvelope
         case invalidDataPayload(recoveredResponse: NtkResponse<NtkDynamicData?>?)
         case dataDecodingFailed(context: DecodingFailureContext)
-        case dataMissing(clientResponse: NtkClientResponse)
         case dataTypeMismatch(underlyingError: Error?)
     }
 }

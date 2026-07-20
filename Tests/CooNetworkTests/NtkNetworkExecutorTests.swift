@@ -26,7 +26,7 @@ struct NtkNetworkExecutorTests {
         var request = NtkMutableRequest(ExecDummyRequest(path: "/executor/error-test"))
         request.responseType = String(describing: Bool.self)
         let config = NtkNetworkExecutor<Bool>.Configuration(
-            client: ExecMockClient(result: .failure(NtkError.requestTimeout)),
+            client: ExecMockClient(result: .failure(NtkError.requestTimeout(.framework(timeout: 30)))),
             request: request,
             interceptors: [NtkResponseParserBox(ExecMockParsingInterceptor())]
         )

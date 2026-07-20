@@ -282,7 +282,7 @@ extension NtkTaskManager {
                 try await Task.sleep(
                     nanoseconds: UInt64(validTimeout * 1_000_000_000)
                 )
-                throw NtkError.requestTimeout
+                throw NtkError.requestTimeout(.framework(timeout: validTimeout))
             }
 
             // 等待第一个完成的任务
@@ -336,8 +336,8 @@ extension NtkTaskManager {
                 throw NtkError.requestCancelled
             }
             if let ntkError = error as? NtkError,
-               case .requestTimeout = ntkError {
-                logger.warning("请求超时: \(requestKey), 超时时间: \(timeout)秒", category: .deduplication)
+               case .requestTimeout(let reason) = ntkError {
+                logger.warning("请求超时: \(requestKey), 超时原因: \(reason)", category: .deduplication)
             } else {
                 logger.error("请求执行失败: \(requestKey), 错误: \(error)", category: .deduplication)
             }
