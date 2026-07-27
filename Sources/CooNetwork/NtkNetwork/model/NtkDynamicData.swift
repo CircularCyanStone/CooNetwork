@@ -233,32 +233,28 @@ extension NtkDynamicData {
         return nil
     }
 
-    /// 获取字符串值
-    /// - Returns: 字符串值或nil
+    /// 获取字符串值，支持与 `getValue(as:)` 一致的标量类型转换
+    /// - Returns: 转换后的字符串值或nil
     public func getString() -> String? {
-        if case .string(let v) = storage { return v }
-        return nil
+        try? getValue(as: String.self)
     }
 
-    /// 获取整数值
-    /// - Returns: 整数值或nil
+    /// 获取整数值，支持与 `getValue(as:)` 一致的标量类型转换
+    /// - Returns: 转换后的整数值或nil
     public func getInt() -> Int? {
-        if case .int(let v) = storage { return v }
-        return nil
+        try? getValue(as: Int.self)
     }
 
-    /// 获取双精度浮点数值
-    /// - Returns: 双精度浮点数值或nil
+    /// 获取双精度浮点数值，支持与 `getValue(as:)` 一致的标量类型转换
+    /// - Returns: 转换后的双精度浮点数值或nil
     public func getDouble() -> Double? {
-        if case .double(let v) = storage { return v }
-        return nil
+        try? getValue(as: Double.self)
     }
 
-    /// 获取布尔值
-    /// - Returns: 布尔值或nil
+    /// 获取布尔值，支持与 `getValue(as:)` 一致的标量类型转换
+    /// - Returns: 转换后的布尔值或nil
     public func getBool() -> Bool? {
-        if case .bool(let v) = storage { return v }
-        return nil
+        try? getValue(as: Bool.self)
     }
 
     /// 检查是否为空值

@@ -186,6 +186,38 @@ struct NtkPayloadNormalizationTests {
         #expect(dynamic["data"]?[0]?["id"]?.getInt() == 1)
         #expect(dynamic["data"]?[1]?["id"]?.getInt() == 2)
     }
+
+    @Test
+    func dynamicDataScalarAccessorsUseConversionRules() {
+        #expect(NtkDynamicData(int: 42).getString() == "42")
+        #expect(NtkDynamicData(double: 12.5).getString() == "12.5")
+        #expect(NtkDynamicData(bool: true).getString() == "true")
+        #expect(NtkDynamicData().getString() == "")
+
+        #expect(NtkDynamicData(string: "42").getInt() == 42)
+        #expect(NtkDynamicData(double: 42.9).getInt() == 42)
+        #expect(NtkDynamicData(bool: true).getInt() == 1)
+
+        #expect(NtkDynamicData(string: "12.5").getDouble() == 12.5)
+        #expect(NtkDynamicData(int: 42).getDouble() == 42.0)
+        #expect(NtkDynamicData(bool: false).getDouble() == 0.0)
+
+        #expect(NtkDynamicData(string: "true").getBool() == true)
+        #expect(NtkDynamicData(string: "1").getBool() == true)
+        #expect(NtkDynamicData(int: 0).getBool() == false)
+        #expect(NtkDynamicData(double: 0.1).getBool() == true)
+    }
+
+    @Test
+    func dynamicDataScalarAccessorsReturnNilWhenConversionFails() {
+        #expect(NtkDynamicData(dictionary: ["value": 1]).getString() == nil)
+        #expect(NtkDynamicData(array: [1]).getString() == nil)
+        #expect(NtkDynamicData(string: "abc").getInt() == nil)
+        #expect(NtkDynamicData(string: "abc").getDouble() == nil)
+        #expect(NtkDynamicData().getInt() == nil)
+        #expect(NtkDynamicData().getDouble() == nil)
+        #expect(NtkDynamicData().getBool() == nil)
+    }
 }
 
 private struct PayloadTestFailingDecoder: Decoder {
