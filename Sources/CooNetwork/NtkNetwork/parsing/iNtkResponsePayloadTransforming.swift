@@ -25,11 +25,11 @@ public protocol iNtkResponsePayloadTransforming: Sendable {
     ///
     /// - Parameters:
     ///   - payload: 当前阶段接收到的统一 payload。它已经完成 `normalize`，但未必已经是 decoder 最适合消费的形态。
-    ///   - context: 当前请求在拦截器链中的上下文，可用于读取请求相关配置或辅助信息，但不应借此承担结果裁决职责。
+    ///   - context: 进入解析阶段时的只读请求上下文快照，可用于读取请求配置或辅助信息。
     /// - Returns: 供下一个 transformer 或 decoder 继续消费的新 payload。
     /// - Throws: 当输入无法被当前 transformer 处理，或改造过程依赖的外部条件失败时抛错；错误会终止主解析流程。
     func transform(
         _ payload: NtkPayload,
-        context: NtkInterceptorContext
+        context: NtkParsingContext
     ) async throws -> NtkPayload
 }

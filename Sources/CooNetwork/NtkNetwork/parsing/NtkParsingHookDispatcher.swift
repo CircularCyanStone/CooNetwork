@@ -27,11 +27,11 @@ struct NtkParsingHookDispatcher: Sendable {
     /// - Parameters:
     ///   - retCode: decoder 已解释出的业务返回码。
     ///   - msg: decoder 已解释出的业务消息文本。
-    ///   - context: 当前请求的拦截器上下文。
+    ///   - context: 进入解析阶段时的只读请求上下文快照。
     func didDecodeHeader(
         retCode: Int,
         msg: String?,
-        context: NtkInterceptorContext
+        context: NtkParsingContext
     ) async {
         await notify("didDecodeHeader") { hook in
             try await hook.didDecodeHeader(retCode: retCode, msg: msg, context: context)
@@ -42,10 +42,10 @@ struct NtkParsingHookDispatcher: Sendable {
     ///
     /// - Parameters:
     ///   - response: policy 正在评估的候选响应。
-    ///   - context: 当前请求的拦截器上下文。
+    ///   - context: 进入解析阶段时的只读请求上下文快照。
     func willValidate(
         _ response: any iNtkResponse,
-        context: NtkInterceptorContext
+        context: NtkParsingContext
     ) async {
         await notify("willValidate") { hook in
             try await hook.willValidate(response, context: context)
@@ -56,10 +56,10 @@ struct NtkParsingHookDispatcher: Sendable {
     ///
     /// - Parameters:
     ///   - response: 已被判定为业务失败的响应对象。
-    ///   - context: 当前请求的拦截器上下文。
+    ///   - context: 进入解析阶段时的只读请求上下文快照。
     func didValidateFail(
         _ response: any iNtkResponse,
-        context: NtkInterceptorContext
+        context: NtkParsingContext
     ) async {
         await notify("didValidateFail") { hook in
             try await hook.didValidateFail(response, context: context)
@@ -70,10 +70,10 @@ struct NtkParsingHookDispatcher: Sendable {
     ///
     /// - Parameters:
     ///   - response: 已形成最终成功结果的响应对象。
-    ///   - context: 当前请求的拦截器上下文。
+    ///   - context: 进入解析阶段时的只读请求上下文快照。
     func didComplete(
         _ response: any iNtkResponse,
-        context: NtkInterceptorContext
+        context: NtkParsingContext
     ) async {
         await notify("didComplete") { hook in
             try await hook.didComplete(response, context: context)

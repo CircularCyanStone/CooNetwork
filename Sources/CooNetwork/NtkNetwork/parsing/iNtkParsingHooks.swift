@@ -32,51 +32,51 @@ public protocol iNtkParsingHooks: Sendable {
     /// - Parameters:
     ///   - retCode: 已解释出的业务返回码。它表示协议层 header 中的结果值，不等同于最终是否放行。
     ///   - msg: 已解释出的业务消息文本；若协议未提供则为 `nil`。
-    ///   - context: 当前请求的拦截器上下文，便于 hook 关联请求侧信息或做日志补充。
+    ///   - context: 进入解析阶段时的只读请求上下文快照，便于 hook 关联请求侧信息或做日志补充。
     /// - Throws: 可抛错，但错误只会被 dispatcher 记录，不会改变主流程结果。
     func didDecodeHeader(
         retCode: Int,
         msg: String?,
-        context: NtkInterceptorContext
+        context: NtkParsingContext
     ) async throws
 
     /// 在 policy 已构建候选响应、即将做业务成功判定前触发只读通知。
     ///
     /// - Parameters:
     ///   - response: 已构建完成、准备进入业务判定的响应对象。它代表当前 policy 正在评估的候选结果。
-    ///   - context: 当前请求的拦截器上下文。
+    ///   - context: 进入解析阶段时的只读请求上下文快照。
     /// - Throws: 可抛错，但不会中断 validation 或改写最终 outcome。
     func willValidate(
         _ response: any iNtkResponse,
-        context: NtkInterceptorContext
+        context: NtkParsingContext
     ) async throws
 
     /// 在业务成功判定失败后触发只读通知。
     ///
     /// - Parameters:
     ///   - response: 已被判定为业务失败的响应对象。该对象用于观测失败现场，而不是用于恢复或吞错。
-    ///   - context: 当前请求的拦截器上下文。
+    ///   - context: 进入解析阶段时的只读请求上下文快照。
     /// - Throws: 可抛错，但不会替代最终将要抛出的业务失败错误。
     func didValidateFail(
         _ response: any iNtkResponse,
-        context: NtkInterceptorContext
+        context: NtkParsingContext
     ) async throws
 
     /// 在解析流程已经得到最终成功响应后触发只读通知。
     ///
     /// - Parameters:
     ///   - response: 最终成功响应。此时 policy 已完成裁决，hook 只能做旁路副作用，不能再修改结果。
-    ///   - context: 当前请求的拦截器上下文。
+    ///   - context: 进入解析阶段时的只读请求上下文快照。
     /// - Throws: 可抛错，但错误只用于日志/监控，不会替代成功结果返回给调用方。
     func didComplete(
         _ response: any iNtkResponse,
-        context: NtkInterceptorContext
+        context: NtkParsingContext
     ) async throws
 }
 
 public extension iNtkParsingHooks {
-    func didDecodeHeader(retCode: Int, msg: String?, context: NtkInterceptorContext) async throws {}
-    func willValidate(_ response: any iNtkResponse, context: NtkInterceptorContext) async throws {}
-    func didValidateFail(_ response: any iNtkResponse, context: NtkInterceptorContext) async throws {}
-    func didComplete(_ response: any iNtkResponse, context: NtkInterceptorContext) async throws {}
+    func didDecodeHeader(retCode: Int, msg: String?, context: NtkParsingContext) async throws {}
+    func willValidate(_ response: any iNtkResponse, context: NtkParsingContext) async throws {}
+    func didValidateFail(_ response: any iNtkResponse, context: NtkParsingContext) async throws {}
+    func didComplete(_ response: any iNtkResponse, context: NtkParsingContext) async throws {}
 }

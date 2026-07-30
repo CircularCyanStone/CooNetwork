@@ -258,17 +258,17 @@ private struct IntegMockCacheStorage: iNtkCacheStorage {
 private final class IntegThrowingHook: iNtkParsingHooks, @unchecked Sendable {
     var events: [String] = []
 
-    func didDecodeHeader(retCode: Int, msg: String?, context: NtkInterceptorContext) async throws {
+    func didDecodeHeader(retCode: Int, msg: String?, context: NtkParsingContext) async throws {
         events.append("didDecodeHeader")
         throw IntegHookObserverError.point("didDecodeHeader")
     }
 
-    func willValidate(_ response: any iNtkResponse, context: NtkInterceptorContext) async throws {
+    func willValidate(_ response: any iNtkResponse, context: NtkParsingContext) async throws {
         events.append("willValidate")
         throw IntegHookObserverError.point("willValidate")
     }
 
-    func didComplete(_ response: any iNtkResponse, context: NtkInterceptorContext) async throws {
+    func didComplete(_ response: any iNtkResponse, context: NtkParsingContext) async throws {
         events.append("didComplete")
         throw IntegHookObserverError.point("didComplete")
     }

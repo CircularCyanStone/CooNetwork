@@ -560,6 +560,94 @@ struct NtkDataParsingInterceptorTests {
     }
 
     @Test
+    func nonisolatedComponentsRunThroughCompletePipelineInOrder() async throws {
+        let events = AFPipelineEventRecorder()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
+            validation: AFTestPassValidation(),
+            hooks: [AFNonisolatedRecordingHook(events: events)],
+            transformers: [AFNonisolatedRecordingTransformer(events: events)],
+            decoder: AFNonisolatedRecordingDecoder(events: events)
+        )
+        let handler = AFTestDataHandler(
+            data: Data("normalized".utf8),
+            request: AFTestRequest()
+        )
+        let context = await makeAFContext()
+
+        let result = try await interceptor.intercept(context: context, next: handler)
+
+        let typed = try #require(result as? NtkResponse<AFTestModel>)
+        #expect(typed.data.id == 7)
+        #expect(typed.data.name == "nonisolated")
+        let recordedEvents = await events.snapshot()
+        #expect(recordedEvents == [
+            "transform",
+            "decode",
+            "didDecodeHeader",
+            "willValidate",
+            "didComplete"
+        ])
+    }
+
+    @Test
+    @NtkActor
+    func parsingContextCapturesRequestAndExtraDataAfterAcquire() async throws {
+        let observations = AFParsingContextObservationRecorder()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
+            validation: AFTestPassValidation(),
+            transformers: [AFSnapshotObservingTransformer(observations: observations)]
+        )
+        let data = try JSONSerialization.data(withJSONObject: [
+            "retCode": 0,
+            "retMsg": "ok",
+            "data": ["id": 1, "name": "test"]
+        ])
+        let handler = AFContextConfiguringDataHandler(
+            data: data,
+            request: AFTestRequest()
+        )
+
+        _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
+
+        let recordedObservations = await observations.snapshot()
+        #expect(recordedObservations == [.captured])
+    }
+
+    @Test
+    @NtkActor
+    func parsingContextRemainsIndependentAfterAcquire() async throws {
+        let sourceContext = makeAFContext()
+        let observations = AFParsingContextObservationRecorder()
+        let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
+            validation: AFTestPassValidation(),
+            transformers: [
+                AFSnapshotObservingTransformer(
+                    sourceContext: sourceContext,
+                    observations: observations
+                )
+            ]
+        )
+        let data = try JSONSerialization.data(withJSONObject: [
+            "retCode": 0,
+            "retMsg": "ok",
+            "data": ["id": 1, "name": "test"]
+        ])
+        let handler = AFContextConfiguringDataHandler(
+            data: data,
+            request: AFTestRequest()
+        )
+
+        _ = try await interceptor.intercept(context: sourceContext, next: handler)
+
+        let recordedObservations = await observations.snapshot()
+        #expect(recordedObservations == [.captured, .captured])
+        #expect(sourceContext.mutableRequest.headers?["X-Snapshot"] == "mutated-header")
+        #expect(sourceContext.mutableRequest.parameters?["stage"] as? String == "mutated-parameter")
+        #expect(sourceContext.mutableRequest.extraData["request"] as? String == "mutated-request-extra")
+        #expect(sourceContext.extraData["context"] as? String == "mutated-context-extra")
+    }
+
+    @Test
     @NtkActor
     func transformerProducedDynamicPayloadIsPreservedWhenDecodeFails() async throws {
         let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
@@ -695,28 +783,28 @@ private final class AFThrowingHook: iNtkParsingHooks, @unchecked Sendable {
         self.throwPoint = throwPoint
     }
 
-    func didDecodeHeader(retCode: Int, msg: String?, context: NtkInterceptorContext) async throws {
+    func didDecodeHeader(retCode: Int, msg: String?, context: NtkParsingContext) async throws {
         events.append("didDecodeHeader")
         if throwPoint == .didDecodeHeader {
             throw AFHookObserverError(point: .didDecodeHeader)
         }
     }
 
-    func willValidate(_ response: any iNtkResponse, context: NtkInterceptorContext) async throws {
+    func willValidate(_ response: any iNtkResponse, context: NtkParsingContext) async throws {
         events.append("willValidate")
         if throwPoint == .willValidate {
             throw AFHookObserverError(point: .willValidate)
         }
     }
 
-    func didValidateFail(_ response: any iNtkResponse, context: NtkInterceptorContext) async throws {
+    func didValidateFail(_ response: any iNtkResponse, context: NtkParsingContext) async throws {
         events.append("didValidateFail")
         if throwPoint == .didValidateFail {
             throw AFHookObserverError(point: .didValidateFail)
         }
     }
 
-    func didComplete(_ response: any iNtkResponse, context: NtkInterceptorContext) async throws {
+    func didComplete(_ response: any iNtkResponse, context: NtkParsingContext) async throws {
         events.append("didComplete")
         if throwPoint == .didComplete {
             throw AFHookObserverError(point: .didComplete)
@@ -727,33 +815,171 @@ private final class AFThrowingHook: iNtkParsingHooks, @unchecked Sendable {
 private final class AFTestRecordingHook: iNtkParsingHooks, @unchecked Sendable {
     var events: [String] = []
 
-    func didDecodeHeader(retCode: Int, msg: String?, context: NtkInterceptorContext) async throws {
+    func didDecodeHeader(retCode: Int, msg: String?, context: NtkParsingContext) async throws {
         events.append("didDecodeHeader")
     }
 
-    func willValidate(_ response: any iNtkResponse, context: NtkInterceptorContext) async throws {
+    func willValidate(_ response: any iNtkResponse, context: NtkParsingContext) async throws {
         events.append("willValidate")
     }
 
-    func didValidateFail(_ response: any iNtkResponse, context: NtkInterceptorContext) async throws {
+    func didValidateFail(_ response: any iNtkResponse, context: NtkParsingContext) async throws {
         events.append("didValidateFail")
     }
 
-    func didComplete(_ response: any iNtkResponse, context: NtkInterceptorContext) async throws {
+    func didComplete(_ response: any iNtkResponse, context: NtkParsingContext) async throws {
         events.append("didComplete")
     }
 }
 
 private struct AFTestFailingTransformer: iNtkResponsePayloadTransforming {
-    func transform(_ payload: NtkPayload, context: NtkInterceptorContext) async throws -> NtkPayload {
+    func transform(_ payload: NtkPayload, context: NtkParsingContext) async throws -> NtkPayload {
         throw NtkError.invalidRequest
+    }
+}
+
+private actor AFPipelineEventRecorder {
+    private var events: [String] = []
+
+    func record(_ event: String) {
+        events.append(event)
+    }
+
+    func snapshot() -> [String] {
+        events
+    }
+}
+
+private struct AFParsingContextObservation: Equatable, Sendable {
+    let header: String?
+    let parameter: String?
+    let requestExtraData: String?
+    let contextExtraData: String?
+
+    static let captured = AFParsingContextObservation(
+        header: "captured-header",
+        parameter: "captured-parameter",
+        requestExtraData: "captured-request-extra",
+        contextExtraData: "captured-context-extra"
+    )
+}
+
+private actor AFParsingContextObservationRecorder {
+    private var observations: [AFParsingContextObservation] = []
+
+    func record(_ observation: AFParsingContextObservation) {
+        observations.append(observation)
+    }
+
+    func snapshot() -> [AFParsingContextObservation] {
+        observations
+    }
+}
+
+private struct AFSnapshotObservingTransformer: iNtkResponsePayloadTransforming {
+    let sourceContext: NtkInterceptorContext?
+    let observations: AFParsingContextObservationRecorder
+
+    init(
+        sourceContext: NtkInterceptorContext? = nil,
+        observations: AFParsingContextObservationRecorder
+    ) {
+        self.sourceContext = sourceContext
+        self.observations = observations
+    }
+
+    func transform(
+        _ payload: NtkPayload,
+        context: NtkParsingContext
+    ) async throws -> NtkPayload {
+        await observations.record(makeAFParsingContextObservation(context))
+        if let sourceContext {
+            await mutateAFContextAfterSnapshot(sourceContext)
+            await observations.record(makeAFParsingContextObservation(context))
+        }
+        return payload
+    }
+}
+
+private func makeAFParsingContextObservation(
+    _ context: NtkParsingContext
+) -> AFParsingContextObservation {
+    AFParsingContextObservation(
+        header: context.request.headers?["X-Snapshot"],
+        parameter: context.request.parameters?["stage"] as? String,
+        requestExtraData: context.request.extraData["request"] as? String,
+        contextExtraData: context.extraData["context"] as? String
+    )
+}
+
+@NtkActor
+private func mutateAFContextAfterSnapshot(_ context: NtkInterceptorContext) {
+    var request = context.mutableRequest
+    request.headers?["X-Snapshot"] = "mutated-header"
+    request.parameters?["stage"] = "mutated-parameter"
+    request.extraData["request"] = "mutated-request-extra"
+    context.mutableRequest = request
+    context.extraData["context"] = "mutated-context-extra"
+}
+
+private struct AFNonisolatedRecordingTransformer: iNtkResponsePayloadTransforming {
+    let events: AFPipelineEventRecorder
+
+    nonisolated func transform(
+        _ payload: NtkPayload,
+        context: NtkParsingContext
+    ) async throws -> NtkPayload {
+        await events.record("transform")
+        return payload
+    }
+}
+
+private struct AFNonisolatedRecordingDecoder: iNtkResponsePayloadDecoding {
+    let events: AFPipelineEventRecorder
+
+    nonisolated func decode(
+        _ payload: NtkPayload,
+        context: NtkParsingContext
+    ) async throws -> NtkResponseDecoder<AFTestModel, AFTestKeys> {
+        await events.record("decode")
+        return NtkResponseDecoder(
+            code: NtkReturnCode(0),
+            data: AFTestModel(id: 7, name: "nonisolated"),
+            msg: "ok"
+        )
+    }
+}
+
+private struct AFNonisolatedRecordingHook: iNtkParsingHooks {
+    let events: AFPipelineEventRecorder
+
+    nonisolated func didDecodeHeader(
+        retCode: Int,
+        msg: String?,
+        context: NtkParsingContext
+    ) async throws {
+        await events.record("didDecodeHeader")
+    }
+
+    nonisolated func willValidate(
+        _ response: any iNtkResponse,
+        context: NtkParsingContext
+    ) async throws {
+        await events.record("willValidate")
+    }
+
+    nonisolated func didComplete(
+        _ response: any iNtkResponse,
+        context: NtkParsingContext
+    ) async throws {
+        await events.record("didComplete")
     }
 }
 
 private struct AFTestHeaderOnlyDecoder: iNtkResponsePayloadDecoding {
     func decode(
         _ payload: NtkPayload,
-        context: NtkInterceptorContext
+        context: NtkParsingContext
     ) async throws -> NtkResponseDecoder<AFTestModel, AFTestKeys> {
         throw DecodingError.dataCorrupted(
             .init(codingPath: [], debugDescription: "expected failure for header extraction")
@@ -773,7 +999,7 @@ private struct AFTestHeaderOnlyDecoder: iNtkResponsePayloadDecoding {
 private struct AFTestNoHeaderDecoder: iNtkResponsePayloadDecoding {
     func decode(
         _ payload: NtkPayload,
-        context: NtkInterceptorContext
+        context: NtkParsingContext
     ) async throws -> NtkResponseDecoder<AFTestModel, AFTestKeys> {
         throw DecodingError.dataCorrupted(
             .init(codingPath: [], debugDescription: "expected failure without header extraction")
@@ -797,6 +1023,28 @@ private struct AFTestDataHandler: iNtkRequestHandler {
     let request: iNtkRequest
     func handle(context: NtkInterceptorContext) async throws -> any iNtkResponse {
         return NtkClientResponse(data: data, msg: nil, response: data, request: request, isCache: false)
+    }
+}
+
+@NtkActor
+private struct AFContextConfiguringDataHandler: iNtkRequestHandler {
+    let data: Data
+    let request: iNtkRequest
+
+    func handle(context: NtkInterceptorContext) async throws -> any iNtkResponse {
+        var mutableRequest = context.mutableRequest
+        mutableRequest.headers = ["X-Snapshot": "captured-header"]
+        mutableRequest.parameters = ["stage": "captured-parameter"]
+        mutableRequest.extraData["request"] = "captured-request-extra"
+        context.mutableRequest = mutableRequest
+        context.extraData["context"] = "captured-context-extra"
+        return NtkClientResponse(
+            data: data,
+            msg: nil,
+            response: data,
+            request: request,
+            isCache: false
+        )
     }
 }
 
@@ -829,7 +1077,7 @@ private struct AFTestPlainResponseHandler: iNtkRequestHandler {
 private struct AFDynamicPayloadFailingDecoder: iNtkResponsePayloadDecoding {
     func decode(
         _ payload: NtkPayload,
-        context: NtkInterceptorContext
+        context: NtkParsingContext
     ) async throws -> NtkResponseDecoder<AFTestModel, AFTestKeys> {
         throw DecodingError.typeMismatch(
             AFTestModel.self,
@@ -850,7 +1098,7 @@ private struct AFDynamicPayloadFailingDecoder: iNtkResponsePayloadDecoding {
 }
 
 private struct AFDataToJSONObjectTransformer: iNtkResponsePayloadTransforming {
-    func transform(_ payload: NtkPayload, context: NtkInterceptorContext) async throws -> NtkPayload {
+    func transform(_ payload: NtkPayload, context: NtkParsingContext) async throws -> NtkPayload {
         guard case .data(let data) = payload else {
             throw NtkError.Serialization.dataDecodingFailed(
                 context: .init(

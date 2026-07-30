@@ -272,25 +272,21 @@ private struct PolicyTestFailValidation: iNtkResponseValidation {
 private final class PolicyTestRecordingHook: iNtkParsingHooks, @unchecked Sendable {
     var events: [String] = []
 
-    func willValidate(_ response: any iNtkResponse, context: NtkInterceptorContext) async throws {
+    func willValidate(_ response: any iNtkResponse, context: NtkParsingContext) async throws {
         events.append("willValidate")
     }
 
-    func didValidateFail(_ response: any iNtkResponse, context: NtkInterceptorContext) async throws {
+    func didValidateFail(_ response: any iNtkResponse, context: NtkParsingContext) async throws {
         events.append("didValidateFail")
     }
 
-    func didComplete(_ response: any iNtkResponse, context: NtkInterceptorContext) async throws {
+    func didComplete(_ response: any iNtkResponse, context: NtkParsingContext) async throws {
         events.append("didComplete")
     }
 }
 
-@NtkActor
-private func makePolicyContext() -> NtkInterceptorContext {
-    NtkInterceptorContext(
-        mutableRequest: NtkMutableRequest(PolicyTestRequest()),
-        client: PolicyTestDummyClient()
-    )
+private func makePolicyContext() -> NtkParsingContext {
+    NtkParsingContext(request: NtkMutableRequest(PolicyTestRequest()))
 }
 
 private func makePolicyClientResponse() -> NtkClientResponse {
@@ -342,11 +338,4 @@ private func makePolicyDecodeError() -> DecodingError {
         PolicyTestModel.self,
         .init(codingPath: [], debugDescription: "expected failure")
     )
-}
-
-private struct PolicyTestDummyClient: iNtkClient {
-    @NtkActor
-    func execute(_ request: NtkMutableRequest) async throws -> NtkClientResponse {
-        makePolicyClientResponse()
-    }
 }

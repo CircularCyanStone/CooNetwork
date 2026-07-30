@@ -5,7 +5,6 @@ import Foundation
 struct NtkPayloadTransformerTests {
 
     @Test
-    @NtkActor
     func transformersRunInOrder() async throws {
         let payload = try NtkPayload.normalize(from: Data("seed".utf8))
         let context = makeTransformerContext()
@@ -20,7 +19,6 @@ struct NtkPayloadTransformerTests {
     }
 
     @Test
-    @NtkActor
     func transformerCanConvertDataToDynamic() async throws {
         let payload = try NtkPayload.normalize(from: Data("seed".utf8))
         let context = makeTransformerContext()
@@ -36,7 +34,6 @@ struct NtkPayloadTransformerTests {
     }
 
     @Test
-    @NtkActor
     func dynamicToDataOnlyAllowedForExplicitReserializeNeed() async throws {
         let payload = try NtkPayload.normalize(from: ["value": "decoded"] as [String: any Sendable])
         let context = makeTransformerContext()
@@ -53,7 +50,6 @@ struct NtkPayloadTransformerTests {
     }
 
     @Test
-    @NtkActor
     func transformErrorStopsPipelineBeforeDecode() async throws {
         let payload = try NtkPayload.normalize(from: Data("seed".utf8))
         let context = makeTransformerContext()
@@ -65,25 +61,14 @@ struct NtkPayloadTransformerTests {
     }
 }
 
-@NtkActor
-private func makeTransformerContext() -> NtkInterceptorContext {
-    NtkInterceptorContext(
-        mutableRequest: NtkMutableRequest(TransformerTestRequest()),
-        client: TransformerTestClient()
-    )
+private func makeTransformerContext() -> NtkParsingContext {
+    NtkParsingContext(request: NtkMutableRequest(TransformerTestRequest()))
 }
 
 private struct TransformerTestRequest: iNtkRequest {
     var baseURL: URL? { URL(string: "https://test.example.com") }
     var path: String { "/transformer/test" }
     var method: NtkHTTPMethod { .get }
-}
-
-private struct TransformerTestClient: iNtkClient {
-    @NtkActor
-    func execute(_ request: NtkMutableRequest) async throws -> NtkClientResponse {
-        NtkClientResponse(data: Data(), msg: nil, response: Data(), request: request, isCache: false)
-    }
 }
 
 private final class RecordingTransformer: iNtkResponsePayloadTransforming, @unchecked Sendable {
@@ -94,14 +79,14 @@ private final class RecordingTransformer: iNtkResponsePayloadTransforming, @unch
         self.name = name
     }
 
-    func transform(_ payload: NtkPayload, context: NtkInterceptorContext) async throws -> NtkPayload {
+    func transform(_ payload: NtkPayload, context: NtkParsingContext) async throws -> NtkPayload {
         events.append(name)
         return payload
     }
 }
 
 private struct DataToDynamicTransformer: iNtkResponsePayloadTransforming {
-    func transform(_ payload: NtkPayload, context: NtkInterceptorContext) async throws -> NtkPayload {
+    func transform(_ payload: NtkPayload, context: NtkParsingContext) async throws -> NtkPayload {
         guard case .data = payload else {
             throw NtkError.Serialization.invalidDataPayload(recoveredResponse: nil)
         }
@@ -110,7 +95,7 @@ private struct DataToDynamicTransformer: iNtkResponsePayloadTransforming {
 }
 
 private struct DynamicToDataTransformer: iNtkResponsePayloadTransforming {
-    func transform(_ payload: NtkPayload, context: NtkInterceptorContext) async throws -> NtkPayload {
+    func transform(_ payload: NtkPayload, context: NtkParsingContext) async throws -> NtkPayload {
         guard case .dynamic(let dynamic) = payload,
               let dict = dynamic.getDictionary()
         else {
@@ -123,7 +108,7 @@ private struct DynamicToDataTransformer: iNtkResponsePayloadTransforming {
 }
 
 private struct FailingTransformer: iNtkResponsePayloadTransforming {
-    func transform(_ payload: NtkPayload, context: NtkInterceptorContext) async throws -> NtkPayload {
+    func transform(_ payload: NtkPayload, context: NtkParsingContext) async throws -> NtkPayload {
         throw NtkError.Serialization.invalidDataPayload(recoveredResponse: nil)
     }
 }

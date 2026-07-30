@@ -17,7 +17,6 @@ struct NtkPayloadDecoderTests {
     }
 
     @Test
-    @NtkActor
     func jsonObjectDecoderDecodesModelFromDynamicObjectPayload() async throws {
         let payload = try NtkPayload.normalize(from: [
             "retCode": 0,
@@ -35,7 +34,6 @@ struct NtkPayloadDecoderTests {
     }
 
     @Test
-    @NtkActor
     func jsonObjectDecoderReturnsNilDataWhenDataFieldMissing() async throws {
         let payload = try NtkPayload.normalize(from: [
             "retCode": 0,
@@ -67,7 +65,6 @@ struct NtkPayloadDecoderTests {
     }
 
     @Test
-    @NtkActor
     func jsonObjectDecoderRejectsNonDynamicPayload() async throws {
         let payload = try NtkPayload.normalize(from: Data("{\"retCode\":0,\"retMsg\":\"ok\"}".utf8))
         let decoder = NtkJSONObjectPayloadDecoder<AFTestModel, AFTestKeys>()
@@ -85,7 +82,6 @@ struct NtkPayloadDecoderTests {
     }
 
     @Test
-    @NtkActor
     func dataDecoderRejectsDynamicPayload() async throws {
         let payload = try NtkPayload.normalize(from: [
             "retCode": 0,
@@ -107,7 +103,6 @@ struct NtkPayloadDecoderTests {
     }
 
     @Test
-    @NtkActor
     func jsonObjectDecoderRejectsTopLevelArrayPayload() async throws {
         let payload = try NtkPayload.normalize(from: [
             ["id": 1, "name": "a"],
@@ -128,12 +123,8 @@ struct NtkPayloadDecoderTests {
     }
 }
 
-@NtkActor
-private func makePayloadDecoderContext() -> NtkInterceptorContext {
-    NtkInterceptorContext(
-        mutableRequest: NtkMutableRequest(AFConfiguredTestRequest()),
-        client: AFPayloadDecoderDummyClient()
-    )
+private func makePayloadDecoderContext() -> NtkParsingContext {
+    NtkParsingContext(request: NtkMutableRequest(AFConfiguredTestRequest()))
 }
 
 private struct AFTestKeys: iNtkResponseMapKeys {
@@ -152,11 +143,4 @@ private struct AFConfiguredTestRequest: iAFRequest {
     var path: String { "/af/test/configured" }
     var method: NtkHTTPMethod { .get }
     var requestConfiguration: NtkRequestConfiguration? { .default() }
-}
-
-private struct AFPayloadDecoderDummyClient: iNtkClient {
-    @NtkActor
-    func execute(_ request: NtkMutableRequest) async throws -> NtkClientResponse {
-        NtkClientResponse(data: true, msg: nil, response: true, request: request, isCache: false)
-    }
 }

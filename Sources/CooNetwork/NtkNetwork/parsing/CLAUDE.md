@@ -15,6 +15,7 @@
 ## 核心类型
 
 - `NtkDataParsingInterceptor` - 通用响应解析拦截器，负责串联各个解析阶段
+- `NtkParsingContext` - 在 Actor 边界内创建、供解析扩展点只读使用的请求值快照
 - `NtkPayload` - 解析流程使用的统一 payload 中间层
 - `PayloadRootGate` - payload 顶层结构检查
 - `iNtkResponsePayloadTransforming` - payload 前置改造协议

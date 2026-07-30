@@ -328,17 +328,17 @@ private struct ExecMockCacheStorage: iNtkCacheStorage {
 private final class ExecThrowingHook: iNtkParsingHooks, @unchecked Sendable {
     var events: [String] = []
 
-    func didDecodeHeader(retCode: Int, msg: String?, context: NtkInterceptorContext) async throws {
+    func didDecodeHeader(retCode: Int, msg: String?, context: NtkParsingContext) async throws {
         events.append("didDecodeHeader")
         throw ExecHookObserverError.point("didDecodeHeader")
     }
 
-    func willValidate(_ response: any iNtkResponse, context: NtkInterceptorContext) async throws {
+    func willValidate(_ response: any iNtkResponse, context: NtkParsingContext) async throws {
         events.append("willValidate")
         throw ExecHookObserverError.point("willValidate")
     }
 
-    func didComplete(_ response: any iNtkResponse, context: NtkInterceptorContext) async throws {
+    func didComplete(_ response: any iNtkResponse, context: NtkParsingContext) async throws {
         events.append("didComplete")
         throw ExecHookObserverError.point("didComplete")
     }

@@ -14,7 +14,7 @@ struct NtkDefaultResponseParsingPolicy<ResponseData: Sendable & Decodable> {
 
     func decide(
         from interpretation: NtkInterpretation<ResponseData>,
-        context: NtkInterceptorContext
+        context: NtkParsingContext
     ) async throws -> any iNtkResponse {
         switch interpretation {
         case let .decoded(decoded):
@@ -93,7 +93,7 @@ struct NtkDefaultResponseParsingPolicy<ResponseData: Sendable & Decodable> {
     private func validateServiceSuccess(
         _ response: any iNtkResponse,
         request: iNtkRequest,
-        context: NtkInterceptorContext
+        context: NtkParsingContext
     ) async throws {
         await dispatcher.willValidate(response, context: context)
 

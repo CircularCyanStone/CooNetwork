@@ -22,7 +22,7 @@ public struct NtkJSONObjectPayloadDecoder<
 
     public func decode(
         _ payload: NtkPayload,
-        context: NtkInterceptorContext
+        context: NtkParsingContext
     ) async throws -> NtkResponseDecoder<ResponseData, Keys> {
         guard let dict = extractDict(payload) else {
             throw NtkError.Serialization.invalidEnvelope
@@ -63,7 +63,7 @@ public struct NtkDataPayloadDecoder<
 
     public func decode(
         _ payload: NtkPayload,
-        context: NtkInterceptorContext
+        context: NtkParsingContext
     ) async throws -> NtkResponseDecoder<ResponseData, Keys> {
         guard case .data(let data) = payload else {
             throw NtkError.Serialization.invalidDataPayload(recoveredResponse: nil)

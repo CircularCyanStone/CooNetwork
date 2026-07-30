@@ -53,12 +53,12 @@ public protocol iNtkResponsePayloadDecoding<ResponseData, Keys>: Sendable {
     ///
     /// - Parameters:
     ///   - payload: 已完成 normalize 和 transformer 收敛的统一 payload。
-    ///   - context: 当前请求上下文，可用于读取与解码相关的环境信息。
+    ///   - context: 进入解析阶段时的只读请求上下文快照，可用于读取与解码相关的环境信息。
     /// - Returns: 包含协议层 `code` / `msg` / `data` 的解码结果，供后续 policy 决定最终 outcome。
     /// - Throws: 当 payload 形态与 decoder 预期不符，或目标模型 `ResponseData` 解码失败时抛错。
     func decode(
         _ payload: NtkPayload,
-        context: NtkInterceptorContext
+        context: NtkParsingContext
     ) async throws -> NtkResponseDecoder<ResponseData, Keys>
 
     /// 在强解码失败后，尽量从 payload 中恢复最小可用的协议头信息。
