@@ -14,7 +14,7 @@ import Foundation
 /// **设计说明**：
 /// NtkNetwork 作为一个 Configurator/Builder，负责收集请求配置。
 /// 所有的配置方法（如 addInterceptor）都是非隔离的，支持同步链式调用。
-/// 实际的请求执行委托给内部的 NtkNetworkExecutor (Actor) 处理。
+/// 实际的请求执行委托给内部不可变的 NtkNetworkExecutor 执行快照处理。
 /// 使用 @unchecked Sendable 是因为我们使用内部锁来保护可变状态，
 /// 并且设计意图是作为单线程配置器使用。
 public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {

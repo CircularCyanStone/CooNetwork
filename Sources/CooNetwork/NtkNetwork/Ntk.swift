@@ -11,10 +11,8 @@ typealias NtkBool = Ntk<Bool>
 
 /// 网络请求便捷入口
 /// 封装 NtkNetwork 的创建逻辑，自动处理验证器选择和缓存拦截器注入
-@NtkActor
 public final class Ntk<ResponseData: Sendable> {
 
-    nonisolated
     /// 创建配置好的网络请求管理器
     /// - Parameters:
     ///   - client: 网络客户端

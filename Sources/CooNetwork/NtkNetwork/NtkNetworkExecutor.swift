@@ -9,22 +9,21 @@ import Foundation
 
 /// 网络请求执行器
 /// 负责实际执行网络请求、缓存加载和拦截器链的处理
-/// 这是一个内部 Actor，确保执行逻辑的线程安全和隔离
-@NtkActor
-final class NtkNetworkExecutor<ResponseData: Sendable> {
+/// 这是一个不可变的执行快照，可安全地跨并发任务共享。
+final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
 
     /// 响应结果枚举，用于区分缓存和网络响应
-    enum ResponseResult {
+    enum ResponseResult: Sendable {
         case cache(NtkResponse<ResponseData>?)
         case network(NtkResponse<ResponseData>)
     }
 
     /// 执行器配置快照
     /// 由 NtkNetwork 在 getOrCreateExecutor() 时冻结，执行期间不可变
-    struct Configuration {
-        let client: iNtkClient
+    struct Configuration: Sendable {
+        let client: any iNtkClient
         let request: NtkMutableRequest
-        let interceptors: [iNtkInterceptor]
+        let interceptors: [any iNtkInterceptor]
     }
 
     private let config: Configuration
@@ -33,7 +32,6 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
     private let initialRequest: NtkMutableRequest
     private let cacheProvider: (any iNtkCacheProvider)?
 
-    nonisolated
     init(config: Configuration) {
         self.config = config
         self.initialRequest = config.request
@@ -63,7 +61,7 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
         interceptorsToRun.append(NtkDeduplicationInterceptor())
         let allInterceptors = NtkInterceptorOrdering.sorted(interceptorsToRun)
         
-        let realChainManager = NtkInterceptorChainManager(interceptors: allInterceptors) { [client = config.client] context in
+        let realChainManager = await NtkInterceptorChainManager(interceptors: allInterceptors) { [client = config.client] context in
             let response = try await client.execute(context.request)
             return response
         }
@@ -88,7 +86,7 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
         let parserInterceptors = NtkInterceptorOrdering.sorted(config.interceptors)
             .filter { $0 is NtkResponseParserBox }
 
-        let realChainManager = NtkInterceptorChainManager(interceptors: parserInterceptors) { context in
+        let realChainManager = await NtkInterceptorChainManager(interceptors: parserInterceptors) { context in
             guard let data = try await cacheProvider.loadCacheData(for: context.request) else {
                 throw NtkError.Cache.noCache
             }

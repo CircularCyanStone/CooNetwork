@@ -13,7 +13,7 @@ CooNetwork 核心模块。
 ## 核心类型
 
 - `NtkNetwork` - 请求管理器（配置层，`@unchecked Sendable`）
-- `NtkNetworkExecutor` - 请求执行器（执行层，`@NtkActor`）
+- `NtkNetworkExecutor` - 请求执行器（执行层，不可变 `Sendable` 执行快照）
 - `Ntk` - 便捷入口点
 
 ## 子模块
