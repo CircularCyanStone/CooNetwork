@@ -14,7 +14,7 @@ import Foundation
 /// - 将"请求语义"转成"运行时键（runtimeKey）"，让同语义请求共享执行，不同语义请求隔离执行。
 ///
 /// 设计原理：
-/// - 基于全局 Actor 串行化对内部状态的读写，避免多线程下字典竞争；
+/// - 由任务管理器自身的 actor 隔离串行化内部状态读写；
 /// - 通过 runtimeKey 编码去重策略：
 ///   - dedup|\(baseRequestId)|\(responseType)：同类请求复用同一 Task；
 ///   - nodedup|\(baseRequestId)|\(requestInstanceId)：同实例请求独立执行。
@@ -27,8 +27,7 @@ import Foundation
 /// 产出作用：
 /// - 输出稳定的一致性行为：去重开启时复用结果，去重关闭时并发互不干扰；
 /// - 对外提供可观测控制面：单请求取消、全量取消、活跃态查询。
-@NtkActor
-final class NtkTaskManager {
+actor NtkTaskManager {
 
     private typealias RuntimeKey = String
 
