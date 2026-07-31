@@ -6,6 +6,8 @@
 
 提供拦截器链的管理和执行机制。
 
+链管理器和上下文是普通 `Sendable` 值流，不绑定 `NtkActor`；共享可变状态由具体拦截器或状态所有者自行隔离。
+
 ## 核心类型
 
 - `NtkInterceptorChainManager` - 拦截器链管理器

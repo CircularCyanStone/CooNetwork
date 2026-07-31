@@ -123,7 +123,7 @@ public struct NtkDataParsingInterceptor<
     ///
     /// `acquire` 已经把可变拦截器上下文收敛为 `NtkParsingContext`，因此 transformer、decoder
     /// 与 policy 无需继续持有网络 client 或修改共享请求状态。这也是后续阶段不需要依赖
-    /// `NtkActor` 隔离的关键边界。
+    /// 全局隔离与解析扩展点之间的关键边界。
     private func process(_ acquired: AcquiredResponse) async throws -> any iNtkResponse {
         let prepared = try await prepare(acquired)
         let interpreted = try await interpret(prepared, context: acquired.parsingContext)
