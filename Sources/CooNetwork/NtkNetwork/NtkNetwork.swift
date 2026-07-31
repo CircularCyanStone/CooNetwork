@@ -41,7 +41,7 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
 
     /// 缓存的执行器实例
     /// 在首次调用 getOrCreateExecutor() 时创建，后续调用返回同一实例
-    /// 确保 requestWithCache() 中 loadCache 和 execute 共享同一个 executor
+    /// 确保 requestWithCache() 中 loadCache 和 execute 共享同一份冻结配置
     private var _executor: NtkNetworkExecutor<ResponseData>?
 
     /// 检查当前请求是否已被取消
@@ -112,7 +112,7 @@ extension NtkNetwork {
 
     /// 获取或创建执行器（Lazy 模式）
     /// 首次调用时冻结当前配置并创建 executor，后续调用返回同一实例
-    /// 确保同一个 NtkNetwork 实例的所有执行路径共享同一个 executor
+    /// 确保同一个 NtkNetwork 实例的所有执行路径共享同一份冻结配置
     /// - Returns: 配置好的网络执行器实例
     func getOrCreateExecutor() -> NtkNetworkExecutor<ResponseData> {
         lock.withLock {
@@ -140,7 +140,6 @@ extension NtkNetwork {
         }
         return self
     }
-
 
     /// 取消当前请求
     public func cancel() async {
@@ -172,7 +171,7 @@ extension NtkNetwork {
     }
 
     /// 加载缓存数据
-    /// 直接通过缓存请求处理器读取缓存，跳过拦截器链
+    /// 应用请求修改器后读取缓存，并通过响应解析器生成类型化响应
     /// - Returns: 缓存的响应对象，如果没有缓存则返回nil
     /// - Throws: 缓存加载过程中的错误
     public func loadCache() async throws -> NtkResponse<ResponseData>? {
@@ -255,6 +254,7 @@ extension NtkNetwork {
 
 extension NtkNetwork where ResponseData == Bool {
     /// 判断是否存在缓存数据
+    /// 判断前会应用请求修改器
     /// - Returns: 如果存在缓存数据返回true，否则返回false
     public func hasCacheData() async -> Bool {
         return await getOrCreateExecutor().hasCacheData()

@@ -21,7 +21,13 @@ public final class NtkInterceptorContext: Sendable {
     /// 网络客户端
     public let client: iNtkClient
 
-    /// 拦截器间传递的额外数据
+    /// 当前拦截器链一次执行期间共享的运行时状态。
+    ///
+    /// 普通拦截器可以在 `intercept(context:next:)` 阶段读写该数据，用于在链内传递
+    /// 追踪信息、执行状态或响应解析所需的临时信息。响应解析阶段会按需取得其快照。
+    ///
+    /// 该数据不属于请求结构，不能用于回写或修改已经冻结的 `request`，也不会与
+    /// `NtkMutableRequest.extraData` 自动同步。
     public var extraData: [String: Sendable] = [:]
 
     init(request: NtkMutableRequest, client: iNtkClient) {

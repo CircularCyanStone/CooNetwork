@@ -30,7 +30,14 @@ public struct NtkMutableRequest: iNtkRequest {
     /// 请求头，可直接修改
     public var headers: [String: String]?
 
-    /// 额外数据存储，用于在拦截器间传递自定义信息
+    /// 请求级附加元数据。
+    ///
+    /// 调用方可以在请求执行前写入；请求修改拦截器可以在
+    /// `iNtkRequestModifyingInterceptor.modifyRequest(_:)` 阶段读取或修改。
+    /// 请求构建完成后，该数据随只读请求快照进入普通拦截器链。
+    ///
+    /// 该数据与 `NtkInterceptorContext.extraData` 分属不同阶段，框架不会在二者之间
+    /// 自动同步或回写。
     public var extraData: [String: Sendable] = [:]
 
     // MARK: - 初始化
