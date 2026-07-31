@@ -2,7 +2,7 @@
 
 ## 状态
 
-待用户审阅。本文只确定迁移顺序和判断标准，不直接改变运行时行为。
+核心流水线方案已确认，待用户审阅书面版本。本文只确定迁移顺序和判断标准，不直接改变运行时行为。
 
 ## 目标
 
@@ -18,34 +18,72 @@
 4. `async` 只表示可能等待，不单独构成 actor 隔离理由。
 5. 每批修改后运行针对性测试，并检查剩余 `@NtkActor` 引用。
 
-## 阶段一：无状态入口清理
+## 阶段一：核心流水线解除全局 actor 绑定
 
-先处理不承担可变状态保护、且不依赖协议隔离契约的类型：
+本阶段一次处理互相依赖的无状态执行流水线，避免留下普通闭包与 actor 闭包互相包装的中间模型。
+
+### Executor
 
 - `NtkNetworkExecutor`：删除类型级 `@NtkActor`，保留冻结配置和初始请求快照。
 - `Ntk`：删除类型级 `@NtkActor`；工厂方法已经是 `nonisolated`，类型没有实例状态。
-- 其他只有不可变存储、且当前调用链允许独立移除的无状态门面，逐个以编译结果确认，不做机械批量删除。
 
 `NtkNetworkExecutor` 改为 `final class: Sendable`，并让 `Configuration`、`ResponseResult` 显式满足 `Sendable`。执行方法继续从 `initialRequest` 创建局部请求，不保存动作期间的可变状态。
 
-本阶段暂不修改：
+### 每请求 Context
 
-- `NtkInterceptorContext`
-- `iNtkInterceptor`、`iNtkClient`、缓存协议等公开协议
-- `NtkInterceptorChainManager`
+`NtkInterceptorContext` 从 `@NtkActor final class` 改为 `Sendable struct`：
+
+- `request` 保持只读；
+- `extraData` 保持值类型属性；
+- 删除没有被 interceptor 使用的 `client`；
+- executor 的 final handler 直接捕获冻结配置中的 client。
+
+需要写入链内数据的 interceptor 创建 context 副本并显式传给下游。数据只沿请求方向传播；上游不依赖下游对副本的回写。当前生产代码没有修改 `context.extraData`，因此该语义收紧不会改变内置功能。
+
+### Interceptor Chain
+
+`NtkInterceptorChainManager` 改为普通 `Sendable` 结构：
+
+- `finalHandler` 使用普通 `@Sendable async` 闭包；
+- `buildChain` 返回相同类型的普通异步闭包；
+- `TempHandler.handler` 不再擦除或恢复 actor 隔离；
+- 链条顺序继续由逐层 `await next.handle(...)` 保证。
+
+全局 actor 并不能阻止第三方 interceptor 主动并发或重复调用 `next`，因为 actor 在 `await` 处允许重入；因此它不是责任链顺序保证的来源。
+
+### 公开协议
+
+移除以下公开要求上的 `@NtkActor`：
+
+- `iNtkInterceptor.intercept`
+- `iNtkRequestModifyingInterceptor.modifyRequest`
+- `iNtkRequestHandler`
+- `iNtkResponseParser.intercept`
+- `iNtkClient.execute`
+- `iNtkCacheProvider`
+- `iNtkCacheStorage`
+
+这些协议继续要求 `Sendable`。无状态值类型实现可以直接并发使用；有状态实现可以自行采用独立 actor、`MainActor` 或锁。普通 `Sendable` async 协议允许 actor-isolated witness，因此移除协议级 global actor 不会限制实现者选择自己的隔离方式。
+
+同步清理 `NtkResponseParserBox`、`NtkDataParsingInterceptor`、`NtkRetryInterceptor`、`AFClient` 等内置实现中只为满足上述要求而存在的标注。重试延迟和下游调用继续保持异步；纯日志辅助方法改为同步。
+
+### 暂时保留的隔离
+
+本阶段暂不迁移：
+
 - `NtkTaskManager` 和请求标识 LRU
+- `NtkNetworkCache`
 
-这样可以先验证 executor 的不可变快照模型，而不引入整条调用链的隔离迁移。
+它们仍持有或依赖真实共享可变状态。核心流水线可通过显式 `await` 调用这些剩余的 actor-isolated 类型，待本阶段验证后再单独处理其状态所有权。
 
-## 阶段二：基于剩余引用决定流水线迁移
+## 阶段二：审计剩余引用
 
 阶段一完成后，使用剩余引用和编译器诊断重新评估：
 
-- 如果 executor 仅产生预期的协议 actor hop，记录并进入下一阶段；
-- 不因为减少 hop 而改变仍然拥有共享状态的类型；
-- 只有在明确确认 context/chain 的共享状态可改为每请求值流后，才移除对应协议级 `@NtkActor`。
-
-此阶段将单独设计 `NtkInterceptorContext.extraData` 的语义，不在阶段一隐式改变上下游可见性。
+- 列出每个剩余 `@NtkActor` 所保护的具体可变状态；
+- 区分进程级共享状态、对象自有状态、UI 状态和无状态方法；
+- 不以引用数量或减少 hop 作为唯一删除依据；
+- 不保留“属于网络模块”这一功能分类式隔离理由。
 
 ## 阶段三：真实共享状态迁移
 
@@ -65,7 +103,9 @@
 ## 验收标准
 
 - 阶段一后 executor 可从任意并发任务安全共享，且网络/缓存请求仍从独立快照构建。
-- 无状态入口不再要求调用方进入 `NtkActor`。
-- 尚未迁移的协议和 context 行为保持不变。
+- 每次请求和缓存分支拥有独立的 context 值，链内数据只显式向下游传播。
+- interceptor、parser、client 和 cache adapter 不再被公开协议强制绑定到 `NtkActor`。
+- actor、`MainActor` 和锁保护的第三方实现仍可满足对应 async 协议。
+- interceptor 顺序、短路、重试、解析、缓存和错误传播行为保持不变。
 - 每阶段 `swift test` 通过，且新增针对并发共享 executor 的回归测试。
 - 每阶段记录剩余 `@NtkActor` 用途，不以引用数量作为唯一删除标准。
