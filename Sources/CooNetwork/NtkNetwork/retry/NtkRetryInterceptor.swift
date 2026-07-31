@@ -33,7 +33,6 @@ public struct NtkRetryInterceptor: iNtkInterceptor {
     /// 执行流程：首次执行 + 最多 maxRetryCount 次重试
     /// - maxRetryCount=0：只执行一次，不重试
     /// - maxRetryCount=3：首次执行 + 最多 3 次重试 = 最多 4 次执行
-    @NtkActor
     public func intercept(context: NtkInterceptorContext, next: iNtkRequestHandler) async throws -> any iNtkResponse {
         // 首次执行
         do {
@@ -64,11 +63,11 @@ public struct NtkRetryInterceptor: iNtkInterceptor {
 
             // 计算延迟时间
             guard let delay = retryPolicy.retryDelay(for: retryCount, error: lastError) else {
-                await recordRetryFailure(retryCount: retryCount - 1, finalError: lastError)
+                recordRetryFailure(retryCount: retryCount - 1, finalError: lastError)
                 throw lastError
             }
 
-            await recordRetryAttempt(retryCount: retryCount, delay: delay, error: lastError)
+            recordRetryAttempt(retryCount: retryCount, delay: delay, error: lastError)
 
             if delay > 0 {
                 try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
@@ -76,21 +75,21 @@ public struct NtkRetryInterceptor: iNtkInterceptor {
 
             do {
                 let response = try await next.handle(context: context)
-                await recordRetrySuccess(retryCount: retryCount)
+                recordRetrySuccess(retryCount: retryCount)
                 return response
             } catch {
                 lastError = error
 
                 // 检查是否继续重试
                 guard retryPolicy.shouldRetry(attemptCount: retryCount + 1, error: error) else {
-                    await recordRetryFailure(retryCount: retryCount, finalError: error)
+                    recordRetryFailure(retryCount: retryCount, finalError: error)
                     throw error
                 }
             }
         }
 
         // 重试次数用完
-        await recordRetryFailure(retryCount: retryCount, finalError: lastError)
+        recordRetryFailure(retryCount: retryCount, finalError: lastError)
         throw lastError
     }
 }
@@ -102,17 +101,17 @@ private extension NtkRetryInterceptor {
         retryCount: Int,
         delay: TimeInterval,
         error: Error
-    ) async {
+    ) {
         logger.debug("[NtkRetry] Retry #\(retryCount) in \(delay)s. Error: \(error)", category: .retry)
     }
 
     /// 记录重试成功
-    func recordRetrySuccess(retryCount: Int) async {
+    func recordRetrySuccess(retryCount: Int) {
         logger.debug("[NtkRetry] Request succeeded after \(retryCount) retries", category: .retry)
     }
 
     /// 记录重试失败
-    func recordRetryFailure(retryCount: Int, finalError: Error) async {
+    func recordRetryFailure(retryCount: Int, finalError: Error) {
         logger.error("[NtkRetry] Request failed after \(retryCount) retries. Final error: \(finalError)", category: .retry)
     }
 }

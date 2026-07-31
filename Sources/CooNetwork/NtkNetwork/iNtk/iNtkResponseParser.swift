@@ -27,7 +27,6 @@ import Foundation
 /// }
 /// ```
 public protocol iNtkResponseParser: Sendable {
-    @NtkActor
     func intercept(context: NtkInterceptorContext, next: iNtkRequestHandler) async throws -> any iNtkResponse
 }
 
@@ -41,7 +40,6 @@ struct NtkResponseParserBox: iNtkInterceptor, Sendable {
         self.wrapped = parser
     }
 
-    @NtkActor
     func intercept(context: NtkInterceptorContext, next: iNtkRequestHandler) async throws -> any iNtkResponse {
         try await wrapped.intercept(context: context, next: next)
     }

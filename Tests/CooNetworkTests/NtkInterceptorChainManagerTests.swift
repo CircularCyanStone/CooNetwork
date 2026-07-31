@@ -7,7 +7,6 @@ struct NtkInterceptorChainManagerTests {
     // MARK: - 空链直达 finalHandler
 
     @Test
-    @NtkActor
     func emptyChainCallsFinalHandler() async throws {
         let counter = ChainCallCounter()
         let manager = NtkInterceptorChainManager(interceptors: []) { context in
@@ -23,7 +22,6 @@ struct NtkInterceptorChainManagerTests {
     // MARK: - 单拦截器执行
 
     @Test
-    @NtkActor
     func singleInterceptorExecutesAndCallsNext() async throws {
         let counter = ChainCallCounter()
         let interceptor = ChainRecordingInterceptor(id: "A", counter: counter)
@@ -40,7 +38,6 @@ struct NtkInterceptorChainManagerTests {
     // MARK: - 多拦截器按数组顺序执行
 
     @Test
-    @NtkActor
     func multipleInterceptorsExecuteInOrder() async throws {
         let counter = ChainCallCounter()
         let a = ChainRecordingInterceptor(id: "A", counter: counter)
@@ -60,7 +57,6 @@ struct NtkInterceptorChainManagerTests {
     // MARK: - 拦截器短路
 
     @Test
-    @NtkActor
     func shortCircuitInterceptorStopsChain() async throws {
         let counter = ChainCallCounter()
         let a = ChainRecordingInterceptor(id: "A", counter: counter)
@@ -80,7 +76,6 @@ struct NtkInterceptorChainManagerTests {
     // MARK: - 拦截器抛错传播
 
     @Test
-    @NtkActor
     func interceptorErrorPropagates() async throws {
         let counter = ChainCallCounter()
         let a = ChainRecordingInterceptor(id: "A", counter: counter)
@@ -105,7 +100,6 @@ struct NtkInterceptorChainManagerTests {
     // MARK: - context 修改传递
 
     @Test
-    @NtkActor
     func contextModificationIsVisibleDownstreamWithoutMutatingSource() async throws {
         let modifier = ChainContextModifierInterceptor(key: "testKey", value: "testValue")
         let capture = ChainValueCapture()
@@ -125,7 +119,6 @@ struct NtkInterceptorChainManagerTests {
     /// 验证 outer tier 始终在 standard tier 外侧执行，standard 始终在 inner tier 外侧
     /// 无论传入顺序如何，sortInterceptors 按 tier+value 降序排列
     @Test
-    @NtkActor
     func tierIsolationEnsuresCoreOrderingIsPreserved() async throws {
         let counter = ChainCallCounter()
 
@@ -163,7 +156,6 @@ struct NtkInterceptorChainManagerTests {
     }
 
     @Test
-    @NtkActor
     func equalPriorityInterceptorsKeepRegistrationOrder() {
         let counter = ChainCallCounter()
         let first = ChainTieredInterceptor(
@@ -181,11 +173,29 @@ struct NtkInterceptorChainManagerTests {
 
         #expect(ids == ["first", "second", "third"])
     }
+
+    @Test
+    func ordinaryAsyncChainPreservesOrderWithoutGlobalActor() async throws {
+        let counter = ChainCallCounter()
+        let manager = NtkInterceptorChainManager(interceptors: [
+            ChainRecordingInterceptor(id: "outer", counter: counter),
+            ChainRecordingInterceptor(id: "inner", counter: counter)
+        ]) { _ in
+            await counter.record("final")
+            return ChainDummyResponse(request: ChainDummyRequest())
+        }
+
+        _ = try await manager.execute(context: makeContext())
+
+        #expect(await counter.log() == [
+            "outer-request", "inner-request", "final",
+            "inner-response", "outer-response"
+        ])
+    }
 }
 
 // MARK: - Helpers
 
-@NtkActor
 private func makeContext() -> NtkInterceptorContext {
     NtkInterceptorContext(
         request: NtkMutableRequest(ChainDummyRequest())
@@ -208,13 +218,6 @@ private struct ChainDummyValidation: iNtkResponseValidation {
     func isServiceSuccess(_ response: any iNtkResponse) -> Bool { true }
 }
 
-private struct ChainDummyClient: iNtkClient {
-    @NtkActor
-    func execute(_ request: NtkMutableRequest) async throws -> NtkClientResponse {
-        NtkClientResponse(data: true, msg: nil, response: true, request: request, isCache: false)
-    }
-}
-
 private struct ChainDummyResponse: iNtkResponse {
     let code = NtkReturnCode(200)
     let data: Bool = true
@@ -225,7 +228,6 @@ private struct ChainDummyResponse: iNtkResponse {
 }
 
 /// 记录请求/响应阶段的拦截器
-@NtkActor
 private struct ChainRecordingInterceptor: iNtkInterceptor {
     let id: String
     let counter: ChainCallCounter
@@ -239,7 +241,6 @@ private struct ChainRecordingInterceptor: iNtkInterceptor {
 }
 
 /// 不调用 next 的短路拦截器
-@NtkActor
 private struct ChainShortCircuitInterceptor: iNtkInterceptor {
     let id: String
     let counter: ChainCallCounter
@@ -251,7 +252,6 @@ private struct ChainShortCircuitInterceptor: iNtkInterceptor {
 }
 
 /// Tier 感知的记录拦截器，用于验证 tier 排序
-@NtkActor
 private struct ChainTieredInterceptor: iNtkInterceptor {
     let id: String
     let counter: ChainCallCounter
@@ -268,7 +268,6 @@ private struct ChainTieredInterceptor: iNtkInterceptor {
 }
 
 /// 抛错拦截器
-@NtkActor
 private struct ChainThrowingInterceptor: iNtkInterceptor {
     func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
         throw NtkError.requestTimeout(.framework(timeout: 30))
@@ -276,7 +275,6 @@ private struct ChainThrowingInterceptor: iNtkInterceptor {
 }
 
 /// 修改 context extraData 的拦截器
-@NtkActor
 private struct ChainContextModifierInterceptor: iNtkInterceptor {
     let key: String
     let value: any Sendable
@@ -295,7 +293,6 @@ private actor ChainValueCapture {
 }
 
 /// 读取 context extraData 的拦截器
-@NtkActor
 private struct ChainContextReaderInterceptor: iNtkInterceptor {
     let key: String
     let capture: ChainValueCapture

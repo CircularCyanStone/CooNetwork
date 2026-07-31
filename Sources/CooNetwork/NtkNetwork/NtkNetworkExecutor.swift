@@ -61,7 +61,7 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
         interceptorsToRun.append(NtkDeduplicationInterceptor())
         let allInterceptors = NtkInterceptorOrdering.sorted(interceptorsToRun)
         
-        let realChainManager = await NtkInterceptorChainManager(interceptors: allInterceptors) { [client = config.client] context in
+        let realChainManager = NtkInterceptorChainManager(interceptors: allInterceptors) { [client = config.client] context in
             let response = try await client.execute(context.request)
             return response
         }
@@ -86,7 +86,7 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
         let parserInterceptors = NtkInterceptorOrdering.sorted(config.interceptors)
             .filter { $0 is NtkResponseParserBox }
 
-        let realChainManager = await NtkInterceptorChainManager(interceptors: parserInterceptors) { context in
+        let realChainManager = NtkInterceptorChainManager(interceptors: parserInterceptors) { context in
             guard let data = try await cacheProvider.loadCacheData(for: context.request) else {
                 throw NtkError.Cache.noCache
             }

@@ -107,7 +107,6 @@ public struct NtkDataParsingInterceptor<
     ///   - next: 负责继续执行请求链并产出待解析响应的下游处理器。
     /// - Returns: 已透传或完成业务裁决的响应。
     /// - Throws: 下游错误、载荷准备错误、解码错误或业务 validation 错误。
-    @NtkActor
     public func intercept(
         context: NtkInterceptorContext,
         next: iNtkRequestHandler
@@ -140,7 +139,6 @@ public struct NtkDataParsingInterceptor<
     ///
     /// 返回 `Acquisition` 而不是一组可选值，是为了让“已经是目标类型”和“需要解析的客户端响应”
     /// 成为互斥状态，后续代码不必处理无意义的字段组合。
-    @NtkActor
     private func acquire(
         context: NtkInterceptorContext,
         next: iNtkRequestHandler

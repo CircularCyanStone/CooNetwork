@@ -16,13 +16,11 @@ public protocol iNtkRequestModifyingInterceptor: iNtkInterceptor {
     /// 修改请求。
     /// - Parameter request: 当前请求快照
     /// - Returns: 修改后的请求快照
-    @NtkActor
     func modifyRequest(_ request: NtkMutableRequest) async throws -> NtkMutableRequest
 }
 
 extension iNtkRequestModifyingInterceptor {
     /// 默认透传拦截器链。
-    @NtkActor
     public func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
         try await next.handle(context: context)
     }

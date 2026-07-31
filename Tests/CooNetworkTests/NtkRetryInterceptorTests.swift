@@ -4,7 +4,6 @@ import Foundation
 
 struct NtkRetryInterceptorTests {
     @Test
-    @NtkActor
     func zeroRetryShouldThrowTypedErrorInsteadOfCrash() async {
         let interceptor = NtkRetryInterceptor(retryPolicy: ZeroRetryPolicy())
         let context = NtkInterceptorContext(
@@ -26,7 +25,6 @@ struct NtkRetryInterceptorTests {
     }
     /// maxRetryCount=3 时应重试 3 次（总共执行 4 次）
     @Test
-    @NtkActor
     func retryCountMatchesMaxRetryCount() async throws {
         let counter = RetryExecutionCounter()
         let interceptor = NtkRetryInterceptor(
@@ -49,7 +47,6 @@ struct NtkRetryInterceptorTests {
 
     /// maxRetryCount=1 时应重试 1 次（总共执行 2 次）
     @Test
-    @NtkActor
     func singleRetryShouldExecuteTwice() async throws {
         let counter = RetryExecutionCounter()
         let interceptor = NtkRetryInterceptor(
@@ -71,7 +68,6 @@ struct NtkRetryInterceptorTests {
 
     /// 首次成功时不应重试
     @Test
-    @NtkActor
     func firstSuccessShouldNotRetry() async throws {
         let counter = RetryExecutionCounter()
         let interceptor = NtkRetryInterceptor(
@@ -91,7 +87,6 @@ struct NtkRetryInterceptorTests {
 
     /// 第 2 次重试成功时应停止
     @Test
-    @NtkActor
     func validationErrorShouldNotRetry() async throws {
         let policy = NtkFixedIntervalRetryPolicy.precise(maxRetryCount: 3, interval: 0)
         #expect(policy.shouldRetry(
@@ -110,7 +105,6 @@ struct NtkRetryInterceptorTests {
     }
 
     @Test
-    @NtkActor
     func serializationErrorShouldNotRetry() async throws {
         let policy = NtkFixedIntervalRetryPolicy.precise(maxRetryCount: 3, interval: 0)
         #expect(policy.shouldRetry(
@@ -122,7 +116,6 @@ struct NtkRetryInterceptorTests {
     }
 
     @Test
-    @NtkActor
     func clientTimeoutErrorShouldRetry() async throws {
         let policy = NtkFixedIntervalRetryPolicy.precise(maxRetryCount: 3, interval: 0)
         #expect(policy.shouldRetry(
@@ -140,7 +133,6 @@ struct NtkRetryInterceptorTests {
     }
 
     @Test
-    @NtkActor
     func clientBadUrlErrorShouldNotRetry() async throws {
         let policy = NtkFixedIntervalRetryPolicy.precise(maxRetryCount: 3, interval: 0)
         #expect(policy.shouldRetry(
@@ -158,14 +150,12 @@ struct NtkRetryInterceptorTests {
     }
 
     @Test
-    @NtkActor
     func invalidTypedResponseShouldNotRetry() async throws {
         let policy = NtkFixedIntervalRetryPolicy.precise(maxRetryCount: 3, interval: 0)
         #expect(policy.shouldRetry(attemptCount: 1, error: NtkError.invalidTypedResponse) == false)
     }
 
     @Test
-    @NtkActor
     func requestCancelledShouldNotRetry() async throws {
         let policy = NtkFixedIntervalRetryPolicy.precise(maxRetryCount: 3, interval: 0)
         #expect(policy.shouldRetry(attemptCount: 1, error: NtkError.requestCancelled) == false)
@@ -193,7 +183,6 @@ private struct CountingRetryPolicy: iNtkRetryPolicy {
     }
 }
 
-@NtkActor
 private struct CountingFailHandler: iNtkRequestHandler {
     let counter: RetryExecutionCounter
     func handle(context: NtkInterceptorContext) async throws -> any iNtkResponse {
@@ -202,7 +191,6 @@ private struct CountingFailHandler: iNtkRequestHandler {
     }
 }
 
-@NtkActor
 private struct CountingSuccessHandler: iNtkRequestHandler {
     let counter: RetryExecutionCounter
     let request: iNtkRequest
@@ -212,7 +200,6 @@ private struct CountingSuccessHandler: iNtkRequestHandler {
     }
 }
 
-@NtkActor
 private struct FailNTimesThenSucceedHandler: iNtkRequestHandler {
     let failCount: Int
     let counter: RetryExecutionCounter
@@ -262,22 +249,18 @@ private struct DummyClient: iNtkClient {
         DummyCacheStorage()
     }
 
-    @NtkActor
     func execute(_ request: NtkMutableRequest) async throws -> NtkClientResponse {
         throw NtkError.requestTimeout(.framework(timeout: 30))
     }
     
-    @NtkActor
     func loadCache(_ request: NtkMutableRequest) async throws -> NtkClientResponse? {
         nil
     }
     
-    @NtkActor
     func saveCache(_ request: NtkMutableRequest, response: Sendable) async -> Bool {
         false
     }
     
-    @NtkActor
     func hasCacheData(_ request: NtkMutableRequest) async -> NtkResponse<Bool> {
         NtkResponse(
             code: NtkReturnCode(200),
@@ -291,23 +274,19 @@ private struct DummyClient: iNtkClient {
 }
 
 private struct DummyCacheStorage: iNtkCacheStorage {
-    @NtkActor
     func setData(metaData: NtkCacheMeta, key: String, for request: NtkMutableRequest) async -> Bool {
         false
     }
     
-    @NtkActor
     func getData(key: String, for request: NtkMutableRequest) async -> NtkCacheMeta? {
         nil
     }
     
-    @NtkActor
     func hasData(key: String, for request: NtkMutableRequest) async -> Bool {
         false
     }
 }
 
-@NtkActor
 private struct AlwaysFailHandler: iNtkRequestHandler {
     func handle(context: NtkInterceptorContext) async throws -> any iNtkResponse {
         throw NtkError.requestTimeout(.framework(timeout: 30))
