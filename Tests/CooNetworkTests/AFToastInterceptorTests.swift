@@ -6,7 +6,6 @@ import Testing
 
 struct AFToastInterceptorTests {
     @Test
-    @NtkActor
     func validationErrorShowsResponseMessage() async throws {
         let recorder = ToastRecorder()
         let interceptor = AFToastInterceptor(toastHandler: recorder.record)
@@ -27,7 +26,6 @@ struct AFToastInterceptorTests {
     }
 
     @Test
-    @NtkActor
     func ignoredValidationCodeDoesNotShowToast() async throws {
         let recorder = ToastRecorder()
         let interceptor = AFToastInterceptor(ignoreCode: [401], toastHandler: recorder.record)
@@ -48,7 +46,6 @@ struct AFToastInterceptorTests {
     }
 
     @Test
-    @NtkActor
     func timeoutShowsTimeoutToast() async throws {
         let recorder = ToastRecorder()
         let interceptor = AFToastInterceptor(toastHandler: recorder.record)
@@ -69,7 +66,6 @@ struct AFToastInterceptorTests {
     }
 
     @Test
-    @NtkActor
     func clientErrorShowsSystemMessage() async throws {
         let recorder = ToastRecorder()
         let interceptor = AFToastInterceptor(toastHandler: recorder.record)
@@ -118,13 +114,11 @@ private struct ToastTestRequest: iAFRequest {
 }
 
 private struct ToastDummyClient: iNtkClient {
-    @NtkActor
     func execute(_ request: NtkMutableRequest) async throws -> NtkClientResponse {
         NtkClientResponse(data: true, msg: nil, response: true, request: request, isCache: false)
     }
 }
 
-@NtkActor
 private struct ToastValidationFailureHandler: iNtkRequestHandler {
     func handle(context: NtkInterceptorContext) async throws -> any iNtkResponse {
         throw NtkError.Validation.serviceRejected(
@@ -140,7 +134,6 @@ private struct ToastValidationFailureHandler: iNtkRequestHandler {
     }
 }
 
-@NtkActor
 private struct ToastIgnoredValidationFailureHandler: iNtkRequestHandler {
     func handle(context: NtkInterceptorContext) async throws -> any iNtkResponse {
         throw NtkError.Validation.serviceRejected(
@@ -156,14 +149,12 @@ private struct ToastIgnoredValidationFailureHandler: iNtkRequestHandler {
     }
 }
 
-@NtkActor
 private struct ToastTimeoutHandler: iNtkRequestHandler {
     func handle(context: NtkInterceptorContext) async throws -> any iNtkResponse {
         throw NtkError.requestTimeout(.framework(timeout: 30))
     }
 }
 
-@NtkActor
 private struct ToastClientErrorHandler: iNtkRequestHandler {
     func handle(context: NtkInterceptorContext) async throws -> any iNtkResponse {
         throw NtkError.Client.external(

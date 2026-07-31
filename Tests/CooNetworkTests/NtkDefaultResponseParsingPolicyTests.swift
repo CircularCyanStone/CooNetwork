@@ -6,7 +6,6 @@ import Foundation
 struct NtkDefaultResponseParsingPolicyTests {
 
     @Test
-    @NtkActor
     func decodedResultWithDataReturnsTypedResponseAndDidComplete() async throws {
         let hook = PolicyTestRecordingHook()
         let policy = NtkDefaultResponseParsingPolicy<PolicyTestModel>(
@@ -36,7 +35,6 @@ struct NtkDefaultResponseParsingPolicyTests {
     }
 
     @Test
-    @NtkActor
     func decodedResultWithNilDataAndValidationPassReturnsOptionalResponse() async throws {
         let hook = PolicyTestRecordingHook()
         let policy = NtkDefaultResponseParsingPolicy<PolicyTestModel>(
@@ -65,7 +63,6 @@ struct NtkDefaultResponseParsingPolicyTests {
     }
 
     @Test
-    @NtkActor
     func decodedResultWithNilDataAndValidationFailThrowsValidation() async throws {
         let hook = PolicyTestRecordingHook()
         let policy = NtkDefaultResponseParsingPolicy<PolicyTestModel>(
@@ -101,7 +98,6 @@ struct NtkDefaultResponseParsingPolicyTests {
     }
 
     @Test
-    @NtkActor
     func decodedResultWithNtkNeverReturnsSuccess() async throws {
         let hook = PolicyTestRecordingHook()
         let policy = NtkDefaultResponseParsingPolicy<NtkNever>(
@@ -129,7 +125,6 @@ struct NtkDefaultResponseParsingPolicyTests {
     }
 
     @Test
-    @NtkActor
     func decodeFailureWithHeaderValidationFailureThrowsValidation() async throws {
         let hook = PolicyTestRecordingHook()
         let policy = NtkDefaultResponseParsingPolicy<PolicyTestModel>(
@@ -155,7 +150,6 @@ struct NtkDefaultResponseParsingPolicyTests {
     }
 
     @Test
-    @NtkActor
     func decodeFailureWithHeaderValidationPassStillThrowsDataDecodeFailed() async throws {
         let hook = PolicyTestRecordingHook()
         let policy = NtkDefaultResponseParsingPolicy<PolicyTestModel>(
@@ -194,7 +188,6 @@ struct NtkDefaultResponseParsingPolicyTests {
     }
 
     @Test
-    @NtkActor
     func decodeFailureWithoutHeaderThrowsDataDecodeFailed() async throws {
         let policy = NtkDefaultResponseParsingPolicy<PolicyTestModel>(
             validation: PolicyTestPassValidation(),
@@ -231,7 +224,6 @@ struct NtkDefaultResponseParsingPolicyTests {
     }
 
     @Test
-    @NtkActor
     func decodeFailureWithHeaderDoesNotTriggerDidComplete() async throws {
         let hook = PolicyTestRecordingHook()
         let policy = NtkDefaultResponseParsingPolicy<PolicyTestModel>(
