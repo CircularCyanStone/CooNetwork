@@ -14,7 +14,6 @@ public protocol iNtkClient: Sendable {
     /// 执行网络请求
     /// - Returns: 原始的网络响应数据
     /// - Throws: 网络请求过程中的错误
-    @NtkActor
     func execute(_ request: NtkMutableRequest) async throws -> NtkClientResponse
 
     /// 取消当前请求

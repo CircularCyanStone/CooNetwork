@@ -70,12 +70,12 @@ public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
     // MARK: - iNtkCacheProvider
 
     public func loadCacheData(for request: NtkMutableRequest) async throws -> (any Sendable)? {
-        let cache = NtkNetworkCache(storage: storage)
+        let cache = await NtkNetworkCache(storage: storage)
         return try await cache.loadData(for: request)
     }
 
     public func hasCacheData(for request: NtkMutableRequest) async -> Bool {
-        let cache = NtkNetworkCache(storage: storage)
+        let cache = await NtkNetworkCache(storage: storage)
         return await cache.hasData(for: request)
     }
 }

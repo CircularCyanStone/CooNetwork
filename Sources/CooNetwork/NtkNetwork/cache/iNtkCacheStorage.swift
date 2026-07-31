@@ -18,20 +18,17 @@ public protocol iNtkCacheStorage: Sendable {
     ///   - metaData: 包含数据和元信息的缓存元数据
     ///   - key: 唯一的缓存键，用于标识和检索缓存数据
     /// - Returns: 存储操作是否成功
-    @NtkActor
     func setData(metaData: NtkCacheMeta, key: String, for request: NtkMutableRequest) async -> Bool
     
     /// 从缓存获取数据
     /// 根据缓存键检索对应的缓存数据和元信息
     /// - Parameter key: 缓存键
     /// - Returns: 缓存的元数据对象，如果缓存不存在则返回nil
-    @NtkActor
     func getData(key: String, for request: NtkMutableRequest) async -> NtkCacheMeta?
     
     /// 检查缓存是否存在
     /// 快速检查指定键的缓存数据是否存在，不读取实际数据
     /// - Parameter key: 缓存键
     /// - Returns: 如果缓存存在返回true，否则返回false
-    @NtkActor
     func hasData(key: String, for request: NtkMutableRequest) async -> Bool
 }

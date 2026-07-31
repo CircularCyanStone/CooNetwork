@@ -58,7 +58,6 @@ private struct SingleUseDummyClient: iNtkClient {
         SingleUseDummyCacheStorage()
     }
 
-    @NtkActor
     func execute(_ request: NtkMutableRequest) async throws -> NtkClientResponse {
         NtkClientResponse(
             data: true,
@@ -71,7 +70,6 @@ private struct SingleUseDummyClient: iNtkClient {
 }
 
 private struct SingleUseDummyParsingInterceptor: iNtkResponseParser {
-    @NtkActor
     func intercept(context: NtkInterceptorContext, next: iNtkRequestHandler) async throws -> any iNtkResponse {
         let response = try await next.handle(context: context)
         return NtkResponse<Bool>(
@@ -86,17 +84,14 @@ private struct SingleUseDummyParsingInterceptor: iNtkResponseParser {
 }
 
 private struct SingleUseDummyCacheStorage: iNtkCacheStorage {
-    @NtkActor
     func setData(metaData: NtkCacheMeta, key: String, for request: NtkMutableRequest) async -> Bool {
         false
     }
 
-    @NtkActor
     func getData(key: String, for request: NtkMutableRequest) async -> NtkCacheMeta? {
         nil
     }
 
-    @NtkActor
     func hasData(key: String, for request: NtkMutableRequest) async -> Bool {
         false
     }

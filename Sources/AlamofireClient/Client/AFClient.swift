@@ -28,7 +28,6 @@ public final class AFClient: iNtkClient {
     /// 执行网络请求
     /// - Returns: 服务端响应数据
     /// - Throws: 网络请求过程中的错误
-    @NtkActor
     public func execute(_ request: NtkMutableRequest) async throws -> NtkClientResponse {
         try await sendRequest(request)
     }
@@ -37,8 +36,6 @@ public final class AFClient: iNtkClient {
     /// 使用Alamofire执行底层网络请求
     /// - Returns: 服务端响应数据
     /// - Throws: 网络请求过程中的错误
-    /// - Note: 标记为 nonisolated 以规避在 Actor 中使用非 Sendable 类型 (Any) 的参数传递问题
-    @NtkActor
     private func sendRequest(_ request: NtkMutableRequest) async throws -> NtkClientResponse {
         guard let ntkRequest = request.originalRequest as? iAFRequest else {
             throw NtkError.unsupportedRequestType(request: request.originalRequest)

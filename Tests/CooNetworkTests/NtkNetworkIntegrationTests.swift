@@ -15,6 +15,19 @@ struct NtkNetworkIntegrationTests {
     }
 
     @Test
+    func requestAcceptsActorBackedClient() async throws {
+        let network = NtkNetwork<Bool>.with(
+            IntegActorBackedClient(),
+            request: IntegDummyRequest(path: "/integration/actor-client"),
+            responseParser: IntegMockParsingInterceptor()
+        )
+
+        let response = try await network.request()
+
+        #expect(response.data == true)
+    }
+
+    @Test
     func requestWithRealParserReturnsDecodedBoolResponse() async throws {
         let client = IntegJSONClient(data: try JSONSerialization.data(withJSONObject: [
             "retCode": 0,
@@ -269,7 +282,6 @@ private struct IntegMockClient: iNtkClient {
         self.delay = delay
     }
 
-    @NtkActor
     func execute(_ request: NtkMutableRequest) async throws -> NtkClientResponse {
         if delay > 0 {
             try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
@@ -286,17 +298,22 @@ private struct IntegMockClient: iNtkClient {
 private struct IntegJSONClient: iNtkClient {
     let data: Data
 
-    @NtkActor
     func execute(_ request: NtkMutableRequest) async throws -> NtkClientResponse {
         NtkClientResponse(data: data, msg: nil, response: data, request: request, isCache: false)
+    }
+}
+
+private actor IntegActorBackedClient: iNtkClient {
+    func execute(_ request: NtkMutableRequest) async throws -> NtkClientResponse {
+        NtkClientResponse(data: true, msg: nil, response: true, request: request, isCache: false)
     }
 }
 
 private struct IntegMockCacheStorage: iNtkCacheStorage {
     let cacheData: (any Sendable)?
 
-    @NtkActor func setData(metaData: NtkCacheMeta, key: String, for request: NtkMutableRequest) async -> Bool { false }
-    @NtkActor func getData(key: String, for request: NtkMutableRequest) async -> NtkCacheMeta? {
+    func setData(metaData: NtkCacheMeta, key: String, for request: NtkMutableRequest) async -> Bool { false }
+    func getData(key: String, for request: NtkMutableRequest) async -> NtkCacheMeta? {
         guard let cacheData else { return nil }
         return NtkCacheMeta(
             appVersion: "1.0",
@@ -305,7 +322,7 @@ private struct IntegMockCacheStorage: iNtkCacheStorage {
             data: cacheData
         )
     }
-    @NtkActor func hasData(key: String, for request: NtkMutableRequest) async -> Bool { cacheData != nil }
+    func hasData(key: String, for request: NtkMutableRequest) async -> Bool { cacheData != nil }
 }
 
 private final class IntegThrowingHook: iNtkParsingHooks, @unchecked Sendable {
@@ -331,7 +348,6 @@ private enum IntegHookObserverError: Error, Equatable {
     case point(String)
 }
 
-@NtkActor
 private struct IntegMockParsingInterceptor: iNtkResponseParser {
     func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
         let response = try await next.handle(context: context)
@@ -347,7 +363,6 @@ private struct IntegMockParsingInterceptor: iNtkResponseParser {
     }
 }
 
-@NtkActor
 private struct IntegNoValidationParsingInterceptor: iNtkResponseParser {
     func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
         let response = try await next.handle(context: context)
@@ -368,7 +383,6 @@ private actor IntegAtomicFlag {
     func value() -> Bool { _value }
 }
 
-@NtkActor
 private struct IntegFlagInterceptor: iNtkInterceptor {
     let flag: IntegAtomicFlag
 
@@ -379,7 +393,6 @@ private struct IntegFlagInterceptor: iNtkInterceptor {
 }
 
 private struct IntegHeaderRequestInterceptor: iNtkRequestModifyingInterceptor {
-    @NtkActor
     func modifyRequest(_ request: NtkMutableRequest) async throws -> NtkMutableRequest {
         var request = request
         request.addHeader(key: "X-Stable-Parameter", value: "stable")
@@ -402,7 +415,6 @@ private actor IntegModifierCallCounter {
 private struct IntegCountingRequestInterceptor: iNtkRequestModifyingInterceptor {
     let counter: IntegModifierCallCounter
 
-    @NtkActor
     func modifyRequest(
         _ request: NtkMutableRequest
     ) async throws -> NtkMutableRequest {
