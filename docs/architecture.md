@@ -49,7 +49,9 @@
 
 ## 执行器生命周期与状态一致性
 
-单次请求生命周期内共享同一个 `NtkNetworkExecutor`。`request()`、`requestWithCache()`、进度回调等执行路径都必须在同一 executor 上运行，避免出现多个 executor 各自持有 `mutableRequest` 拷贝、导致拦截器状态和请求上下文分叉。
+单个 `NtkNetwork` 复用同一个 `NtkNetworkExecutor` 及其冻结配置。每次 `execute()`、`loadCache()`、`hasCacheData()` 都从初始请求快照创建局部请求；`requestWithCache()` 的网络和缓存分支共享 executor，但不共享本次动作的请求值。
+
+缓存读取不会重跑完整拦截器链。只有显式遵循 `iNtkRequestModifyingInterceptor` 的 interceptor 才会在 context 创建前参与请求构建；普通 `intercept()` 只能读取最终请求。请求修改器按 priority 降序执行，同 priority 保持注册顺序。
 
 ## 后端适配边界
 

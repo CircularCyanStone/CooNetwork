@@ -6,7 +6,7 @@
 
 - **NtkNetwork 使用 `@unchecked Sendable`** — 避免 Actor 传染性，配置层需在任意线程初始化且支持链式调用，内部通过 `lock.withLock` 保护可变状态，执行委托给 Actor
 - **NtkUnfairLock 使用 `@unchecked Sendable`** — `os_unfair_lock` 是 C 类型，封装后通过锁保护内部状态，`@unchecked Sendable` 是唯一可行方案
-- **NtkMutableRequest struct 拷贝不会状态不一致** — 拦截器只读访问，修改需显式赋值回 context，`@NtkActor` 保证串行执行
+- **NtkMutableRequest struct 作为请求快照传递** — `iNtkRequestModifyingInterceptor.modifyRequest(_:)` 返回新的请求值；进入拦截器链后只能读取 `NtkInterceptorContext.request`
 
 ## 类型安全
 
@@ -21,7 +21,7 @@
 - **NtkDataParsingInterceptor 位于 CooNetwork 而非 AlamofireClient** — 解析逻辑（`NtkPayload` normalize + `iNtkResponsePayloadTransforming` + `iNtkResponsePayloadDecoding` + `iNtkParsingHooks`）与具体网络库无关；放在核心层让非 AF 客户端（如 mPaaS）也可复用，只需提供自定义 transformer / decoder
 - **AFClient 依赖 Alamofire 类型** — 适配器模式的正确应用，`iNtkClient` 协议是抽象层，AFClient 负责翻译为具体调用，再加一层才是过度抽象
 - **NtkError 使用最小顶层 + 域错误直抛模型** — `NtkError` 只保留跨域公共错误（如 `invalidRequest`、`invalidResponseType`、`requestTimeout` 等）；`NtkError.Validation`、`NtkError.Serialization`、`NtkError.Client`、`NtkError.Cache` 作为正式域错误类型直接抛出与捕获。框架不再使用 `responseValidationFailed(reason:)`、`responseSerializationFailed(reason:)`、`clientFailed(reason:)` 这类无信息增量的顶层包装 case，消费端按“具体域优先，顶层兜底”的顺序处理错误。
-- **NtkNetworkExecutor 三个方法的拦截器链构建"重复"** — 组合策略和错误处理完全不同，仅排序逻辑重复（已提取为 `sortInterceptors`），强行统一降低可读性
+- **NtkNetworkExecutor 三个方法的拦截器链构建"重复"** — 组合策略和错误处理完全不同，仅排序逻辑由 `NtkInterceptorOrdering` 统一，强行统一其余流程会降低可读性
 
 ## 数据解析职责边界
 
@@ -38,7 +38,8 @@
 
 ## 执行器一致性
 
-- **单次请求共享 executor 是刻意设计** — `requestWithCache()`、普通请求和相关执行路径必须复用同一个 `NtkNetworkExecutor`，以保证 `mutableRequest`、拦截器修改和上下文状态的一致性
+- **单次请求共享 executor 是刻意设计** — `requestWithCache()`、普通请求和相关执行路径复用同一个 `NtkNetworkExecutor`，以共享冻结的请求配置和 cache provider；每条执行路径拥有独立的 `NtkInterceptorContext`，拦截器修改不会通过 executor 的可变请求状态互相覆盖
+- **请求修改是显式 interceptor 能力** — 基础 `iNtkInterceptor` 不提供默认修改方法；只有 `iNtkRequestModifyingInterceptor` 参与 `execute()`、`loadCache()`、`hasCacheData()` 的请求构建阶段，同 priority 保持注册顺序
 
 ## 目录与模块归属原则
 

@@ -7,8 +7,8 @@
 
 import Foundation
 
-/// 可变请求包装器，用于在拦截器中动态修改请求参数和头部信息
-/// 完全替代原有设计，提供更强大的请求修改能力
+/// 在 `iNtkRequestModifyingInterceptor.modifyRequest(_:)` 中构建请求的值类型。
+/// 进入 `NtkInterceptorContext` 后只能作为只读请求快照使用。
 public struct NtkMutableRequest: iNtkRequest {
 
     // MARK: - 原始请求属性（不可变）

@@ -46,8 +46,8 @@ extension Ntk {
         let network = NtkAF<T>.withAF(request)
         // 统一添加日志拦截器
         network.addInterceptor(LoggingInterceptor())
-        // 统一添加鉴权拦截器
-        network.addInterceptor(TokenInterceptor())
+        // 稳定公共参数通过 interceptor 同时参与网络请求和缓存 key
+        network.addInterceptor(CommonParameterInterceptor())
         return network
     }
 }
@@ -344,68 +344,55 @@ network.uploadProgress { progress in
 let data = try await network.request()
 ```
 
-### 添加拦截器（日志、鉴权）
+### 添加拦截器
 
 ```swift
-// 自定义日志拦截器
 struct LoggingInterceptor: iNtkInterceptor {
     var priority: NtkInterceptorPriority { .high }
-    
-    func intercept(chain: NtkInterceptorChain) async throws -> any iNtkResponse {
-        let request = chain.request
-        print("📤 请求: \(request.method) \(request.url?.absoluteString ?? "")")
-        
-        let response = try await chain.proceed(request)
+
+    @NtkActor
+    func intercept(
+        context: NtkInterceptorContext,
+        next: iNtkRequestHandler
+    ) async throws -> any iNtkResponse {
+        print("📤 请求: \(context.request.method) \(context.request.path)")
+        let response = try await next.handle(context: context)
         print("📥 响应: \(response.code)")
-        
         return response
     }
 }
-
-// 添加到请求
-let network = NtkAF<User>.withAF(request)
-network.addInterceptor(LoggingInterceptor())
-let user = try await network.request()
 ```
 
 ---
 
 ## 🔧 高级特性
 
-### 自定义拦截器
+### 自定义请求修改拦截器
 
-拦截器采用洋葱模型，按优先级顺序执行：
+稳定公共参数通过显式请求修改能力参与请求构建：
 
 ```swift
-struct TokenRefreshInterceptor: iNtkInterceptor {
-    var priority: NtkInterceptorPriority { .medium }
-    
-    func intercept(chain: NtkInterceptorChain) async throws -> any iNtkResponse {
-        var request = chain.request
-        
-        // 在请求前添加 token
-        if let token = await TokenManager.shared.getToken() {
-            request.headers["Authorization"] = "Bearer \(token)"
-        }
-        
-        do {
-            return try await chain.proceed(request)
-        } catch {
-            // Token 过期时自动刷新
-            if isTokenExpiredError(error) {
-                try await TokenManager.shared.refreshToken()
-                return try await chain.proceed(request)
-            }
-            throw error
-        }
-    }
-    
-    private func isTokenExpiredError(_ error: Error) -> Bool {
-        // 检查是否为 token 过期错误
-        return false
+struct CommonParameterInterceptor: iNtkRequestModifyingInterceptor {
+    @NtkActor
+    func modifyRequest(
+        _ request: NtkMutableRequest
+    ) async throws -> NtkMutableRequest {
+        var request = request
+        request.addHeader(key: "X-App-Channel", value: "iOS")
+        return request
     }
 }
+
+let network = NtkAF<User>.withAF(request)
+network.addInterceptor(LoggingInterceptor())
+network.addInterceptor(CommonParameterInterceptor())
+let user = try await network.request()
 ```
+
+`intercept(context:next:)` 中的请求是只读快照。请求头和参数只能在
+`iNtkRequestModifyingInterceptor.modifyRequest(_:)` 中构建。token、timestamp
+等动态字段还需要通过 `NtkRequestConfiguration.filterHeaders` 或
+`filterParameters` 排除缓存身份。
 
 ### 自定义响应解析
 

@@ -12,10 +12,10 @@ import Foundation
 @NtkActor
 public final class NtkInterceptorContext: Sendable {
 
-    /// 当前拦截链使用的请求快照。
+    /// 当前拦截链使用的只读请求快照。
     ///
-    /// 请求结构只能在 `iNtkRequestModifyingInterceptor.modifyRequest` 阶段修改；拦截器链只能读取该快照，
-    /// 从而避免响应处理和请求状态修改混在同一个接口中。
+    /// 请求结构只能由 `iNtkRequestModifyingInterceptor.modifyRequest(_:)` 构建；
+    /// `intercept(context:next:)` 阶段只能读取该值。
     public let request: NtkMutableRequest
 
     /// 网络客户端

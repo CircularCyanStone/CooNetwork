@@ -36,9 +36,9 @@ Actor 在 `await` 处允许重入。它只保证同一时刻 actor 隔离代码�
 - 位置：`NtkNetworkExecutor`
 - 状态：待处理
 
-`NtkNetworkExecutor` 的 `config` 和 `mutableRequest` 都属于单个 `NtkNetwork` 实例，但整个类型标记为 `@NtkActor` 后，不相关请求的执行器也共享同一个隔离器。它扩大了调度耦合，并不能表达真实的状态所有权。
+`NtkNetworkExecutor` 的 `config` 和初始请求快照都属于单个 `NtkNetwork` 实例，但整个类型标记为 `@NtkActor` 后，不相关请求的执行器也共享同一个隔离器。它扩大了调度耦合，并不能表达真实的状态所有权。
 
-建议把执行器改为独立 `actor`，或消除执行期间的共享可变请求状态，改成显式值流。迁移前需要先定义 `requestWithCache()` 中网络与缓存分支对请求快照的所有权。
+建议把执行器改为独立 `actor`，或继续保持执行期间的显式值流。A08 已明确 `requestWithCache()` 中网络与缓存分支各自从初始快照构建请求，不再通过 executor 共享回写。
 
 ### A03：请求上下文使用了跨请求全局隔离
 
@@ -94,11 +94,11 @@ Actor 在 `await` 处允许重入。它只保证同一时刻 actor 隔离代码�
 
 - 优先级：高
 - 位置：`NtkNetworkExecutor.execute`、`NtkNetworkExecutor.loadCache`、`NtkNetwork.requestWithCache`
-- 状态：待处理
+- 状态：已修正
 
-`requestWithCache()` 会并发调用同一 executor 的网络和缓存路径。两条路径都从 `mutableRequest` 建立独立 context，并在最终 handler 中写回。由于 actor 在 `await` 处可重入，后写回的旧快照可能覆盖另一条路径已经产生的请求修改。全局 actor 只避免同一同步片段的数据竞争，不提供跨 `await` 的事务一致性。
+`requestWithCache()` 会并发调用同一 executor 的网络和缓存路径。修正前，两条路径从 executor 的共享 `mutableRequest` 建立 context，并在最终 handler 中写回；由于 actor 在 `await` 处可重入，后写回的旧快照可能覆盖另一条路径已经产生的请求修改。全局 actor 只避免同一同步片段的数据竞争，不提供跨 `await` 的事务一致性。
 
-建议取消“两个并发分支都写回同一 mutableRequest”的模型。可让网络分支独占可变请求，缓存分支只消费入口快照；或为写回增加版本检查和明确的合并规则。此项应在 A02 迁移时一并解决并添加交错时序测试。
+处理方式：`NtkNetworkExecutor` 只保留创建时冻结的初始请求快照。`execute()`、`loadCache()` 和 `hasCacheData()` 各自从该快照按稳定 interceptor 顺序调用 `iNtkRequestModifyingInterceptor.modifyRequest(_:)`，构建局部请求。进入 `intercept()` 链后 context 请求只读；缓存流程不运行 retry、loading、toast 等普通拦截行为。
 
 ### A09：任务管理器需要隔离，但不应使用库级全局 actor
 
@@ -165,5 +165,5 @@ Actor 在 `await` 处允许重入。它只保证同一时刻 actor 隔离代码�
 
 - `NtkTaskManager`、请求标识 LRU 的状态仍需隔离，只是隔离器选错了。
 - `NtkInterceptorContext` 在改为值流或每请求 actor 之前，直接删除隔离会暴露真实数据竞争。
-- `NtkNetworkExecutor` 在明确 `mutableRequest` 所有权和并发分支写回规则之前，直接删除隔离不安全。
+- `NtkNetworkExecutor` 的执行器隔离仍需单独评估；A08 已明确 `initialRequest` 的值流所有权，但这不等于可以机械删除 `@NtkActor`。
 - `async` 不代表需要 actor，反过来移除 actor 也不代表应移除 `async`。会等待外部资源或允许异步扩展的 API 可以继续保持 `async`。
