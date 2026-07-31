@@ -4,16 +4,13 @@
 
 为不同网络组件提供统一接入方式，使用 Swift 6 并发模型确保线程安全。
 
-## 核心架构：双层设计
+## 核心架构：状态所有权
 
-1. **配置层 (NtkNetwork)** — 非 Actor 的 Builder 模式类，支持同步链式调用，使用 `@unchecked Sendable` 配合内部锁保护可变状态
-2. **执行层 (NtkNetworkExecutor)** — Actor 类，处理请求执行和拦截器链调用，所有执行逻辑在隔离域内
+1. **配置层 (`NtkNetwork`)** — Builder 模式类，使用短临界区锁保护同步配置和请求快照，保留链式调用接口。
+2. **执行层 (`NtkNetworkExecutor`)** — 不可变 `Sendable` 执行快照；每次动作从初始请求创建局部值，不共享动作期间的可变状态。
+3. **状态所有者** — `NtkTaskManager` 和 `NtkRequestIdentifierManager` 分别使用独立 actor 保护任务表与缓存键 LRU。
 
-配置方法需要支持链式调用，而执行逻辑需要并发隔离。单层设计要么无法链式调用，要么无法保证线程安全。
-
-## @NtkActor 机制
-
-`@NtkActor` 是自定义 `@globalActor`，将网络相关执行收敛到统一隔离域，隔离范围限制在网络模块内部。不使用 MainActor 或默认全局并发上下文，减少不必要的跨域传递。
+actor 隔离按共享可变状态的所有权划分，不按“网络功能”统一调度。无状态模块和只读快照使用 `Sendable`；短小、同步且不跨 `await` 的配置临界区使用锁。
 
 ## 拦截器优先级
 

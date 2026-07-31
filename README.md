@@ -22,7 +22,7 @@
 
 ✅ **统一抽象** — 业务代码只依赖协议，底层可以随时换 Alamofire、URLSession 或自定义实现
 
-✅ **Swift 6 原生支持** — 双层设计（配置层 + Actor 执行层），通过 Swift 6 严格并发检查，不需要手动加锁
+✅ **Swift 6 原生支持** — 不可变请求快照与 `Sendable` 值流负责跨并发域传递，共享状态由独立 actor 或短临界区锁按所有权隔离
 
 ✅ **通用功能内置** — 拦截器链、缓存、重试、去重、进度监听，直接用不用自己写
 
@@ -350,7 +350,6 @@ let data = try await network.request()
 struct LoggingInterceptor: iNtkInterceptor {
     var priority: NtkInterceptorPriority { .high }
 
-    @NtkActor
     func intercept(
         context: NtkInterceptorContext,
         next: iNtkRequestHandler
@@ -373,7 +372,6 @@ struct LoggingInterceptor: iNtkInterceptor {
 
 ```swift
 struct CommonParameterInterceptor: iNtkRequestModifyingInterceptor {
-    @NtkActor
     func modifyRequest(
         _ request: NtkMutableRequest
     ) async throws -> NtkMutableRequest {

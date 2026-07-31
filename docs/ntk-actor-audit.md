@@ -6,7 +6,7 @@
 
 ## 结论
 
-`@NtkActor` 当前承担了过多职责：它既被用来保护共享可变状态，也被当作“所有网络代码的统一执行上下文”。后者不是 actor 的合理边界。是否属于网络流程、方法是否为 `async`，都不能单独构成使用全局 actor 的理由。
+本次审查发现，`@NtkActor` 当时承担了过多职责：它既被用来保护共享可变状态，也被当作“所有网络代码的统一执行上下文”。后者不是 actor 的合理边界。是否属于网络流程、方法是否为 `async`，都不能单独构成使用全局 actor 的理由。
 
 合理的隔离边界应由状态所有权决定：
 
@@ -17,6 +17,8 @@
 - UI 副作用需要的是 `@MainActor`，`@NtkActor` 不提供主线程保证。
 
 Actor 在 `await` 处允许重入。它只保证同一时刻 actor 隔离代码的同步片段不会并发执行，不保证一个异步方法从入口到返回构成原子事务，也不会让多个步骤天然保持快照一致性。
+
+最终迁移已完成：任务表与缓存键 LRU 分别由独立 actor 隔离，缓存门面和执行值流通过 `Sendable` 跨并发域传递，同步配置继续使用短临界区锁。生产代码、测试和当前架构文档已不再依赖 `NtkActor`，全局 actor 声明已删除。Loading/Toast 的 `MainActor` 契约仍属于独立的 UI API 决策，不影响本次删除结论。
 
 ## 问题清单
 
@@ -84,11 +86,11 @@ Actor 在 `await` 处允许重入。它只保证同一时刻 actor 隔离代码�
 
 - 优先级：高
 - 位置：`iNtkCacheStorage`、`iNtkCacheProvider`、`NtkNetworkCache`
-- 状态：部分修正
+- 状态：已修正
 
 缓存可能是磁盘、数据库、内存 actor 或第三方存储，各实现应拥有自己的同步策略。协议强制 `@NtkActor` 既不能替代存储内部线程安全，也限制了实现方式。`NtkNetworkCache` 只有不可变的 `storage`，类型级隔离本身没有保护对象内可变状态。
 
-处理方式：已移除 `iNtkCacheStorage`、`iNtkCacheProvider` 的协议级全局 actor 要求；`NtkCacheInterceptor` 在调用仍为 actor 的 `NtkNetworkCache` 时显式跨隔离边界。`NtkNetworkCache` 的状态所有者/LRU 迁移仍待后续批次，因此本项不宣称全部完成。
+处理方式：已移除 `iNtkCacheStorage`、`iNtkCacheProvider` 的协议级全局 actor 要求。`NtkNetworkCache` 改为不可变 `final class: Sendable`，同步创建并只在异步缓存操作中等待存储和缓存键 actor；缓存键 LRU 由独立的 `NtkRequestIdentifierManager` actor 管理。
 
 ### A08：NtkActor 不能保证 execute/loadCache 的异步事务原子性
 
@@ -104,21 +106,21 @@ Actor 在 `await` 处允许重入。它只保证同一时刻 actor 隔离代码�
 
 - 优先级：中
 - 位置：`NtkTaskManager`
-- 状态：待处理
+- 状态：已修正
 
 `ongoingRequests` 确实是共享可变状态，需要隔离；问题在于它和客户端、缓存、解析、拦截器共用 `NtkActor`。任务去重状态与这些组件没有共同不变量。
 
-建议将 `NtkTaskManager` 改为独立 `actor`。这能保留正确的数据竞争保护，同时把任务表的调度域限制在其真实所有者内。
+处理方式：`NtkTaskManager` 已改为独立 `actor`，任务表、owner/follower 生命周期和取消控制均由状态所有者自身隔离。请求去重标识生成保持同步，因此取消检查到任务注册之间没有新增跨 actor 重入点。
 
 ### A10：请求标识管理器混合了有状态 LRU 与纯计算
 
 - 优先级：中
 - 位置：`NtkRequestIdentifierManager`
-- 状态：待处理
+- 状态：已修正
 
 缓存键 LRU 需要隔离，但请求去重标识计算是纯函数。类型级 `@NtkActor` 让两者都进入全局隔离器，还把哈希计算放进同一个串行同步片段。
 
-建议把 LRU 状态放入独立 actor 或锁保护对象；把纯哈希构建提取为非隔离函数。`getRequestIdentifier` 不应要求 actor hop。
+处理方式：`NtkRequestIdentifierManager` 已改为独立 `actor`，缓存键 LRU 的全部可变访问保持 actor 隔离；`getRequestIdentifier` 及其纯计算辅助方法改为 `nonisolated`。未被读取的镜像字典 `requestCache` 已删除。
 
 ### A11：Loading/Toast 回调没有 UI 执行保证
 
@@ -126,7 +128,7 @@ Actor 在 `await` 处允许重入。它只保证同一时刻 actor 隔离代码�
 - 位置：`NtkLoadingInterceptor`、`AFToastInterceptor`
 - 状态：待处理
 
-这些拦截器因 `iNtkInterceptor` 间接运行在 `NtkActor`，但 `NtkActor` 不是主 actor。名称和用途容易让调用方在回调中直接更新 UI，从而产生错误的线程假设。
+审查时这些拦截器曾因 `iNtkInterceptor` 间接运行在 `NtkActor`，但 `NtkActor` 不是主 actor。名称和用途容易让调用方在回调中直接更新 UI，从而产生错误的线程假设。
 
 建议明确选择一种契约：若库承诺 UI 回调，则将回调声明为 `@MainActor @Sendable` 并显式 `await` 调用；若库只提供事件，则重命名或在公开文档中明确由调用方切换到 `MainActor`。不能把 `NtkActor` 当作 UI 隔离。
 
@@ -134,34 +136,28 @@ Actor 在 `await` 处允许重入。它只保证同一时刻 actor 隔离代码�
 
 - 优先级：低
 - 位置：`Ntk`、若干协议实现和解析私有方法
-- 状态：部分修正
+- 状态：已修正
 
 `Ntk` 没有实例状态，唯一工厂方法又显式 `nonisolated`，因此类型级 `@NtkActor` 没有实际价值。实现方法重复协议或类型已经给出的隔离标注，会让读者误以为存在额外边界。反过来，在本来非隔离的 struct 中给私有方法添加 `nonisolated` 也没有语义变化。
 
-处理方式：已移除 `Ntk` 类型及其工厂方法的冗余隔离标注，并清理执行器、链条和解析私有入口的重复标注。剩余 `@NtkActor` 仅属于尚未迁移的状态所有者；后续随状态模块审计继续处理。
+处理方式：已移除 `Ntk` 类型及其工厂方法的冗余隔离标注，并清理执行器、链条、解析入口、测试与适配器中的重复标注。真实状态所有者迁移为独立 actor 后，生产代码和测试不再引用 `NtkActor`。
 
 ### A13：架构文档把“网络相关”误作 actor 边界
 
 - 优先级：低
 - 位置：`docs/architecture.md`、`docs/design-decisions.md`、`README.md`、相关源码注释
-- 状态：待处理
+- 状态：已修正
 
-当前文档称 `NtkActor` 用于让“网络相关执行收敛到统一隔离域”，并称 `@NtkActor` 可以保证请求修改串行和状态一致。README 和部分源码注释还把 `NtkNetworkExecutor` 称为“Actor”或“Actor 执行层”。这些表述会鼓励按功能类别而不是按共享状态所有权继续添加标注，也忽略了 actor 在 `await` 处可重入；当前执行器已经是不可变 `Sendable` 快照。
+审查时的文档称 `NtkActor` 用于让“网络相关执行收敛到统一隔离域”，并称 `@NtkActor` 可以保证请求修改串行和状态一致。README 和部分源码注释还把 `NtkNetworkExecutor` 称为“Actor”或“Actor 执行层”。这些表述会鼓励按功能类别而不是按共享状态所有权继续添加标注，也忽略了 actor 在 `await` 处可重入；执行器已经是不可变 `Sendable` 快照。
 
-建议在核心迁移方案确定后更新架构文档：明确 actor 解决数据竞争，不负责把整个功能域调度到同一处；区分 `actor` 类型和 `@globalActor` 隔离类。
+处理方式：README、当前架构文档和模块指南已改为状态所有权模型：不可变快照和 `Sendable` 负责传递，独立 actor 保护异步状态机，短临界区锁保护同步配置。已删除把网络功能统一调度到同一 global actor 的现行说明。
 
-## 推荐迁移顺序
+## 最终迁移结果
 
-1. 继续审计 `NtkTaskManager`、请求标识 LRU 和 `NtkNetworkCache`，将共享状态与纯计算拆开，并为各状态所有者选择独立 actor 或锁。
-2. 明确 Loading/Toast 的 `MainActor` 契约：若库承诺 UI 回调则显式标注并切换，否则在文档中声明由调用方负责。
-3. 更新架构文档、README 与模块注释，移除“网络功能统一运行在 NtkActor”一类过时描述。
-4. A09-A13 的每个后续变更继续运行全量测试与 Swift 6 严格并发检查。
-5. 在状态所有者迁移后，再决定是否删除 `NtkActor` 声明本身。
+1. `NtkTaskManager` 与 `NtkRequestIdentifierManager` 分别成为独立 actor，按各自状态所有权隔离。
+2. `NtkNetworkCache` 成为不可变 `Sendable` 门面；`NtkInterceptorContext` 与 `NtkNetworkExecutor` 继续采用值流和不可变快照。
+3. README、架构文档与模块注释已移除“网络功能统一运行在 NtkActor”的过时描述。
+4. 生产代码和测试中的属性引用清零后，`NtkActor` 声明已删除。
+5. Loading/Toast 的 `MainActor` 契约作为独立 UI 决策保留，不用网络 global actor 代替主线程保证。
 
-每一步都应运行全量测试与 Swift 6 严格并发检查。涉及 executor/context 的步骤还必须增加多请求并发、缓存与网络交错、重试期间上下文一致性测试。
-
-## 不应机械删除的标注
-
-- `NtkNetworkCache`、`NtkTaskManager`、请求标识 LRU 的状态仍需隔离，只是隔离器选错了；本批次没有机械删除这些标注。
-- `NtkInterceptorContext` 与 `NtkNetworkExecutor` 已采用值流和不可变快照，不需要再引入独立 actor。
-- `async` 不代表需要 actor，反过来移除 actor 也不代表应移除 `async`。会等待外部资源或允许异步扩展的 API 可以继续保持 `async`。
+迁移各阶段均运行针对性测试与 Swift 6 严格并发检查；最终删除后运行全量测试。`async` 仍只表达可能等待，不单独构成 actor 隔离理由。
