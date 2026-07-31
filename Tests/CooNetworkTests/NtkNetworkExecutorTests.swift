@@ -127,6 +127,30 @@ struct NtkNetworkExecutorTests {
 
     @Test
     @NtkActor
+    func equalPriorityRequestModifiersKeepRegistrationOrder() async throws {
+        var request = NtkMutableRequest(
+            ExecDummyRequest(path: "/executor/equal-modifier-order")
+        )
+        request.responseType = String(describing: Bool.self)
+        let config = NtkNetworkExecutor<Bool>.Configuration(
+            client: ExecMockClient(result: .success(())),
+            request: request,
+            interceptors: [
+                NtkResponseParserBox(ExecMockParsingInterceptor()),
+                ExecAppendingRequestInterceptor(id: "first", prio: .medium),
+                ExecAppendingRequestInterceptor(id: "second", prio: .medium),
+                ExecAppendingRequestInterceptor(id: "third", prio: .medium)
+            ]
+        )
+        let executor = NtkNetworkExecutor<Bool>(config: config)
+
+        let response = try await executor.execute()
+
+        #expect(response.request.headers?["X-Modifier-Order"] == "first,second,third")
+    }
+
+    @Test
+    @NtkActor
     func executeAndLoadCacheBuildIndependentRequestsFromInitialSnapshot() async throws {
         let storage = ExecMockCacheStorage(cacheData: true, hasCacheResult: true)
         var request = NtkMutableRequest(ExecDummyRequest(path: "/executor/independent-requests"))

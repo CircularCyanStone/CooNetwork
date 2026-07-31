@@ -141,9 +141,9 @@ struct NtkInterceptorChainManagerTests {
             id: "inner", counter: counter, _priority: .innerHigh
         )
 
-        // 故意以错误顺序传入，让 sortInterceptors 纠正
+        // 故意以错误顺序传入，让统一排序器纠正
         let unsorted: [any iNtkInterceptor] = [userInterceptor, innerInterceptor, outerInterceptor]
-        let sorted = unsorted.sorted { $0.priority > $1.priority }
+        let sorted = NtkInterceptorOrdering.sorted(unsorted)
 
         let manager = NtkInterceptorChainManager(interceptors: sorted) { context in
             await counter.record("final")
@@ -159,6 +159,26 @@ struct NtkInterceptorChainManagerTests {
             "final",
             "inner-response", "user-response", "outer-response"
         ])
+    }
+
+    @Test
+    @NtkActor
+    func equalPriorityInterceptorsKeepRegistrationOrder() {
+        let counter = ChainCallCounter()
+        let first = ChainTieredInterceptor(
+            id: "first", counter: counter, _priority: .medium
+        )
+        let second = ChainTieredInterceptor(
+            id: "second", counter: counter, _priority: .medium
+        )
+        let third = ChainTieredInterceptor(
+            id: "third", counter: counter, _priority: .medium
+        )
+
+        let sorted = NtkInterceptorOrdering.sorted([first, second, third])
+        let ids = sorted.compactMap { ($0 as? ChainTieredInterceptor)?.id }
+
+        #expect(ids == ["first", "second", "third"])
     }
 }
 

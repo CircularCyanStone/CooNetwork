@@ -40,17 +40,10 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
         self.cacheProvider = config.interceptors.first(where: { $0 is iNtkCacheProvider }) as? iNtkCacheProvider
     }
     
-    // MARK: - Helper Methods
-
-    /// 按优先级降序排序拦截器（优先级高的先执行）
-    private func sortInterceptors(_ interceptors: [iNtkInterceptor]) -> [iNtkInterceptor] {
-        interceptors.sorted { $0.priority > $1.priority }
-    }
-
     /// 从初始请求快照按请求修改器的优先级顺序构建本次动作的请求。
     private func makeRequest() async throws -> NtkMutableRequest {
         var request = initialRequest
-        let requestModifiers = sortInterceptors(config.interceptors).compactMap {
+        let requestModifiers = NtkInterceptorOrdering.sorted(config.interceptors).compactMap {
             $0 as? any iNtkRequestModifyingInterceptor
         }
         for interceptor in requestModifiers {
@@ -68,7 +61,7 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
         // 动态添加核心拦截器（Tier 保证正确排序）
         var interceptorsToRun = config.interceptors
         interceptorsToRun.append(NtkDeduplicationInterceptor())
-        let allInterceptors = sortInterceptors(interceptorsToRun)
+        let allInterceptors = NtkInterceptorOrdering.sorted(interceptorsToRun)
         
         let realChainManager = NtkInterceptorChainManager(interceptors: allInterceptors) { context in
             let response = try await context.client.execute(context.request)
@@ -92,9 +85,10 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
         let request = try await makeRequest()
         let context = NtkInterceptorContext(request: request, client: config.client)
 
-        let tmpInterceptors = config.interceptors.filter { $0 is NtkResponseParserBox }
+        let parserInterceptors = NtkInterceptorOrdering.sorted(config.interceptors)
+            .filter { $0 is NtkResponseParserBox }
 
-        let realChainManager = NtkInterceptorChainManager(interceptors: tmpInterceptors) { context in
+        let realChainManager = NtkInterceptorChainManager(interceptors: parserInterceptors) { context in
             guard let data = try await cacheProvider.loadCacheData(for: context.request) else {
                 throw NtkError.Cache.noCache
             }
