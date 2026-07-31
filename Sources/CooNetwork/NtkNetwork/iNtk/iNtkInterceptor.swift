@@ -126,8 +126,10 @@ extension NtkInterceptorPriority {
 }
 
 /// 网络拦截器协议
-/// 定义了网络请求拦截器的基本行为，支持请求和响应的拦截处理
+/// 定义了网络请求拦截器的基本行为，支持短路、重试和响应处理。
 /// 使用责任链模式，允许多个拦截器按优先级顺序处理请求
+/// 普通拦截器可以读取请求或处理响应，但不能修改 `context.request`；
+/// 需要修改请求时，请遵循 `iNtkRequestModifyingInterceptor`。
 /// 因为iNtkInterceptor里面的方法是在网络组件中被调用，添加NtkActor避免隔离域的跳转。
 public protocol iNtkInterceptor: Sendable {
 
@@ -139,7 +141,7 @@ public protocol iNtkInterceptor: Sendable {
     var priority: NtkInterceptorPriority { get }
 
     /// 拦截网络请求
-    /// 在请求执行过程中被调用，可以修改请求、处理响应或执行其他逻辑
+    /// 在请求执行过程中被调用，可以短路请求、处理响应或执行其他逻辑
     /// - Parameters:
     ///   - context: 请求上下文，包含请求信息和客户端实例
     ///   - next: 下一个请求处理器，用于继续执行责任链
@@ -158,4 +160,5 @@ extension iNtkInterceptor {
     public var priority: NtkInterceptorPriority {
         .medium
     }
+
 }

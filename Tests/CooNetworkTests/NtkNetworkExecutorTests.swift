@@ -64,6 +64,94 @@ struct NtkNetworkExecutorTests {
 
     @Test
     @NtkActor
+    func executeDoesNotTreatOrdinaryInterceptorAsRequestModifier() async throws {
+        var request = NtkMutableRequest(ExecDummyRequest(path: "/executor/lookalike-modifier"))
+        request.responseType = String(describing: Bool.self)
+        let config = NtkNetworkExecutor<Bool>.Configuration(
+            client: ExecMockClient(result: .success(())),
+            request: request,
+            interceptors: [
+                NtkResponseParserBox(ExecMockParsingInterceptor()),
+                ExecLookalikeRequestInterceptor()
+            ]
+        )
+        let executor = NtkNetworkExecutor<Bool>(config: config)
+
+        let response = try await executor.execute()
+
+        #expect(response.request.headers?["X-Lookalike-Modifier"] == nil)
+    }
+
+    @Test
+    @NtkActor
+    func executeAllowsRequestModifierToAlsoInterceptResponse() async throws {
+        let counter = ExecCallCounter()
+        var request = NtkMutableRequest(ExecDummyRequest(path: "/executor/combined-modifier"))
+        request.responseType = String(describing: Bool.self)
+        let config = NtkNetworkExecutor<Bool>.Configuration(
+            client: ExecMockClient(result: .success(())),
+            request: request,
+            interceptors: [
+                NtkResponseParserBox(ExecMockParsingInterceptor()),
+                ExecCombinedRequestInterceptor(counter: counter)
+            ]
+        )
+        let executor = NtkNetworkExecutor<Bool>(config: config)
+
+        let response = try await executor.execute()
+
+        #expect(response.request.headers?["X-Combined"] == "modified")
+        #expect(await counter.log() == ["intercept"])
+    }
+
+    @Test
+    @NtkActor
+    func executeModifiesRequestInInterceptorPriorityOrder() async throws {
+        var request = NtkMutableRequest(ExecDummyRequest(path: "/executor/modifier-order"))
+        request.responseType = String(describing: Bool.self)
+        let config = NtkNetworkExecutor<Bool>.Configuration(
+            client: ExecMockClient(result: .success(())),
+            request: request,
+            interceptors: [
+                NtkResponseParserBox(ExecMockParsingInterceptor()),
+                ExecAppendingRequestInterceptor(id: "low", prio: .low),
+                ExecAppendingRequestInterceptor(id: "high", prio: .high)
+            ]
+        )
+        let executor = NtkNetworkExecutor<Bool>(config: config)
+
+        let response = try await executor.execute()
+
+        #expect(response.request.headers?["X-Modifier-Order"] == "high,low")
+    }
+
+    @Test
+    @NtkActor
+    func executeAndLoadCacheBuildIndependentRequestsFromInitialSnapshot() async throws {
+        let storage = ExecMockCacheStorage(cacheData: true, hasCacheResult: true)
+        var request = NtkMutableRequest(ExecDummyRequest(path: "/executor/independent-requests"))
+        request.responseType = String(describing: Bool.self)
+        let config = NtkNetworkExecutor<Bool>.Configuration(
+            client: ExecMockClient(result: .success(())),
+            request: request,
+            interceptors: [
+                NtkResponseParserBox(ExecMockParsingInterceptor()),
+                NtkCacheInterceptor(storage: storage),
+                ExecIncrementingRequestInterceptor()
+            ]
+        )
+        let executor = NtkNetworkExecutor<Bool>(config: config)
+
+        async let networkResponse = executor.execute()
+        async let cacheResponse = executor.loadCache()
+        let (network, cache) = try await (networkResponse, cacheResponse)
+
+        #expect(network.request.headers?["X-Execution-Count"] == "1")
+        #expect(cache?.request.headers?["X-Execution-Count"] == "1")
+    }
+
+    @Test
+    @NtkActor
     func executeThrowsTypeMismatchForFinalTypedCastFailure() async {
         var request = NtkMutableRequest(ExecDummyRequest(path: "/executor/type-mismatch"))
         request.responseType = String(describing: Bool.self)
@@ -178,6 +266,28 @@ struct NtkNetworkExecutorTests {
         #expect(hook.events == ["didDecodeHeader", "willValidate", "didComplete"])
     }
 
+    @Test
+    @NtkActor
+    func loadCacheAppliesInterceptorRequestModification() async throws {
+        let storage = ExecMockCacheStorage(cacheData: true, hasCacheResult: false)
+        var request = NtkMutableRequest(ExecDummyRequest(path: "/executor/cache-modifier"))
+        request.responseType = String(describing: Bool.self)
+        let config = NtkNetworkExecutor<Bool>.Configuration(
+            client: ExecMockClient(result: .success(())),
+            request: request,
+            interceptors: [
+                NtkResponseParserBox(ExecMockParsingInterceptor()),
+                NtkCacheInterceptor(storage: storage),
+                ExecStableRequestInterceptor()
+            ]
+        )
+        let executor = NtkNetworkExecutor<Bool>(config: config)
+
+        let response = try #require(await executor.loadCache())
+
+        #expect(response.request.headers?["X-Stable-Parameter"] == "stable")
+    }
+
     // MARK: - loadCache() 无缓存返回 nil
 
     @Test
@@ -228,6 +338,30 @@ struct NtkNetworkExecutorTests {
         )
         let result = await executor.hasCacheData()
         #expect(result == false)
+    }
+
+    @Test
+    @NtkActor
+    func hasCacheDataAppliesInterceptorRequestModification() async throws {
+        let capture = ExecCacheRequestCapture()
+        let storage = ExecCapturingCacheStorage(capture: capture)
+        var request = NtkMutableRequest(ExecDummyRequest(path: "/executor/has-cache-modifier"))
+        request.responseType = String(describing: Bool.self)
+        let config = NtkNetworkExecutor<Bool>.Configuration(
+            client: ExecMockClient(result: .success(())),
+            request: request,
+            interceptors: [
+                NtkResponseParserBox(ExecMockParsingInterceptor()),
+                NtkCacheInterceptor(storage: storage),
+                ExecStableRequestInterceptor()
+            ]
+        )
+        let executor = NtkNetworkExecutor<Bool>(config: config)
+
+        let result = await executor.hasCacheData()
+
+        #expect(result == true)
+        #expect(await capture.headerValue(for: "X-Stable-Parameter") == "stable")
     }
 }
 
@@ -384,6 +518,104 @@ private struct ExecPriorityRecordingInterceptor: iNtkInterceptor {
     func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
         await counter.record(id)
         return try await next.handle(context: context)
+    }
+}
+
+private struct ExecLookalikeRequestInterceptor: iNtkInterceptor {
+    @NtkActor
+    func modifyRequest(_ request: NtkMutableRequest) async throws -> NtkMutableRequest {
+        var request = request
+        request.addHeader(key: "X-Lookalike-Modifier", value: "unexpected")
+        return request
+    }
+
+    @NtkActor
+    func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
+        try await next.handle(context: context)
+    }
+}
+
+private struct ExecCombinedRequestInterceptor: iNtkRequestModifyingInterceptor {
+    let counter: ExecCallCounter
+
+    @NtkActor
+    func modifyRequest(_ request: NtkMutableRequest) async throws -> NtkMutableRequest {
+        var request = request
+        request.addHeader(key: "X-Combined", value: "modified")
+        return request
+    }
+
+    @NtkActor
+    func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
+        let response = try await next.handle(context: context)
+        await counter.record("intercept")
+        return response
+    }
+}
+
+private struct ExecIncrementingRequestInterceptor: iNtkRequestModifyingInterceptor {
+    @NtkActor
+    func modifyRequest(_ request: NtkMutableRequest) async throws -> NtkMutableRequest {
+        var request = request
+        let previousValue = Int(request.headers?["X-Execution-Count"] ?? "") ?? 0
+        request.addHeader(key: "X-Execution-Count", value: String(previousValue + 1))
+        return request
+    }
+}
+
+private struct ExecStableRequestInterceptor: iNtkRequestModifyingInterceptor {
+    @NtkActor
+    func modifyRequest(_ request: NtkMutableRequest) async throws -> NtkMutableRequest {
+        var request = request
+        request.addHeader(key: "X-Stable-Parameter", value: "stable")
+        return request
+    }
+}
+
+private struct ExecAppendingRequestInterceptor: iNtkRequestModifyingInterceptor {
+    let id: String
+    let prio: NtkInterceptorPriority
+
+    nonisolated var priority: NtkInterceptorPriority { prio }
+
+    @NtkActor
+    func modifyRequest(_ request: NtkMutableRequest) async throws -> NtkMutableRequest {
+        var request = request
+        let existing = request.headers?["X-Modifier-Order"]
+        let value = [existing, id].compactMap { $0 }.joined(separator: ",")
+        request.addHeader(key: "X-Modifier-Order", value: value)
+        return request
+    }
+}
+
+private actor ExecCacheRequestCapture {
+    private var headers: [String: String] = [:]
+
+    func record(_ request: NtkMutableRequest) {
+        headers = request.headers ?? [:]
+    }
+
+    func headerValue(for key: String) -> String? {
+        headers[key]
+    }
+}
+
+private struct ExecCapturingCacheStorage: iNtkCacheStorage {
+    let capture: ExecCacheRequestCapture
+
+    @NtkActor
+    func setData(metaData: NtkCacheMeta, key: String, for request: NtkMutableRequest) async -> Bool { false }
+
+    @NtkActor
+    func getData(key: String, for request: NtkMutableRequest) async -> NtkCacheMeta? {
+        await capture.record(request)
+        return nil
+    }
+
+    @NtkActor
+    func hasData(key: String, for request: NtkMutableRequest) async -> Bool {
+        await capture.record(request)
+        return true
     }
 }
 
