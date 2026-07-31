@@ -162,6 +162,46 @@ struct NtkNetworkIntegrationTests {
         #expect(results[1].isCache == false)
     }
 
+    @Test
+    func cacheOperationsDoNotConsumeNetworkRequest() async throws {
+        let storage = IntegMockCacheStorage(cacheData: true)
+        let network = makeNetwork(
+            client: IntegMockClient(result: .success(())),
+            cacheStorage: storage,
+            path: "/integration/cache-does-not-consume"
+        )
+
+        #expect(await network.hasCacheData() == true)
+        let cachedResponse = try await network.loadCache()
+        #expect(cachedResponse != nil)
+
+        let response = try await network.request()
+        #expect(response.data == true)
+        #expect(response.isCache == false)
+    }
+
+    @Test
+    func requestWithCacheBuildsIndependentRequestsFromInitialSnapshot() async throws {
+        let counter = IntegModifierCallCounter()
+        let storage = IntegMockCacheStorage(cacheData: true)
+        let network = makeNetwork(
+            client: IntegMockClient(result: .success(()), delay: 0.1),
+            cacheStorage: storage,
+            path: "/integration/cache-independent-requests"
+        )
+        network.addInterceptor(IntegCountingRequestInterceptor(counter: counter))
+
+        var headerValues: [String] = []
+        for try await response in network.requestWithCache() {
+            if let value = response.request.headers?["X-Execution-Count"] {
+                headerValues.append(value)
+            }
+        }
+
+        #expect(headerValues == ["1", "1"])
+        #expect(await counter.value() == 2)
+    }
+
     // MARK: - cancel() 传播
 
     @Test
@@ -343,6 +383,38 @@ private struct IntegHeaderRequestInterceptor: iNtkRequestModifyingInterceptor {
     func modifyRequest(_ request: NtkMutableRequest) async throws -> NtkMutableRequest {
         var request = request
         request.addHeader(key: "X-Stable-Parameter", value: "stable")
+        return request
+    }
+}
+
+private actor IntegModifierCallCounter {
+    private var count = 0
+
+    func record() {
+        count += 1
+    }
+
+    func value() -> Int {
+        count
+    }
+}
+
+private struct IntegCountingRequestInterceptor: iNtkRequestModifyingInterceptor {
+    let counter: IntegModifierCallCounter
+
+    @NtkActor
+    func modifyRequest(
+        _ request: NtkMutableRequest
+    ) async throws -> NtkMutableRequest {
+        await counter.record()
+        var request = request
+        let previousValue = Int(
+            request.headers?["X-Execution-Count"] ?? ""
+        ) ?? 0
+        request.addHeader(
+            key: "X-Execution-Count",
+            value: String(previousValue + 1)
+        )
         return request
     }
 }
