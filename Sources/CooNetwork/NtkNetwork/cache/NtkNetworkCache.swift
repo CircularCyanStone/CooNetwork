@@ -6,13 +6,11 @@
 //
 
 import Foundation
-import CryptoKit
 
 
 /// 网络缓存管理器
 /// 负责网络请求的缓存存储、读取和管理
-@NtkActor
-public class NtkNetworkCache {
+public final class NtkNetworkCache: Sendable {
     /// 关联的网络请求
     /// 缓存存储实现
     public let storage: iNtkCacheStorage

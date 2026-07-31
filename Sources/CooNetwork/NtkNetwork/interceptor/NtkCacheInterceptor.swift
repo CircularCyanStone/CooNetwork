@@ -59,7 +59,7 @@ public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
         if requestPolicy.cacheTime > 0 && requestPolicy.shouldCache(response) {
             // 根据缓存时间和自定义策略保存响应到缓存
             if let extractedResponse = responseExtractor(response) {
-                let cache = await NtkNetworkCache(storage: storage)
+                let cache = NtkNetworkCache(storage: storage)
                 let result = await cache.save(data: extractedResponse, for: context.request)
                 logger.debug("NTK请求缓存\(result ? "成功" : "失败")")
             }
@@ -70,12 +70,12 @@ public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
     // MARK: - iNtkCacheProvider
 
     public func loadCacheData(for request: NtkMutableRequest) async throws -> (any Sendable)? {
-        let cache = await NtkNetworkCache(storage: storage)
+        let cache = NtkNetworkCache(storage: storage)
         return try await cache.loadData(for: request)
     }
 
     public func hasCacheData(for request: NtkMutableRequest) async -> Bool {
-        let cache = await NtkNetworkCache(storage: storage)
+        let cache = NtkNetworkCache(storage: storage)
         return await cache.hasData(for: request)
     }
 }
