@@ -8,8 +8,7 @@ struct NtkRetryInterceptorTests {
     func zeroRetryShouldThrowTypedErrorInsteadOfCrash() async {
         let interceptor = NtkRetryInterceptor(retryPolicy: ZeroRetryPolicy())
         let context = NtkInterceptorContext(
-            request: NtkMutableRequest(DummyRequest()),
-            client: DummyClient()
+            request: NtkMutableRequest(DummyRequest())
         )
         
         do {
@@ -33,8 +32,7 @@ struct NtkRetryInterceptorTests {
         let interceptor = NtkRetryInterceptor(
             retryPolicy: CountingRetryPolicy(maxRetryCount: 3))
         let context = NtkInterceptorContext(
-            request: NtkMutableRequest(DummyRequest()),
-            client: DummyClient()
+            request: NtkMutableRequest(DummyRequest())
         )
 
         do {
@@ -57,8 +55,7 @@ struct NtkRetryInterceptorTests {
         let interceptor = NtkRetryInterceptor(
             retryPolicy: CountingRetryPolicy(maxRetryCount: 1))
         let context = NtkInterceptorContext(
-            request: NtkMutableRequest(DummyRequest()),
-            client: DummyClient()
+            request: NtkMutableRequest(DummyRequest())
         )
 
         do {
@@ -80,8 +77,7 @@ struct NtkRetryInterceptorTests {
         let interceptor = NtkRetryInterceptor(
             retryPolicy: CountingRetryPolicy(maxRetryCount: 3))
         let context = NtkInterceptorContext(
-            request: NtkMutableRequest(DummyRequest()),
-            client: DummyClient()
+            request: NtkMutableRequest(DummyRequest())
         )
 
         let response = try await interceptor.intercept(

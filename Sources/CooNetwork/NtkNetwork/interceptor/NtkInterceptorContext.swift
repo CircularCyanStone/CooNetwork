@@ -8,9 +8,8 @@
 import Foundation
 
 /// 拦截器上下文
-/// 在拦截器链中传递，携带请求、客户端以及拦截器间共享的额外数据
-@NtkActor
-public final class NtkInterceptorContext: Sendable {
+/// 在拦截器链中传递，携带请求以及当前请求路径的额外数据。
+public struct NtkInterceptorContext: Sendable {
 
     /// 当前拦截链使用的只读请求快照。
     ///
@@ -18,20 +17,21 @@ public final class NtkInterceptorContext: Sendable {
     /// `intercept(context:next:)` 阶段只能读取该值。
     public let request: NtkMutableRequest
 
-    /// 网络客户端
-    public let client: iNtkClient
-
-    /// 当前拦截器链一次执行期间共享的运行时状态。
+    /// 当前请求路径的运行时状态。
     ///
-    /// 普通拦截器可以在 `intercept(context:next:)` 阶段读写该数据，用于在链内传递
-    /// 追踪信息、执行状态或响应解析所需的临时信息。响应解析阶段会按需取得其快照。
+    /// 拦截器需要先复制 context，再修改该数据并把副本传给下游，用于传递追踪信息、
+    /// 执行状态或响应解析所需的临时信息。修改不会回写上游持有的 context，响应解析阶段
+    /// 会按需取得当前副本的快照。
     ///
     /// 该数据不属于请求结构，不能用于回写或修改已经冻结的 `request`，也不会与
     /// `NtkMutableRequest.extraData` 自动同步。
-    public var extraData: [String: Sendable] = [:]
+    public var extraData: [String: any Sendable]
 
-    init(request: NtkMutableRequest, client: iNtkClient) {
+    init(
+        request: NtkMutableRequest,
+        extraData: [String: any Sendable] = [:]
+    ) {
         self.request = request
-        self.client = client
+        self.extraData = extraData
     }
 }

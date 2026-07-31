@@ -56,15 +56,15 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
 
     func execute() async throws -> NtkResponse<ResponseData> {
         let request = try await makeRequest()
-        let context = NtkInterceptorContext(request: request, client: config.client)
+        let context = NtkInterceptorContext(request: request)
 
         // 动态添加核心拦截器（Tier 保证正确排序）
         var interceptorsToRun = config.interceptors
         interceptorsToRun.append(NtkDeduplicationInterceptor())
         let allInterceptors = NtkInterceptorOrdering.sorted(interceptorsToRun)
         
-        let realChainManager = NtkInterceptorChainManager(interceptors: allInterceptors) { context in
-            let response = try await context.client.execute(context.request)
+        let realChainManager = NtkInterceptorChainManager(interceptors: allInterceptors) { [client = config.client] context in
+            let response = try await client.execute(context.request)
             return response
         }
         
@@ -83,7 +83,7 @@ final class NtkNetworkExecutor<ResponseData: Sendable> {
             return nil
         }
         let request = try await makeRequest()
-        let context = NtkInterceptorContext(request: request, client: config.client)
+        let context = NtkInterceptorContext(request: request)
 
         let parserInterceptors = NtkInterceptorOrdering.sorted(config.interceptors)
             .filter { $0 is NtkResponseParserBox }

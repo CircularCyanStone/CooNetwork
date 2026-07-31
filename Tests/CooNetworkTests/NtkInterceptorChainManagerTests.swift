@@ -106,7 +106,7 @@ struct NtkInterceptorChainManagerTests {
 
     @Test
     @NtkActor
-    func contextModificationVisibleToNextInterceptor() async throws {
+    func contextModificationIsVisibleDownstreamWithoutMutatingSource() async throws {
         let modifier = ChainContextModifierInterceptor(key: "testKey", value: "testValue")
         let capture = ChainValueCapture()
         let reader = ChainContextReaderInterceptor(key: "testKey", capture: capture)
@@ -117,6 +117,7 @@ struct NtkInterceptorChainManagerTests {
         _ = try await manager.execute(context: context)
         let captured = await capture.value()
         #expect(captured as? String == "testValue")
+        #expect(context.extraData["testKey"] == nil)
     }
 
     // MARK: - Tier 隔离：核心拦截器不可被用户拦截器入侵
@@ -187,8 +188,7 @@ struct NtkInterceptorChainManagerTests {
 @NtkActor
 private func makeContext() -> NtkInterceptorContext {
     NtkInterceptorContext(
-        request: NtkMutableRequest(ChainDummyRequest()),
-        client: ChainDummyClient()
+        request: NtkMutableRequest(ChainDummyRequest())
     )
 }
 
@@ -282,8 +282,9 @@ private struct ChainContextModifierInterceptor: iNtkInterceptor {
     let value: any Sendable
 
     func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
-        context.extraData[key] = value
-        return try await next.handle(context: context)
+        var nextContext = context
+        nextContext.extraData[key] = value
+        return try await next.handle(context: nextContext)
     }
 }
 

@@ -613,7 +613,7 @@ struct NtkDataParsingInterceptorTests {
 
     @Test
     @NtkActor
-    func parsingContextRemainsStableWhenSourceExtraDataChanges() async throws {
+    func parsingContextRemainsStableWhenSourceContextCopyChanges() async throws {
         let sourceContext = makeSnapshotAFContext()
         let observations = AFParsingContextObservationRecorder()
         let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
@@ -639,7 +639,7 @@ struct NtkDataParsingInterceptorTests {
         #expect(sourceContext.request.headers?["X-Snapshot"] == "captured-header")
         #expect(sourceContext.request.parameters?["stage"] as? String == "captured-parameter")
         #expect(sourceContext.request.extraData["request"] as? String == "captured-request-extra")
-        #expect(sourceContext.extraData["context"] as? String == "mutated-context-extra")
+        #expect(sourceContext.extraData["context"] as? String == "captured-context-extra")
     }
 
     @Test
@@ -705,16 +705,14 @@ struct NtkDataParsingInterceptorTests {
 @NtkActor
 private func makeAFContext() -> NtkInterceptorContext {
     NtkInterceptorContext(
-        request: NtkMutableRequest(AFTestRequest()),
-        client: AFTestDummyClient()
+        request: NtkMutableRequest(AFTestRequest())
     )
 }
 
 @NtkActor
 private func makeConfiguredAFContext() -> NtkInterceptorContext {
     NtkInterceptorContext(
-        request: NtkMutableRequest(AFConfiguredTestRequest()),
-        client: AFTestDummyClient()
+        request: NtkMutableRequest(AFConfiguredTestRequest())
     )
 }
 
@@ -724,9 +722,10 @@ private func makeSnapshotAFContext() -> NtkInterceptorContext {
     request.headers = ["X-Snapshot": "captured-header"]
     request.parameters = ["stage": "captured-parameter"]
     request.extraData["request"] = "captured-request-extra"
-    let context = NtkInterceptorContext(request: request, client: AFTestDummyClient())
-    context.extraData["context"] = "captured-context-extra"
-    return context
+    return NtkInterceptorContext(
+        request: request,
+        extraData: ["context": "captured-context-extra"]
+    )
 }
 
 // MARK: - Test Doubles
@@ -899,8 +898,8 @@ private struct AFSnapshotObservingTransformer: iNtkResponsePayloadTransforming {
         context: NtkParsingContext
     ) async throws -> NtkPayload {
         await observations.record(makeAFParsingContextObservation(context))
-        if let sourceContext {
-            await mutateAFContextExtraDataAfterSnapshot(sourceContext)
+        if var sourceContext {
+            sourceContext.extraData["context"] = "mutated-context-extra"
             await observations.record(makeAFParsingContextObservation(context))
         }
         return payload
@@ -916,11 +915,6 @@ private func makeAFParsingContextObservation(
         requestExtraData: context.request.extraData["request"] as? String,
         contextExtraData: context.extraData["context"] as? String
     )
-}
-
-@NtkActor
-private func mutateAFContextExtraDataAfterSnapshot(_ context: NtkInterceptorContext) {
-    context.extraData["context"] = "mutated-context-extra"
 }
 
 private struct AFNonisolatedRecordingTransformer: iNtkResponsePayloadTransforming {
