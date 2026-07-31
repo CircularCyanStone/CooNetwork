@@ -489,6 +489,52 @@ struct NtkNetworkExecutorTests {
 
         #expect(await counter.log().isEmpty)
     }
+
+    @Test
+    @NtkActor
+    func stableParametersParticipateAndDynamicParametersAreFilteredFromCacheIdentity() async throws {
+        let cacheState = ExecInMemoryCacheState()
+        let dynamicSource = ExecDynamicParameterSource()
+        let requestConfiguration = NtkRequestConfiguration(
+            cacheTime: 3600,
+            filteredParameterNames: ["token"]
+        )
+        var request = NtkMutableRequest(
+            ExecDummyRequest(
+                path: "/executor/cache-identity",
+                requestConfiguration: requestConfiguration
+            )
+        )
+        request.responseType = String(describing: Bool.self)
+        let baselineKey = NtkRequestIdentifierManager.shared.getCacheKey(
+            request: request,
+            cacheConfig: request.requestConfiguration
+        )
+        let config = NtkNetworkExecutor<Bool>.Configuration(
+            client: ExecMockClient(result: .success(())),
+            request: request,
+            interceptors: [
+                NtkResponseParserBox(ExecMockParsingInterceptor()),
+                NtkCacheInterceptor(
+                    storage: ExecInMemoryCacheStorage(state: cacheState)
+                ),
+                ExecCacheIdentityRequestInterceptor(source: dynamicSource)
+            ]
+        )
+        let executor = NtkNetworkExecutor<Bool>(config: config)
+
+        let networkResponse = try await executor.execute()
+        let cacheResponse = try #require(await executor.loadCache())
+        let savedKey = try #require(await cacheState.savedKey())
+        let loadedKey = try #require(await cacheState.loadedKey())
+
+        #expect(networkResponse.request.parameters?["tenant"] as? String == "coo")
+        #expect(cacheResponse.request.parameters?["tenant"] as? String == "coo")
+        #expect(networkResponse.request.parameters?["token"] as? String == "token-1")
+        #expect(cacheResponse.request.parameters?["token"] as? String == "token-2")
+        #expect(savedKey == loadedKey)
+        #expect(savedKey != baselineKey)
+    }
 }
 
 // MARK: - Factory Helpers
@@ -562,9 +608,15 @@ private func makeCacheClientResponse() -> NtkClientResponse {
 // MARK: - Test Doubles
 
 private struct ExecDummyRequest: iNtkRequest {
-    var path: String
-    init(path: String = "/executor/test") {
+    let path: String
+    let requestConfiguration: NtkRequestConfiguration?
+
+    init(
+        path: String = "/executor/test",
+        requestConfiguration: NtkRequestConfiguration? = nil
+    ) {
         self.path = path
+        self.requestConfiguration = requestConfiguration
     }
 }
 
@@ -748,6 +800,87 @@ private struct ExecThrowingRequestInterceptor: iNtkRequestModifyingInterceptor {
         _ request: NtkMutableRequest
     ) async throws -> NtkMutableRequest {
         throw ExecRequestModificationError.failed
+    }
+}
+
+private actor ExecDynamicParameterSource {
+    private var value = 0
+
+    func nextToken() -> String {
+        value += 1
+        return "token-\(value)"
+    }
+}
+
+private struct ExecCacheIdentityRequestInterceptor: iNtkRequestModifyingInterceptor {
+    let source: ExecDynamicParameterSource
+
+    @NtkActor
+    func modifyRequest(
+        _ request: NtkMutableRequest
+    ) async throws -> NtkMutableRequest {
+        var request = request
+        request.addParameter(key: "tenant", value: "coo")
+        request.addParameter(key: "token", value: await source.nextToken())
+        return request
+    }
+}
+
+private actor ExecInMemoryCacheState {
+    private var entries: [String: NtkCacheMeta] = [:]
+    private var lastSavedKey: String?
+    private var lastLoadedKey: String?
+
+    func set(_ metaData: NtkCacheMeta, for key: String) -> Bool {
+        entries[key] = metaData
+        lastSavedKey = key
+        return true
+    }
+
+    func get(_ key: String) -> NtkCacheMeta? {
+        lastLoadedKey = key
+        return entries[key]
+    }
+
+    func contains(_ key: String) -> Bool {
+        entries[key] != nil
+    }
+
+    func savedKey() -> String? {
+        lastSavedKey
+    }
+
+    func loadedKey() -> String? {
+        lastLoadedKey
+    }
+}
+
+private struct ExecInMemoryCacheStorage: iNtkCacheStorage {
+    let state: ExecInMemoryCacheState
+
+    @NtkActor
+    func setData(
+        metaData: NtkCacheMeta,
+        key: String,
+        for request: NtkMutableRequest
+    ) async -> Bool {
+        await state.set(metaData, for: key)
+    }
+
+    @NtkActor
+    func getData(
+        key: String,
+        for request: NtkMutableRequest
+    ) async -> NtkCacheMeta? {
+        await state.get(key)
+    }
+
+    @NtkActor
+    func hasData(
+        key: String,
+        for request: NtkMutableRequest
+    ) async -> Bool {
+        await state.contains(key)
     }
 }
 
