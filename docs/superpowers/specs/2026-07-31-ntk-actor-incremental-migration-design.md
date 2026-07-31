@@ -2,7 +2,7 @@
 
 ## 状态
 
-核心流水线方案已确认，待用户审阅书面版本。本文只确定迁移顺序和判断标准，不直接改变运行时行为。
+核心流水线迁移已完成；剩余状态所有者的隔离方案和删除 `NtkActor` 的最终决策已确认。本文只确定迁移顺序和判断标准，不直接改变运行时行为。
 
 ## 目标
 
@@ -90,15 +90,32 @@
 后续只处理有明确共享可变状态的模块：
 
 - `NtkTaskManager`：独立 `actor`，保护去重任务表及 owner/follower 生命周期。
-- `NtkRequestIdentifierManager`：保留同步调用界面，用锁保护 LRU；请求标识哈希计算保持非隔离纯函数。
+- `NtkRequestIdentifierManager`：独立 `actor`，保护缓存键 LRU；请求去重标识哈希计算保持 `nonisolated` 纯函数。
+- `NtkNetworkCache`：移除 `@NtkActor`，改为不可变 `final class: Sendable`；缓存键生成通过 `await` 访问独立的标识符 actor。
 - UI Loading/Toast：如果库承诺 UI 回调，改用 `@MainActor @Sendable`；否则保留事件语义并明确调用方责任。
+
+### 隔离选择依据
+
+`NtkTaskManager` 管理包含 `await` 和可重入点的异步任务生命周期，独立 actor 能让编译器检查任务表访问，同时把调度域限制在任务状态所有者内。
+
+`NtkRequestIdentifierManager` 的 LRU 是一个完整的共享可变数据结构。虽然短同步临界区可以用锁实现，但当前公开类型已经受 global actor 隔离，普通调用方本来就需要跨隔离域 `await`；而唯一生产缓存调用方也处于 async 流程。改成独立 actor 不会把异步要求传播到同步业务接口，并能避免 `@unchecked Sendable` 和人工锁约束。
+
+`getRequestIdentifier` 不访问 LRU。它及其纯计算辅助方法保持 `nonisolated`，使 `NtkTaskManager` 能在取消检查和任务注册之间同步生成标识符，不新增跨 actor `await` 和可重入点。
+
+`NtkNetwork` 继续使用短临界区锁保护同步配置和请求快照。其链式配置接口天然同步，没有异步状态机；将其改为 actor 会把 `await` 传播到配置接口而没有相应收益。actor 和锁按状态操作形态选择，不以语言特性新旧作为判断依据。
+
+### 调用关系
+
+- `NtkTaskManager` 同步调用 `NtkRequestIdentifierManager.shared.getRequestIdentifier` 的非隔离纯计算路径。
+- `NtkNetworkCache` 在已有 async 方法中等待 `NtkRequestIdentifierManager.shared.getCacheKey`。
+- `NtkCacheInterceptor` 同步创建 `NtkNetworkCache`，只在缓存读写和缓存键 actor 调用处等待。
+- `NtkRequestIdentifierManager.requestCache` 当前没有读取点，迁移时删除；LRU 的真实状态由节点索引和链表共同组成。
 
 ## `NtkActor` 的最终处理
 
-不预先承诺删除 `NtkActor.swift`。完成各阶段后检查剩余引用：
+三个剩余生产使用点之间不存在必须在同一隔离域维护的共同不变量：任务表、缓存键 LRU 和缓存门面分别拥有独立状态语义。完成阶段三后删除 `NtkActor.swift`，并清理测试、README、架构文档和源码注释中的遗留引用。
 
-- 若没有真实的进程级共享可变状态需要同一隔离域，删除声明；
-- 若仍存在明确的全局不变量，保留 `@globalActor`，但只用于该不变量，并在架构文档中说明它不代表“所有网络代码统一执行”。
+删除的是不再成立的公开隔离概念，不是共享实例模式。`NtkTaskManager.shared` 和 `NtkRequestIdentifierManager.shared` 继续存在，各自通过独立 actor 保护自身状态。
 
 ## 验收标准
 
@@ -107,5 +124,8 @@
 - interceptor、parser、client 和 cache adapter 不再被公开协议强制绑定到 `NtkActor`。
 - actor、`MainActor` 和锁保护的第三方实现仍可满足对应 async 协议。
 - interceptor 顺序、短路、重试、解析、缓存和错误传播行为保持不变。
+- `NtkTaskManager` 与缓存键 LRU 不再共享串行执行器，且去重标识生成不会给任务状态机新增可重入点。
+- `NtkNetworkCache` 可跨并发域安全共享；标识符 LRU 的全部可变访问由独立 actor 隔离。
+- 生产代码和测试不再引用 `NtkActor`，过时的全局网络执行域文档被删除或改写。
 - 每阶段 `swift test` 通过，且新增针对并发共享 executor 的回归测试。
 - 每阶段记录剩余 `@NtkActor` 用途，不以引用数量作为唯一删除标准。
