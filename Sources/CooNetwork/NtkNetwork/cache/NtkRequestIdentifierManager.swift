@@ -106,12 +106,7 @@ internal final class LRUList<Key: Hashable, Value> {
 /// 请求标识符管理器
 /// 负责为网络请求生成唯一的缓存键和去重标识符
 /// 使用Swift Hasher确保高性能的哈希计算
-@NtkActor
-public class NtkRequestIdentifierManager {
-
-    /// 内存缓存：请求特征 → 缓存键
-    /// 避免重复计算相同请求的哈希
-    private var requestCache: [RequestCacheKey: String] = [:]
+public actor NtkRequestIdentifierManager {
 
     /// LRU 链表节点索引：请求特征 → 链表节点
     private var lruNodeIndex: [RequestCacheKey: LRUNode<RequestCacheKey, String>] = [:]
@@ -168,13 +163,11 @@ public class NtkRequestIdentifierManager {
         if lruList.count >= maxCacheSize {
             // 删除最老的条目（链表尾部）
             if let removed = lruList.removeLast() {
-                requestCache.removeValue(forKey: removed.key)
                 lruNodeIndex.removeValue(forKey: removed.key)
             }
         }
 
         // 添加到缓存
-        requestCache[requestKey] = cacheKey
         let newNode = lruList.addFirst(key: requestKey, value: cacheKey)
         lruNodeIndex[requestKey] = newNode
 
@@ -185,7 +178,7 @@ public class NtkRequestIdentifierManager {
     /// 为网络请求生成用于去重的唯一标识符
     /// - Parameter request: 网络请求对象
     /// - Returns: 请求标识符字符串
-    public func getRequestIdentifier(request: NtkMutableRequest) -> String {
+    public nonisolated func getRequestIdentifier(request: NtkMutableRequest) -> String {
         let hash = generateHashForDeduplication(request: request)
         return "request_\(hash)"
     }
@@ -220,7 +213,7 @@ extension NtkRequestIdentifierManager {
     /// 使用Swift Hasher为请求去重生成哈希，通过requestConfiguration过滤动态参数
     /// - Parameter request: 网络请求对象
     /// - Returns: 哈希值
-    private func generateHashForDeduplication(request: NtkMutableRequest) -> Int {
+    private nonisolated func generateHashForDeduplication(request: NtkMutableRequest) -> Int {
         var hasher = Hasher()
 
         // HTTP方法
@@ -304,7 +297,7 @@ extension NtkRequestIdentifierManager {
     ///   - hasher: Hasher 引用
     ///   - headers: 原始 Headers
     ///   - config: 请求配置（用于过滤）
-    private func appendFilteredHeaders(
+    private nonisolated func appendFilteredHeaders(
         to hasher: inout Hasher,
         headers: [String: String],
         config: NtkRequestConfiguration?
@@ -324,7 +317,7 @@ extension NtkRequestIdentifierManager {
     ///   - hasher: Hasher 引用
     ///   - parameters: 原始 Parameters
     ///   - config: 请求配置（用于过滤）
-    private func appendFilteredParameters(
+    private nonisolated func appendFilteredParameters(
         to hasher: inout Hasher,
         parameters: [String: Sendable],
         config: NtkRequestConfiguration?

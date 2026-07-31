@@ -320,16 +320,14 @@ struct NtkRequestIdentifierManagerTests {
 
     /// 测试：缓存键生成的一致性
     @Test
-    @NtkActor
     func request_identifier_manager_cache_key_consistency() async {
         let request = createTestRequest()
         let config = NtkRequestConfiguration(cacheTime: 3600)
 
         // 多次调用应该返回相同的缓存键
-        let
- key1 = NtkRequestIdentifierManager.shared.getCacheKey(request: request, cacheConfig: config)
-        let key2 = NtkRequestIdentifierManager.shared.getCacheKey(request: request, cacheConfig: config)
-        let key3 = NtkRequestIdentifierManager.shared.getCacheKey(request: request, cacheConfig: config)
+        let key1 = await NtkRequestIdentifierManager.shared.getCacheKey(request: request, cacheConfig: config)
+        let key2 = await NtkRequestIdentifierManager.shared.getCacheKey(request: request, cacheConfig: config)
+        let key3 = await NtkRequestIdentifierManager.shared.getCacheKey(request: request, cacheConfig: config)
 
         #expect(key1 == key2)
         #expect(key2 == key3)
@@ -337,27 +335,54 @@ struct NtkRequestIdentifierManagerTests {
 
     /// 测试：不同请求生成不同的缓存键
     @Test
-    @NtkActor
     func request_identifier_manager_different_requests_different_keys() async {
         let request1 = createTestRequest(path: "/api/user/1")
         let request2 = createTestRequest(path: "/api/user/2")
 
-        let key1 = NtkRequestIdentifierManager.shared.getCacheKey(request: request1, cacheConfig: nil)
-        let key2 = NtkRequestIdentifierManager.shared.getCacheKey(request: request2, cacheConfig: nil)
+        let key1 = await NtkRequestIdentifierManager.shared.getCacheKey(request: request1, cacheConfig: nil)
+        let key2 = await NtkRequestIdentifierManager.shared.getCacheKey(request: request2, cacheConfig: nil)
 
         #expect(key1 != key2)
     }
 
     /// 测试：去重标识符生成的一致性
     @Test
-    @NtkActor
-    func request_identifier_manager_deduplication_consistency() async {
+    func request_identifier_manager_deduplication_consistency() {
         let request = createTestRequest()
 
         let id1 = NtkRequestIdentifierManager.shared.getRequestIdentifier(request: request)
         let id2 = NtkRequestIdentifierManager.shared.getRequestIdentifier(request: request)
 
         #expect(id1 == id2)
+    }
+
+    @Test
+    func request_identifier_manager_owns_actor_isolation() {
+        requireActor(NtkRequestIdentifierManager.shared)
+    }
+
+    @Test
+    func request_identifier_generation_does_not_require_actor_hop() {
+        let request = createTestRequest(path: "/api/nonisolated-identifier")
+        let identifier = NtkRequestIdentifierManager.shared.getRequestIdentifier(request: request)
+        #expect(identifier.hasPrefix("request_"))
+    }
+
+    @Test
+    func concurrent_cache_key_requests_return_one_value() async {
+        let request = createTestRequest(path: "/api/concurrent-cache-key")
+        let config = NtkRequestConfiguration(cacheTime: 3600)
+        let keys = await withTaskGroup(of: String.self, returning: [String].self) { group in
+            for _ in 0..<100 {
+                group.addTask {
+                    await NtkRequestIdentifierManager.shared.getCacheKey(request: request, cacheConfig: config)
+                }
+            }
+            var values: [String] = []
+            for await key in group { values.append(key) }
+            return values
+        }
+        #expect(Set(keys).count == 1)
     }
 
     // MARK: - Helper Methods
@@ -391,3 +416,5 @@ struct NtkRequestIdentifierManagerTests {
         return NtkMutableRequest(request)
     }
 }
+
+private func requireActor<A: Actor>(_ value: A) {}

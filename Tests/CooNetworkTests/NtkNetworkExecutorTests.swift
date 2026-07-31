@@ -506,7 +506,7 @@ struct NtkNetworkExecutorTests {
             )
         )
         request.responseType = String(describing: Bool.self)
-        let baselineKey = NtkRequestIdentifierManager.shared.getCacheKey(
+        let baselineKey = await NtkRequestIdentifierManager.shared.getCacheKey(
             request: request,
             cacheConfig: request.requestConfiguration
         )

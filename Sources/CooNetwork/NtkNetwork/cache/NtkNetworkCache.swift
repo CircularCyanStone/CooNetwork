@@ -28,14 +28,17 @@ public class NtkNetworkCache {
     /// 构建缓存键
     /// 根据请求信息和缓存配置生成唯一的缓存键
     /// - Returns: 缓存键字符串
-    private func createCacheKey(for request: NtkMutableRequest) -> String {
-        return NtkRequestIdentifierManager.shared.getCacheKey(request: request, cacheConfig: request.requestConfiguration)
+    private func createCacheKey(for request: NtkMutableRequest) async -> String {
+        await NtkRequestIdentifierManager.shared.getCacheKey(
+            request: request,
+            cacheConfig: request.requestConfiguration
+        )
     }
 
     /// 检查是否存在缓存数据
     /// - Returns: 如果存在缓存数据返回true，否则返回false
     public func hasData(for request: NtkMutableRequest) async -> Bool {
-        let cacheKey = createCacheKey(for: request)
+        let cacheKey = await createCacheKey(for: request)
         return await storage.hasData(key: cacheKey, for: request)
     }
 
@@ -44,7 +47,7 @@ public class NtkNetworkCache {
     /// - Returns: 缓存的数据，如果没有缓存或已过期则返回返回nil
     /// - Throws: 缓存读取过程中的错误
     public func loadData(for request: NtkMutableRequest) async throws -> (any Sendable)? {
-        let cacheKey = createCacheKey(for: request)
+        let cacheKey = await createCacheKey(for: request)
         guard let cacheMetaData = await storage.getData(key: cacheKey, for: request) else {
             return nil
         }
@@ -61,7 +64,7 @@ public class NtkNetworkCache {
     /// - Returns: 保存是否成功
     public func save(data: Sendable, for request: NtkMutableRequest) async -> Bool {
         guard let requestConfiguration = request.requestConfiguration else { return false }
-        let cacheKey = createCacheKey(for: request)
+        let cacheKey = await createCacheKey(for: request)
         let versionName = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
         let createTime = Date().timeIntervalSince1970
         let expirationDate = createTime + requestConfiguration.cacheTime
