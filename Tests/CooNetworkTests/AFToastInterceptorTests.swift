@@ -11,7 +11,7 @@ struct AFToastInterceptorTests {
         let recorder = ToastRecorder()
         let interceptor = AFToastInterceptor(toastHandler: recorder.record)
         let context = NtkInterceptorContext(
-            mutableRequest: NtkMutableRequest(ToastTestRequest()),
+            request: NtkMutableRequest(ToastTestRequest()),
             client: ToastDummyClient()
         )
 
@@ -33,7 +33,7 @@ struct AFToastInterceptorTests {
         let recorder = ToastRecorder()
         let interceptor = AFToastInterceptor(ignoreCode: [401], toastHandler: recorder.record)
         let context = NtkInterceptorContext(
-            mutableRequest: NtkMutableRequest(ToastTestRequest()),
+            request: NtkMutableRequest(ToastTestRequest()),
             client: ToastDummyClient()
         )
 
@@ -55,7 +55,7 @@ struct AFToastInterceptorTests {
         let recorder = ToastRecorder()
         let interceptor = AFToastInterceptor(toastHandler: recorder.record)
         let context = NtkInterceptorContext(
-            mutableRequest: NtkMutableRequest(ToastTestRequest()),
+            request: NtkMutableRequest(ToastTestRequest()),
             client: ToastDummyClient()
         )
 
@@ -77,7 +77,7 @@ struct AFToastInterceptorTests {
         let recorder = ToastRecorder()
         let interceptor = AFToastInterceptor(toastHandler: recorder.record)
         let context = NtkInterceptorContext(
-            mutableRequest: NtkMutableRequest(ToastTestRequest()),
+            request: NtkMutableRequest(ToastTestRequest()),
             client: ToastDummyClient()
         )
 

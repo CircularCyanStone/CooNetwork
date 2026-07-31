@@ -94,6 +94,19 @@ struct NtkNetworkIntegrationTests {
         #expect(wasExecuted == true)
     }
 
+    @Test
+    func requestAppliesRegisteredInterceptorModification() async throws {
+        let network = makeNetwork(
+            client: IntegMockClient(result: .success(())),
+            path: "/integration/request-modifier"
+        )
+        network.addInterceptor(IntegHeaderRequestInterceptor())
+
+        let response = try await network.request()
+
+        #expect(response.request.headers?["X-Stable-Parameter"] == "stable")
+    }
+
     // MARK: - request() 客户端抛错透传
 
     @Test
@@ -322,5 +335,14 @@ private struct IntegFlagInterceptor: iNtkInterceptor {
     func intercept(context: NtkInterceptorContext, next: any iNtkRequestHandler) async throws -> any iNtkResponse {
         await flag.set()
         return try await next.handle(context: context)
+    }
+}
+
+private struct IntegHeaderRequestInterceptor: iNtkRequestModifyingInterceptor {
+    @NtkActor
+    func modifyRequest(_ request: NtkMutableRequest) async throws -> NtkMutableRequest {
+        var request = request
+        request.addHeader(key: "X-Stable-Parameter", value: "stable")
+        return request
     }
 }

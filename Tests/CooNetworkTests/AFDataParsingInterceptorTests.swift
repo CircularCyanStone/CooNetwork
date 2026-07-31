@@ -602,12 +602,10 @@ struct NtkDataParsingInterceptorTests {
             "retMsg": "ok",
             "data": ["id": 1, "name": "test"]
         ])
-        let handler = AFContextConfiguringDataHandler(
-            data: data,
-            request: AFTestRequest()
-        )
+        let handler = AFTestDataHandler(data: data, request: AFTestRequest())
+        let context = makeSnapshotAFContext()
 
-        _ = try await interceptor.intercept(context: makeAFContext(), next: handler)
+        _ = try await interceptor.intercept(context: context, next: handler)
 
         let recordedObservations = await observations.snapshot()
         #expect(recordedObservations == [.captured])
@@ -615,8 +613,8 @@ struct NtkDataParsingInterceptorTests {
 
     @Test
     @NtkActor
-    func parsingContextRemainsIndependentAfterAcquire() async throws {
-        let sourceContext = makeAFContext()
+    func parsingContextRemainsStableWhenSourceExtraDataChanges() async throws {
+        let sourceContext = makeSnapshotAFContext()
         let observations = AFParsingContextObservationRecorder()
         let interceptor = NtkDataParsingInterceptor<AFTestModel, AFTestKeys>(
             validation: AFTestPassValidation(),
@@ -632,18 +630,15 @@ struct NtkDataParsingInterceptorTests {
             "retMsg": "ok",
             "data": ["id": 1, "name": "test"]
         ])
-        let handler = AFContextConfiguringDataHandler(
-            data: data,
-            request: AFTestRequest()
-        )
+        let handler = AFTestDataHandler(data: data, request: AFTestRequest())
 
         _ = try await interceptor.intercept(context: sourceContext, next: handler)
 
         let recordedObservations = await observations.snapshot()
         #expect(recordedObservations == [.captured, .captured])
-        #expect(sourceContext.mutableRequest.headers?["X-Snapshot"] == "mutated-header")
-        #expect(sourceContext.mutableRequest.parameters?["stage"] as? String == "mutated-parameter")
-        #expect(sourceContext.mutableRequest.extraData["request"] as? String == "mutated-request-extra")
+        #expect(sourceContext.request.headers?["X-Snapshot"] == "captured-header")
+        #expect(sourceContext.request.parameters?["stage"] as? String == "captured-parameter")
+        #expect(sourceContext.request.extraData["request"] as? String == "captured-request-extra")
         #expect(sourceContext.extraData["context"] as? String == "mutated-context-extra")
     }
 
@@ -710,7 +705,7 @@ struct NtkDataParsingInterceptorTests {
 @NtkActor
 private func makeAFContext() -> NtkInterceptorContext {
     NtkInterceptorContext(
-        mutableRequest: NtkMutableRequest(AFTestRequest()),
+        request: NtkMutableRequest(AFTestRequest()),
         client: AFTestDummyClient()
     )
 }
@@ -718,9 +713,20 @@ private func makeAFContext() -> NtkInterceptorContext {
 @NtkActor
 private func makeConfiguredAFContext() -> NtkInterceptorContext {
     NtkInterceptorContext(
-        mutableRequest: NtkMutableRequest(AFConfiguredTestRequest()),
+        request: NtkMutableRequest(AFConfiguredTestRequest()),
         client: AFTestDummyClient()
     )
+}
+
+@NtkActor
+private func makeSnapshotAFContext() -> NtkInterceptorContext {
+    var request = NtkMutableRequest(AFTestRequest())
+    request.headers = ["X-Snapshot": "captured-header"]
+    request.parameters = ["stage": "captured-parameter"]
+    request.extraData["request"] = "captured-request-extra"
+    let context = NtkInterceptorContext(request: request, client: AFTestDummyClient())
+    context.extraData["context"] = "captured-context-extra"
+    return context
 }
 
 // MARK: - Test Doubles
@@ -894,7 +900,7 @@ private struct AFSnapshotObservingTransformer: iNtkResponsePayloadTransforming {
     ) async throws -> NtkPayload {
         await observations.record(makeAFParsingContextObservation(context))
         if let sourceContext {
-            await mutateAFContextAfterSnapshot(sourceContext)
+            await mutateAFContextExtraDataAfterSnapshot(sourceContext)
             await observations.record(makeAFParsingContextObservation(context))
         }
         return payload
@@ -913,12 +919,7 @@ private func makeAFParsingContextObservation(
 }
 
 @NtkActor
-private func mutateAFContextAfterSnapshot(_ context: NtkInterceptorContext) {
-    var request = context.mutableRequest
-    request.headers?["X-Snapshot"] = "mutated-header"
-    request.parameters?["stage"] = "mutated-parameter"
-    request.extraData["request"] = "mutated-request-extra"
-    context.mutableRequest = request
+private func mutateAFContextExtraDataAfterSnapshot(_ context: NtkInterceptorContext) {
     context.extraData["context"] = "mutated-context-extra"
 }
 
@@ -1023,28 +1024,6 @@ private struct AFTestDataHandler: iNtkRequestHandler {
     let request: iNtkRequest
     func handle(context: NtkInterceptorContext) async throws -> any iNtkResponse {
         return NtkClientResponse(data: data, msg: nil, response: data, request: request, isCache: false)
-    }
-}
-
-@NtkActor
-private struct AFContextConfiguringDataHandler: iNtkRequestHandler {
-    let data: Data
-    let request: iNtkRequest
-
-    func handle(context: NtkInterceptorContext) async throws -> any iNtkResponse {
-        var mutableRequest = context.mutableRequest
-        mutableRequest.headers = ["X-Snapshot": "captured-header"]
-        mutableRequest.parameters = ["stage": "captured-parameter"]
-        mutableRequest.extraData["request"] = "captured-request-extra"
-        context.mutableRequest = mutableRequest
-        context.extraData["context"] = "captured-context-extra"
-        return NtkClientResponse(
-            data: data,
-            msg: nil,
-            response: data,
-            request: request,
-            isCache: false
-        )
     }
 }
 

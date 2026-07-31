@@ -155,7 +155,7 @@ public struct NtkDataParsingInterceptor<
             throw NtkError.invalidResponseType(response: response)
         }
 
-        let mutableRequest = context.mutableRequest
+        let mutableRequest = context.request
         return .raw(
             AcquiredResponse(
                 request: mutableRequest.originalRequest,

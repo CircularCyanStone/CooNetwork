@@ -167,7 +167,7 @@ struct NtkInterceptorChainManagerTests {
 @NtkActor
 private func makeContext() -> NtkInterceptorContext {
     NtkInterceptorContext(
-        mutableRequest: NtkMutableRequest(ChainDummyRequest()),
+        request: NtkMutableRequest(ChainDummyRequest()),
         client: ChainDummyClient()
     )
 }

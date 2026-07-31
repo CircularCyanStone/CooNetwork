@@ -12,8 +12,11 @@ import Foundation
 @NtkActor
 public final class NtkInterceptorContext: Sendable {
 
-    /// 可修改的请求对象
-    public var mutableRequest: NtkMutableRequest
+    /// 当前拦截链使用的请求快照。
+    ///
+    /// 请求结构只能在 `iNtkRequestModifyingInterceptor.modifyRequest` 阶段修改；拦截器链只能读取该快照，
+    /// 从而避免响应处理和请求状态修改混在同一个接口中。
+    public let request: NtkMutableRequest
 
     /// 网络客户端
     public let client: iNtkClient
@@ -21,8 +24,8 @@ public final class NtkInterceptorContext: Sendable {
     /// 拦截器间传递的额外数据
     public var extraData: [String: Sendable] = [:]
 
-    init(mutableRequest: NtkMutableRequest, client: iNtkClient) {
-        self.mutableRequest = mutableRequest
+    init(request: NtkMutableRequest, client: iNtkClient) {
+        self.request = request
         self.client = client
     }
 }

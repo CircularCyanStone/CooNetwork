@@ -55,12 +55,12 @@ public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
     public func intercept(context: NtkInterceptorContext, next: iNtkRequestHandler) async throws -> any iNtkResponse {
         let response = try await next.handle(context: context)
         // 能走到这里说明已经通过了NtkValidationInterceptor的校验
-        guard let requestPolicy = context.mutableRequest.requestConfiguration else { return response }
+        guard let requestPolicy = context.request.requestConfiguration else { return response }
         if requestPolicy.cacheTime > 0 && requestPolicy.shouldCache(response) {
             // 根据缓存时间和自定义策略保存响应到缓存
             if let extractedResponse = responseExtractor(response) {
                 let cache = NtkNetworkCache(storage: storage)
-                let result = await cache.save(data: extractedResponse, for: context.mutableRequest)
+                let result = await cache.save(data: extractedResponse, for: context.request)
                 logger.debug("NTK请求缓存\(result ? "成功" : "失败")")
             }
         }

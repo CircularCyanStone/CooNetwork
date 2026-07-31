@@ -37,7 +37,7 @@ public struct NtkLoadingInterceptor: iNtkInterceptor, Sendable {
     /// - Returns: 网络响应对象
     /// - Throws: 网络请求过程中的错误
     public func intercept(context: NtkInterceptorContext, next: iNtkRequestHandler) async throws -> any iNtkResponse {
-        let mutableRequest = context.mutableRequest
+        let mutableRequest = context.request
         let showLoading = mutableRequest.showLoading
         let loadingText = mutableRequest.loadingText
         
