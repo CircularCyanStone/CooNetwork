@@ -7,6 +7,16 @@
 
 import Foundation
 
+enum NtkDynamicIdentityValue: Sendable {
+    case dictionary([String: any Sendable])
+    case array([any Sendable])
+    case string(String)
+    case int(Int)
+    case double(Double)
+    case bool(Bool)
+    case null
+}
+
 /// NtkDynamicData - 支持多种数据类型的动态数据结构
 /// 用于处理网络响应中的动态数据，支持 Dictionary<String, any Sendable>、Int、Bool、String 等多种类型
 /// 提供类型安全的访问接口和便利的下标语法支持
@@ -200,6 +210,18 @@ public final class NtkDynamicData: NSObject, Sendable, Codable {
     }
 
     // MARK: - Internal Bridging
+
+    var identityValue: NtkDynamicIdentityValue {
+        switch storage {
+        case .dictionary(let value): return .dictionary(value)
+        case .array(let value):      return .array(value)
+        case .string(let value):     return .string(value)
+        case .int(let value):        return .int(value)
+        case .double(let value):     return .double(value)
+        case .bool(let value):       return .bool(value)
+        case .null:                  return .null
+        }
+    }
 
     /// 获取内部存储的 Sendable 值
     private var sendableValue: any Sendable {
