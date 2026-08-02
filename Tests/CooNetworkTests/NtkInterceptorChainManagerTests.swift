@@ -11,7 +11,7 @@ struct NtkInterceptorChainManagerTests {
         let counter = ChainCallCounter()
         let manager = NtkInterceptorChainManager(interceptors: []) { context in
             await counter.record("final")
-            return ChainDummyResponse(request: ChainDummyRequest())
+            return makeClientResponse(context: context)
         }
         let context = makeContext()
         _ = try await manager.execute(context: context)
@@ -27,7 +27,7 @@ struct NtkInterceptorChainManagerTests {
         let interceptor = ChainRecordingInterceptor(id: "A", counter: counter)
         let manager = NtkInterceptorChainManager(interceptors: [interceptor]) { context in
             await counter.record("final")
-            return ChainDummyResponse(request: ChainDummyRequest())
+            return makeClientResponse(context: context)
         }
         let context = makeContext()
         _ = try await manager.execute(context: context)
@@ -45,7 +45,7 @@ struct NtkInterceptorChainManagerTests {
         let c = ChainRecordingInterceptor(id: "C", counter: counter)
         let manager = NtkInterceptorChainManager(interceptors: [a, b, c]) { context in
             await counter.record("final")
-            return ChainDummyResponse(request: ChainDummyRequest())
+            return makeClientResponse(context: context)
         }
         let context = makeContext()
         _ = try await manager.execute(context: context)
@@ -64,7 +64,7 @@ struct NtkInterceptorChainManagerTests {
         let c = ChainRecordingInterceptor(id: "C", counter: counter)
         let manager = NtkInterceptorChainManager(interceptors: [a, blocker, c]) { context in
             await counter.record("final")
-            return ChainDummyResponse(request: ChainDummyRequest())
+            return makeClientResponse(context: context)
         }
         let context = makeContext()
         _ = try await manager.execute(context: context)
@@ -82,7 +82,7 @@ struct NtkInterceptorChainManagerTests {
         let thrower = ChainThrowingInterceptor()
         let manager = NtkInterceptorChainManager(interceptors: [a, thrower]) { context in
             await counter.record("final")
-            return ChainDummyResponse(request: ChainDummyRequest())
+            return makeClientResponse(context: context)
         }
         let context = makeContext()
         do {
@@ -105,7 +105,7 @@ struct NtkInterceptorChainManagerTests {
         let capture = ChainValueCapture()
         let reader = ChainContextReaderInterceptor(key: "testKey", capture: capture)
         let manager = NtkInterceptorChainManager(interceptors: [modifier, reader]) { context in
-            return ChainDummyResponse(request: ChainDummyRequest())
+            return makeClientResponse(context: context)
         }
         let context = makeContext()
         _ = try await manager.execute(context: context)
@@ -141,7 +141,7 @@ struct NtkInterceptorChainManagerTests {
 
         let manager = NtkInterceptorChainManager(interceptors: sorted) { context in
             await counter.record("final")
-            return ChainDummyResponse(request: ChainDummyRequest())
+            return makeClientResponse(context: context)
         }
         let context = makeContext()
         _ = try await manager.execute(context: context)
@@ -180,9 +180,9 @@ struct NtkInterceptorChainManagerTests {
         let manager = NtkInterceptorChainManager(interceptors: [
             ChainRecordingInterceptor(id: "outer", counter: counter),
             ChainRecordingInterceptor(id: "inner", counter: counter)
-        ]) { _ in
+        ]) { context in
             await counter.record("final")
-            return ChainDummyResponse(request: ChainDummyRequest())
+            return makeClientResponse(context: context)
         }
 
         _ = try await manager.execute(context: makeContext())
@@ -199,6 +199,16 @@ struct NtkInterceptorChainManagerTests {
 private func makeContext() -> NtkInterceptorContext {
     NtkInterceptorContext(
         request: NtkMutableRequest(ChainDummyRequest())
+    )
+}
+
+private func makeClientResponse(context: NtkInterceptorContext) -> NtkClientResponse {
+    NtkClientResponse(
+        data: true,
+        msg: nil,
+        response: true,
+        request: context.request,
+        isCache: false
     )
 }
 

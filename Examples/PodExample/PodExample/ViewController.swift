@@ -85,10 +85,10 @@ class ViewController: UIViewController {
     private lazy var individualTestButtonsStack: UIStackView = {
         let stack = UIStackView()
         stack.translatesAutoresizingMaskIntoConstraints = false
-        stack.axis = .horizontal
+        stack.axis = .vertical
         stack.distribution = .fillEqually
         stack.spacing = 8
-        stack.alignment = .leading
+        stack.alignment = .fill
         return stack
     }()
 
@@ -113,10 +113,21 @@ class ViewController: UIViewController {
         contentView.addSubview(individualTestButtonsStack)
 
         // 创建单个测试按钮
-        let testNames = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8"]
         let testSuites = getAllTestSuites()
+        let testNames = testSuites.indices.map { "T\($0 + 1)" }
+        let testsPerRow = 4
+        var currentRow: UIStackView?
 
         for (index, name) in testNames.enumerated() {
+            if index.isMultiple(of: testsPerRow) {
+                let row = UIStackView()
+                row.axis = .horizontal
+                row.distribution = .fillEqually
+                row.spacing = 8
+                individualTestButtonsStack.addArrangedSubview(row)
+                currentRow = row
+            }
+
             let button = UIButton(type: .system)
             button.translatesAutoresizingMaskIntoConstraints = false
             button.setTitle(name, for: .normal)
@@ -125,8 +136,11 @@ class ViewController: UIViewController {
             button.layer.cornerRadius = 6
             button.tag = index
             button.addTarget(self, action: #selector(runIndividualTest(_:)), for: .touchUpInside)
-            individualTestButtonsStack.addArrangedSubview(button)
+            currentRow?.addArrangedSubview(button)
         }
+
+        let rowCount = Int(ceil(Double(testNames.count) / Double(testsPerRow)))
+        let individualTestsHeight = CGFloat(rowCount * 40 + max(rowCount - 1, 0) * 8)
 
         // 布局约束
         NSLayoutConstraint.activate([
@@ -163,7 +177,7 @@ class ViewController: UIViewController {
             individualTestButtonsStack.topAnchor.constraint(equalTo: quickTestButton.bottomAnchor, constant: 20),
             individualTestButtonsStack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
             individualTestButtonsStack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
-            individualTestButtonsStack.heightAnchor.constraint(equalToConstant: 40),
+            individualTestButtonsStack.heightAnchor.constraint(equalToConstant: individualTestsHeight),
 
             resultTextView.topAnchor.constraint(equalTo: individualTestButtonsStack.bottomAnchor, constant: 20),
             resultTextView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
@@ -336,7 +350,7 @@ struct IPv6ParsingInterceptor: iNtkResponseParser {
             data: model,
             msg: "Success",
             response: response,
-            request: context.mutableRequest.originalRequest,
+            request: context.request.originalRequest,
             isCache: response.isCache
         )
     }

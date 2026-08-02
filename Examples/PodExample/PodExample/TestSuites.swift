@@ -70,12 +70,12 @@ func testT1_BasicRequest() -> TestSuite {
     }
 }
 
-// MARK: - T2: New API ReturnData Test
+// MARK: - T2: Typed Response Test
 
 func testT2_NewAPITest() -> TestSuite {
     return TestSuite(
-        name: "T2: 新 API 测试",
-        description: "验证拼写修复后的 unwrapReturnData API 可用"
+        name: "T2: 类型化响应测试",
+        description: "验证 NtkAF 返回的响应数据保持目标模型类型"
     ) {
         let startTime = Date()
 
@@ -100,10 +100,10 @@ func testT2_NewAPITest() -> TestSuite {
             }
 
             return TestResult(
-                name: "T2: 新 API 测试",
+                name: "T2: 类型化响应测试",
                 status: .passed,
                 duration: duration,
-                details: "unwrapReturnData() 正常工作，类型正确推断",
+                details: "NtkAF<Post> 返回 Post 类型数据",
                 evidence: """
                 Return type: Post
                 Post.id: \(result.id)
@@ -113,7 +113,7 @@ func testT2_NewAPITest() -> TestSuite {
         } catch {
             let duration = Date().timeIntervalSince(startTime)
             return TestResult(
-                name: "T2: 新 API 测试",
+                name: "T2: 类型化响应测试",
                 status: .failed,
                 duration: duration,
                 details: "API 调用失败: \(error.localizedDescription)",
@@ -183,17 +183,12 @@ func testT3_LoggingTest() -> TestSuite {
 
 func testT4_DeduplicationTest() -> TestSuite {
     return TestSuite(
-        name: "T4: 去重测试",
-        description: "验证 NtkTaskManager 去重功能"
+        name: "T4: 相同请求并发测试",
+        description: "验证多个相同请求并发执行时均能获得一致结果"
     ) {
         let startTime = Date()
 
         do {
-            // 启用去重和缓存（当前 API 不支持这些配置）
-            // let config = NtkConfiguration.shared
-            // config.enableDeduplication = true
-            // config.enableCache = false  // 关闭缓存以免干扰
-
             let request = JSONPlaceholderRequest(
                 path: "/posts",
                 method: .get,
@@ -202,8 +197,6 @@ func testT4_DeduplicationTest() -> TestSuite {
 
             // 并发发送 5 个相同请求
             var results: [Result<[Post], Error>] = []
-            let startTimes = Date()
-
             await withTaskGroup(of: Result<[Post], Error>.self) { group in
                 for _ in 1...5 {
                     group.addTask {
@@ -248,10 +241,10 @@ func testT4_DeduplicationTest() -> TestSuite {
             }
 
             return TestResult(
-                name: "T4: 去重测试",
+                name: "T4: 相同请求并发测试",
                 status: .passed,
                 duration: duration,
-                details: "并发 5 个相同请求，去重功能正常，所有返回数据一致",
+                details: "并发 5 个相同请求均成功，返回数据一致",
                 evidence: """
                 Success count: \(successCount)/5
                 Data count: \(firstData.count)
@@ -261,7 +254,7 @@ func testT4_DeduplicationTest() -> TestSuite {
         } catch {
             let duration = Date().timeIntervalSince(startTime)
             return TestResult(
-                name: "T4: 去重测试",
+                name: "T4: 相同请求并发测试",
                 status: .failed,
                 duration: duration,
                 details: "去重测试失败: \(error.localizedDescription)",
@@ -368,14 +361,12 @@ func testT5_CacheTest() -> TestSuite {
 
 func testT6_RetryTest() -> TestSuite {
     return TestSuite(
-        name: "T6: 重试测试",
-        description: "验证 NtkRetryInterceptor 自动重试（使用 200 成功接口模拟）"
+        name: "T6: HTTPBin 可用性测试",
+        description: "验证 HTTPBin 真实网络请求链路可用"
     ) {
         let startTime = Date()
 
         do {
-            // 使用 /get 接口成功返回，验证重试功能正常工作
-            // 注意：真实的重试行为需要通过日志验证
             let request = HttpBinRequest(
                 path: "/get",
                 method: .get,
@@ -391,10 +382,10 @@ func testT6_RetryTest() -> TestSuite {
             let duration = Date().timeIntervalSince(startTime)
 
             return TestResult(
-                name: "T6: 重试测试",
+                name: "T6: HTTPBin 可用性测试",
                 status: .passed,
                 duration: duration,
-                details: "请求成功，网络层重试功能正常",
+                details: "HTTPBin 请求链路正常",
                 evidence: """
                 Duration: \(String(format: "%.2f", duration))s
                 Request completed successfully
@@ -404,7 +395,7 @@ func testT6_RetryTest() -> TestSuite {
             let duration = Date().timeIntervalSince(startTime)
 
             return TestResult(
-                name: "T6: 重试测试",
+                name: "T6: HTTPBin 可用性测试",
                 status: .failed,
                 duration: duration,
                 details: "请求失败: \(error.localizedDescription)",
@@ -573,7 +564,10 @@ func getAllTestSuites() -> [TestSuite] {
         testT5_CacheTest(),
         testT6_RetryTest(),
         testT7_ConcurrencyTest(),
-        testT8_MemoryLeakTest()
+        testT8_MemoryLeakTest(),
+        testT9_RequestModification(),
+        testT10_RequestModifierOrdering(),
+        testT11_ContextValueFlow()
     ]
 }
 

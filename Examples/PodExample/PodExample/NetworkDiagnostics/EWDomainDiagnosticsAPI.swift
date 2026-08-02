@@ -76,7 +76,7 @@ final class EWDomainDiagnosticsAPI: Sendable {
                 data: NtkNever(),
                 msg: statusCode == 200 ? "连接正常" : "连接异常",
                 response: response,
-                request: context.mutableRequest.originalRequest,
+                request: context.request.originalRequest,
                 isCache: response.isCache
             )
         }

@@ -12,8 +12,8 @@ import Foundation
 struct NtkInterceptorChainManager: Sendable {
     /// 所有注册的拦截器
     private let interceptors: [any iNtkInterceptor]
-    /// 链的最终处理者（通常是发起实际网络请求的）
-    private let finalHandler: @Sendable (NtkInterceptorContext) async throws -> any iNtkResponse
+    /// 链的最终处理者，负责产出客户端原始响应
+    private let finalHandler: @Sendable (NtkInterceptorContext) async throws -> NtkClientResponse
 
     /// 初始化拦截器链管理器
     /// - Parameters:
@@ -21,7 +21,7 @@ struct NtkInterceptorChainManager: Sendable {
     ///   - finalHandler: 最终请求处理器
     init(
         interceptors: [any iNtkInterceptor],
-        finalHandler: @escaping @Sendable (NtkInterceptorContext) async throws -> any iNtkResponse
+        finalHandler: @escaping @Sendable (NtkInterceptorContext) async throws -> NtkClientResponse
     ) {
         self.interceptors = interceptors
         self.finalHandler = finalHandler

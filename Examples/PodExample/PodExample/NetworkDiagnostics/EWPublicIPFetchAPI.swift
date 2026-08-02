@@ -115,7 +115,7 @@ final class EWPublicIPFetchAPI: Sendable {
                 data: model,
                 msg: "Success",
                 response: response,
-                request: context.mutableRequest.originalRequest,
+                request: context.request.originalRequest,
                 isCache: response.isCache
             )
         }

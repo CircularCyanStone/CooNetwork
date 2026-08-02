@@ -1,196 +1,78 @@
-# CooNetwork 集成测试执行指南
+# CooNetwork Pod 集成测试指南
 
-## 概述
+本工程通过两层测试验证 CooNetwork 的 CocoaPods 集成：
 
-本指南说明如何在 PodExample 工程中运行集成测试，验证 2026-03-15 代码评审修复。
+- `PodExampleTests`：不依赖公网的自动化 XCTest，验证公开 API 契约。
+- `PodExample` 应用：访问 JSONPlaceholder 和 HTTPBin 的真实网络冒烟测试。
 
----
+## 环境要求
 
-## 前置条件
+- Xcode 16.3 或更高版本
+- CocoaPods 1.16 或更高版本
+- iOS 15.0 或更高版本的模拟器
+- 运行应用内测试时需要能够访问 `jsonplaceholder.typicode.com` 和 `httpbin.org`
 
-1. **Xcode 15.0+** 已安装
-2. **iOS Simulator** 已配置（推荐 iPhone 16）
-3. **网络连接** 正常（需要访问 jsonplaceholder.typicode.com 和 httpbin.org）
-4. **Pods 已安装**: `pod install`（如需要）
+## 安装 Pods
 
----
-
-## 测试步骤
-
-### 第 1 步：打开项目
+在 `Examples/PodExample` 目录运行：
 
 ```bash
-cd /Users/coomini/Desktop/CooLibraries/CooNetwork/Examples/PodExample
-open PodExample.xcworkspace
+pod install
 ```
 
-### 第 2 步：选择模拟器和 Scheme
+本地 Pod 使用仓库根目录源码。网络库增删源码文件后必须重新执行该命令，以刷新 `Pods.xcodeproj` 的文件列表。
 
-1. 点击 Xcode 顶部 Scheme 选择器
-2. 选择 "PodExample" scheme
-3. 点击设备选择器
-4. 选择 "iPhone 16" 模拟器（或任何可用的模拟器）
+## 自动化测试
 
-### 第 3 步：运行应用
+在 `Examples/PodExample` 目录运行：
 
-1. 点击 Run 按钮（▶️）或按 `Cmd + R`
-2. 等待模拟器启动和应用安装
-3. 应用启动后应显示测试界面
-
----
-
-## 测试界面说明
-
-应用启动后，你会看到以下界面：
-
-```
-┌─────────────────────────────────────┐
-│   CooNetwork 集成测试              │
-├─────────────────────────────────────┤
-│  测试操作                          │
-│  [🚀 快速验证] [📊 全面测试] [🗑️ 清理]  │
-├─────────────────────────────────────┤
-│  单元测试 (点击运行)                │
-│  [T1] [T2] [T3] [T4] [T5] [T6] [T7] [T8] │
-├─────────────────────────────────────┤
-│  测试结果 (可滚动)                  │
-│  ┌─────────────────────────────┐   │
-│  │ 测试结果将显示在这里    │   │
-│  └─────────────────────────────┘   │
-└─────────────────────────────────────┘
+```bash
+xcodebuild test \
+  -workspace PodExample.xcworkspace \
+  -scheme PodExample \
+  -destination 'platform=iOS Simulator,name=iPhone 16' \
+  -only-testing:PodExampleTests
 ```
 
----
+`PodExampleTests` 只导入公开的 `CooNetwork` 模块，不使用 `@testable import`。当前覆盖：
 
-## 测试按钮说明
+1. 请求修改器在客户端执行前修改参数、请求头和 request extraData。
+2. 同优先级请求修改器保持注册顺序。
+3. 请求修改器抛错后不会继续执行客户端。
+4. context extraData 通过上下文副本向下游传播。
+5. 解析 hooks 收到修改后的请求快照和上下文快照。
+6. 缓存读取和网络请求分别从初始请求构建独立快照。
+7. 多个独立网络请求无需全局 Actor 即可并发执行。
 
-### 🚀 快速验证
+## 应用内测试
 
-- **运行测试**: T1, T2, T3, T4
-- **用途**: 验证核心功能（基础请求、新 API、日志、去重）
-- **耗时**: 约 5-10 秒
+打开 `PodExample.xcworkspace`，选择 `PodExample` Scheme 和 iOS 模拟器后运行应用。
 
-### 📊 全面测试
+- 快速验证：运行 T1-T4。
+- 全面测试：按顺序运行 T1-T11。
+- 单项测试：点击对应编号按钮。
+- 清理：取消当前任务并清空结果。
 
-- **运行测试**: T1, T2, T3, T4, T5, T6, T7, T8
-- **用途**: 运行所有测试用例
-- **耗时**: 约 30-60 秒
+### 测试项
 
-### 🗑️ 清理
+| 编号 | 内容 | 主要证据 |
+|------|------|----------|
+| T1 | 基础请求 | JSONPlaceholder 返回指定 Post |
+| T2 | 类型化响应 | `NtkAF<Post>` 返回 `Post` 数据 |
+| T3 | 日志链路 | HTTPBin 请求完成并产生网络日志 |
+| T4 | 相同请求并发 | 5 个相同请求均成功且结果一致 |
+| T5 | 缓存标记观察 | 连续响应的 `isCache` 状态和数据一致性 |
+| T6 | HTTPBin 可用性 | HTTPBin GET 请求成功 |
+| T7 | 独立请求并发 | 10 个不同请求返回 10 个唯一 ID |
+| T8 | 取消与内存观察 | 取消 50 个延迟任务后的内存变化 |
+| T9 | 请求修改 | HTTPBin 回显修改后的参数和请求头 |
+| T10 | 修改器顺序 | 回显头为 `first,second` |
+| T11 | 上下文值流 | 上游为空，下游读取到 `propagated` |
 
-- **功能**: 清空测试结果和缓存
-- **用途**: 在重新测试前清理环境
+## 判定标准
 
-### T1-T8 单元测试
-
-- **功能**: 单独运行每个测试
-- **用途**: 调试特定测试用例
-- **耗时**: 每个测试 0.5-5 秒
-
----
-
-## 测试用例详情
-
-### T1: 基础请求测试
-- **验证**: 网络请求基本功能
-- **请求**: GET `https://jsonplaceholder.typicode.com/posts/1`
-- **预期**: 返回 Post 模型，id=1, userId=1
-
-### T2: 新 API 测试
-- **验证**: `unwrapReturnData()` 新 API 可用
-- **请求**: GET `https://jsonplaceholder.typicode.com/posts/1`
-- **预期**: 正常返回 Post 数据，类型推断正确
-
-### T3: 日志测试
-- **验证**: NtkLogger 统一输出
-- **请求**: GET `https://httpbin.org/get`
-- **预期**: 日志系统已启用，配置正确
-
-### T4: 去重测试
-- **验证**: NtkTaskManager 去重功能
-- **请求**: 并发 5 个相同的 GET `https://jsonplaceholder.typicode.com/posts`
-- **预期**: 实际只发起一次网络请求，5 个请求返回相同数据
-
-### T5: 缓存测试
-- **验证**: 缓存系统（命中、过期）
-- **请求**: 2 次 GET `https://jsonplaceholder.typicode.com/posts/1`
-- **预期**: 第二次请求从缓存返回（isCache=true）
-
-### T6: 重试测试
-- **验证**: NtkRetryInterceptor 自动重试
-- **请求**: GET `https://httpbin.org/status/500`
-- **预期**: 请求失败，重试机制正常触发
-
-### T7: 并发测试
-- **验证**: 多线程环境下的安全性
-- **请求**: 并发 10 个不同的 GET `https://jsonplaceholder.typicode.com/posts/{id}`
-- **预期**: 所有请求成功，无数据竞争
-
-### T8: 内存泄漏测试
-- **验证**: NtkTaskManager 取消请求后的清理
-- **请求**: 50 次延迟请求 GET `https://httpbin.org/delay/1`，立即取消
-- **预期**: 内存增长 < 10MB，无泄漏
-
----
-
-## 预期结果
-
-### 成功标准
-
-- [ ] T1-T8 全部实现
-- [ ] 至少 70% 测试通过（6/8）
-- [ ] 无内存泄漏（T8 通过）
-- [ ] 新 API `ReturnData` 正常工作（T2 通过）
-- [ ] 去重功能正常（T4 通过）
-
-### 典型问题
-
-1. **网络超时**: 检查网络连接，确认能访问 jsonplaceholder.typicode.com
-2. **模拟器问题**: 尝试不同的模拟器设备
-3. **编译错误**: 运行 `pod install` 重新安装依赖
-4. **日志未显示**: 检查 Xcode 控制台输出
-
----
-
-## 采集测试报告
-
-### 方法 1: 查看 Xcode 控制台
-
-1. 点击 Xcode 底部的 "Show the Debug Area" 按钮
-2. 切换到 "All Output" 或 "Console" 标签
-3. 搜索 "完整测试报告"
-4. 复制报告内容
-
-### 方法 2: 查看应用界面
-
-1. 运行"📊 全面测试"
-2. 等待测试完成
-3. 应用界面的文本框中显示测试结果摘要
-4. 详细报告在 Xcode 控制台
-
----
-
-## 更新测试报告
-
-1. 打开 `TEST_REPORT_TEMPLATE.md`
-2. 根据实际测试结果填写内容
-3. 保存为 `TEST_REPORT_2026-03-16.md`
-
----
-
-## 退出模拟器
-
-- 按 `Cmd + Q` 或点击 Xcode 的 Stop 按钮（⏹️）
-
----
-
-## 下一步
-
-测试完成后，请报告：
-
-1. 哪些测试通过了？
-2. 哪些测试失败了？
-3. 是否检测到内存泄漏？
-4. 有无异常情况？
-
-我们将根据你的反馈进行分析和修复。
+- `PodExampleTests` 全部通过。
+- `PodExample` 可以针对 iOS Simulator 构建。
+- T9-T11 在网络可用时通过。
+- 公网不可达只影响应用内冒烟测试，不应影响自动化 XCTest。
+- 测试报告不得把“响应一致”表述成“已证明只发起一次请求”，也不得把普通成功请求表述成“已验证重试”。

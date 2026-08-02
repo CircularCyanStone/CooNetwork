@@ -32,6 +32,12 @@ struct HttpBinResponse: Decodable, Sendable {
     let url: String
 }
 
+func headerValue(in headers: [String: String], named name: String) -> String? {
+    headers.first { key, _ in
+        key.caseInsensitiveCompare(name) == .orderedSame
+    }?.value
+}
+
 // MARK: - Test Result Models
 
 enum TestStatus {
@@ -137,7 +143,7 @@ struct DirectDataParsingInterceptor<ResponseData: Decodable & Sendable>: iNtkRes
         guard let clientResponse = response as? NtkClientResponse else {
             throw NtkError.invalidResponseType(response: response)
         }
-        guard let afRequest = context.mutableRequest.originalRequest as? iAFRequest else {
+        guard let afRequest = context.request.originalRequest as? iAFRequest else {
             fatalError("request must be iAFRequest type")
         }
 
@@ -198,5 +204,75 @@ struct DirectDataParsingInterceptor<ResponseData: Decodable & Sendable>: iNtkRes
         } catch {
             throw error
         }
+    }
+}
+
+// MARK: - Request Modification Fixtures
+
+struct EchoRequestModifier: iNtkRequestModifyingInterceptor {
+    func modifyRequest(_ request: NtkMutableRequest) async throws -> NtkMutableRequest {
+        var request = request
+        request.addParameter(key: "modifier", value: "applied")
+        request.addHeader(key: "X-Request-Modifier", value: "applied")
+        request["modifier-source"] = "PodExample"
+        return request
+    }
+}
+
+struct TraceRequestModifier: iNtkRequestModifyingInterceptor {
+    let value: String
+
+    func modifyRequest(_ request: NtkMutableRequest) async throws -> NtkMutableRequest {
+        var request = request
+        let trace = [request.headers?["X-Modifier-Trace"], value]
+            .compactMap { $0 }
+            .joined(separator: ",")
+        request.addHeader(key: "X-Modifier-Trace", value: trace)
+        return request
+    }
+}
+
+actor ContextFlowProbe {
+    private var writerInput: String?
+    private var readerInput: String?
+
+    func recordWriterInput(_ value: String?) {
+        writerInput = value
+    }
+
+    func recordReaderInput(_ value: String?) {
+        readerInput = value
+    }
+
+    func snapshot() -> (writerInput: String?, readerInput: String?) {
+        (writerInput, readerInput)
+    }
+}
+
+struct ContextWritingInterceptor: iNtkInterceptor {
+    let priority: NtkInterceptorPriority = .high
+    let probe: ContextFlowProbe
+
+    func intercept(
+        context: NtkInterceptorContext,
+        next: any iNtkRequestHandler
+    ) async throws -> any iNtkResponse {
+        await probe.recordWriterInput(context.extraData["context-trace"] as? String)
+        var downstreamContext = context
+        downstreamContext.extraData["context-trace"] = "propagated"
+        return try await next.handle(context: downstreamContext)
+    }
+}
+
+struct ContextReadingInterceptor: iNtkInterceptor {
+    let priority: NtkInterceptorPriority = .low
+    let probe: ContextFlowProbe
+
+    func intercept(
+        context: NtkInterceptorContext,
+        next: any iNtkRequestHandler
+    ) async throws -> any iNtkResponse {
+        await probe.recordReaderInput(context.extraData["context-trace"] as? String)
+        return try await next.handle(context: context)
     }
 }
