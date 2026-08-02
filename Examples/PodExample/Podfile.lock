@@ -1,11 +1,11 @@
 PODS:
   - Alamofire (5.11.0)
-  - CooNetwork (0.1.1):
-    - CooNetwork/Core (= 0.1.1)
-  - CooNetwork/Alamofire (0.1.1):
+  - CooNetwork (0.2.0):
+    - CooNetwork/Core (= 0.2.0)
+  - CooNetwork/Alamofire (0.2.0):
     - Alamofire (~> 5.10)
     - CooNetwork/Core
-  - CooNetwork/Core (0.1.1)
+  - CooNetwork/Core (0.2.0)
   - Reachability (3.7.7)
 
 DEPENDENCIES:
@@ -24,7 +24,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   Alamofire: bd5e7b23a1a750975288482c1831d71e74415f86
-  CooNetwork: caa1542fed1f864351dda9e0ba77447cb4aa30ba
+  CooNetwork: 128a7bdd64d8e7ac10ab2480780e5e06ade021fe
   Reachability: 8bf74b755b2993968c344b465c13e602db2b1044
 
 PODFILE CHECKSUM: 4d4a049bca67445c851847e78594f8fb1cf136a0
