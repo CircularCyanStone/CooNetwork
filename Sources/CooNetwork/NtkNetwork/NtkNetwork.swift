@@ -160,10 +160,9 @@ extension NtkNetwork {
 
     /// 取消当前请求
     public func cancel() async {
-        let requestToCancel = lock.withLock { mutableRequest }
-        // 取消通过引用类型状态
-        requestToCancel.isCancelledRef?.cancel()
-        await NtkTaskManager.shared.cancelRequest(request: requestToCancel)
+        let request = lock.withLock { mutableRequest }
+        request.isCancelledRef?.cancel()
+        await NtkTaskManager.shared.cancelRequest(instanceIdentifier: request.instanceIdentifier)
     }
 
     /// 设置请求的额外数据

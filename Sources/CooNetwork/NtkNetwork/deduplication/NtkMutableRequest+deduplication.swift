@@ -12,18 +12,6 @@ import Foundation
 extension NtkMutableRequest {
 
     private static let deduplicationEnabledKey = "ntk_deduplication_enabled"
-    private static let responseTypeKey = "ntk_response_type"
-
-    /// 响应类型（用于去重隔离）
-    /// 解决泛型擦除问题，确保不同返回类型的请求能够生成不同的去重键
-    var responseType: String? {
-        get {
-            return extraData[Self.responseTypeKey] as? String
-        }
-        set {
-            extraData[Self.responseTypeKey] = newValue
-        }
-    }
 
     /// 禁用去重
     /// - Returns: 返回自身，支持链式调用

@@ -38,7 +38,6 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
         ) {
             var request = request
             request.refreshConfigurationSnapshot()
-            request.responseType = String(describing: ResponseData.self)
             let builder = globalConfiguration.builder
             self.client = client
             self.request = request

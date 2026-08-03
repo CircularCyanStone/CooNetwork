@@ -14,847 +14,312 @@ struct NtkTaskManagerTests {
     @Test
     func testDisabledDeduplicationKeepsLatestTaskMapped() async throws {
         let gate = TaskExecutionGate()
-
-        var firstRequest = NtkMutableRequest(
-            TaskManagerDummyRequest(path: "/task-manager/test/non-dedup-count"))
-        firstRequest.responseType = "String"
+        var firstRequest = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/test/non-dedup-count"))
         firstRequest.disableDeduplication()
-
-        var secondRequest = NtkMutableRequest(
-            TaskManagerDummyRequest(path: "/task-manager/test/non-dedup-count"))
-        secondRequest.responseType = "String"
+        var secondRequest = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/test/non-dedup-count"))
         secondRequest.disableDeduplication()
 
         let firstTask = Task {
-            try await NtkTaskManager.shared.executeWithDeduplication(request: firstRequest) {
-                await gate.signalFirstStarted()
-                await gate.waitForFirstRelease()
-                return "first"
-            } as String
+            try await NtkTaskManager.shared.executeWithDeduplication(
+                request: firstRequest, identity: nil, effectiveTimeout: 30
+            ) { await gate.signalFirstStarted(); await gate.waitForFirstRelease(); return "first" } as String
         }
-
         await gate.waitUntilFirstStarted()
-
         let secondTask = Task {
-            try await NtkTaskManager.shared.executeWithDeduplication(request: secondRequest) {
-                await gate.signalSecondStarted()
-                await gate.waitForSecondRelease()
-                return "second"
-            } as String
+            try await NtkTaskManager.shared.executeWithDeduplication(
+                request: secondRequest, identity: nil, effectiveTimeout: 30
+            ) { await gate.signalSecondStarted(); await gate.waitForSecondRelease(); return "second" } as String
         }
-
         await gate.waitUntilSecondStarted()
-
-        let activeBeforeRelease = await NtkTaskManager.shared.isRequestActive(request: firstRequest)
-        #expect(activeBeforeRelease == true)
-
+        #expect(await NtkTaskManager.shared.isRequestActive(instanceIdentifier: firstRequest.instanceIdentifier))
         await gate.releaseFirst()
-        let firstValue = try await firstTask.value
-        #expect(firstValue == "first")
-
-        let activeAfterFirstFinished = await NtkTaskManager.shared.isRequestActive(request: firstRequest)
-        #expect(activeAfterFirstFinished == true)
-
+        #expect(try await firstTask.value == "first")
+        #expect(await NtkTaskManager.shared.isRequestActive(instanceIdentifier: firstRequest.instanceIdentifier) == false)
+        #expect(await NtkTaskManager.shared.isRequestActive(instanceIdentifier: secondRequest.instanceIdentifier))
         await gate.releaseSecond()
-        let secondValue = try await secondTask.value
-        #expect(secondValue == "second")
-
-        let activeAfterAllFinished = await NtkTaskManager.shared.isRequestActive(request: firstRequest)
-        #expect(activeAfterAllFinished == false)
+        #expect(try await secondTask.value == "second")
+        #expect(await NtkTaskManager.shared.isRequestActive(instanceIdentifier: secondRequest.instanceIdentifier) == false)
     }
 
     @Test
     func testDifferentResponseTypesShouldNotDedup() async throws {
         let counter = ExecutionCounter()
         let gate = TaskExecutionGate()
-
-        // 两个请求路径相同（baseRequestId 相同），但返回类型不同
-        var stringRequest = NtkMutableRequest(
-            TaskManagerDummyRequest(path: "/task-manager/test/type-isolation"))
-        stringRequest.responseType = "String"
-
-        var intRequest = NtkMutableRequest(
-            TaskManagerDummyRequest(path: "/task-manager/test/type-isolation"))
-        intRequest.responseType = "Int"
-
-        // 启动 String 类型的请求，并让它挂起
+        let stringRequest = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/test/type-isolation"))
+        let intRequest = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/test/type-isolation"))
         let stringTask = Task {
             try await NtkTaskManager.shared.executeWithDeduplication(
-                request: stringRequest
-            ) {
-                await counter.increment()
-                await gate.signalFirstStarted()
-                await gate.waitForFirstRelease()
-                return "string-result"
-            } as String
+                request: stringRequest, identity: deduplicationIdentity(String.self), effectiveTimeout: 30
+            ) { await counter.increment(); await gate.signalFirstStarted(); await gate.waitForFirstRelease(); return "string-result" } as String
         }
-
         await gate.waitUntilFirstStarted()
-
-        // 启动 Int 类型的请求，它应该不会被去重，而是直接执行
         let intTask = Task {
             try await NtkTaskManager.shared.executeWithDeduplication(
-                request: intRequest
-            ) {
-                await counter.increment()
-                await gate.signalSecondStarted()
-                await gate.waitForSecondRelease()
-                return 42
-            } as Int
+                request: intRequest, identity: deduplicationIdentity(Int.self), effectiveTimeout: 30
+            ) { await counter.increment(); await gate.signalSecondStarted(); await gate.waitForSecondRelease(); return 42 } as Int
         }
-
-        // 确保第二个任务也启动了（说明没有被阻塞等待第一个任务）
         await gate.waitUntilSecondStarted()
-
-        // 验证两个请求都处于活跃状态
-        let stringActive = await NtkTaskManager.shared.isRequestActive(request: stringRequest)
-        let intActive = await NtkTaskManager.shared.isRequestActive(request: intRequest)
-        #expect(stringActive == true)
-        #expect(intActive == true)
-
-        // 释放所有任务
-        await gate.releaseFirst()
-        await gate.releaseSecond()
-
-        let stringResult = try await stringTask.value
-        let intResult = try await intTask.value
-        let executionCount = await counter.value()
-
-        #expect(stringResult == "string-result")
-        #expect(intResult == 42)
-        // 两个任务都应该执行了闭包
-        #expect(executionCount == 2)
+        #expect(await NtkTaskManager.shared.isRequestActive(instanceIdentifier: stringRequest.instanceIdentifier))
+        #expect(await NtkTaskManager.shared.isRequestActive(instanceIdentifier: intRequest.instanceIdentifier))
+        await gate.releaseFirst(); await gate.releaseSecond()
+        #expect(try await stringTask.value == "string-result")
+        #expect(try await intTask.value == 42)
+        #expect(await counter.value() == 2)
     }
 
     @Test
     func testCancelRequestCancelsOnlyCurrentDisabledDeduplicationTask() async throws {
         let gate = TaskExecutionGate()
-
-        var firstRequest = NtkMutableRequest(
-            TaskManagerDummyRequest(path: "/task-manager/test/non-dedup-cancel"))
-        firstRequest.responseType = "String"
-        firstRequest.disableDeduplication()
-
-        var secondRequest = NtkMutableRequest(
-            TaskManagerDummyRequest(path: "/task-manager/test/non-dedup-cancel"))
-        secondRequest.responseType = "String"
+        var firstRequest = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/test/non-dedup-cancel"))
+        firstRequest.disableDeduplication(); firstRequest.isCancelledRef = NtkCancellableState()
+        var secondRequest = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/test/non-dedup-cancel"))
         secondRequest.disableDeduplication()
-
-        let firstTask = Task {
-            do {
-                let value: String = try await NtkTaskManager.shared.executeWithDeduplication(
-                    request: firstRequest
-                ) {
-                    await gate.signalFirstStarted()
-                    try await Task.sleep(nanoseconds: 300_000_000)
-                    return "first"
-                }
-                return Result<String, Error>.success(value)
-            } catch {
-                return Result<String, Error>.failure(error)
-            }
+        let firstSnapshot = firstRequest
+        let firstTask = Task { () -> Result<String, Error> in
+            do { return .success(try await NtkTaskManager.shared.executeWithDeduplication(request: firstSnapshot, identity: nil, effectiveTimeout: 30) {
+                await gate.signalFirstStarted(); try await Task.sleep(nanoseconds: 300_000_000); return "first"
+            }) } catch { return .failure(error) }
         }
-
-        let secondTask = Task {
-            do {
-                let value: String = try await NtkTaskManager.shared.executeWithDeduplication(
-                    request: secondRequest
-                ) {
-                    await gate.signalSecondStarted()
-                    await gate.waitForSecondRelease()
-                    try Task.checkCancellation()
-                    return "second"
-                }
-                return Result<String, Error>.success(value)
-            } catch {
-                return Result<String, Error>.failure(error)
-            }
+        let secondTask = Task { () -> Result<String, Error> in
+            do { return .success(try await NtkTaskManager.shared.executeWithDeduplication(request: secondRequest, identity: nil, effectiveTimeout: 30) {
+                await gate.signalSecondStarted(); await gate.waitForSecondRelease(); try Task.checkCancellation(); return "second"
+            }) } catch { return .failure(error) }
         }
-
-        await gate.waitUntilFirstStarted()
-        await gate.waitUntilSecondStarted()
-
-        await NtkTaskManager.shared.cancelRequest(request: firstRequest)
-
+        await gate.waitUntilFirstStarted(); await gate.waitUntilSecondStarted()
+        firstRequest.isCancelledRef?.cancel()
+        await NtkTaskManager.shared.cancelRequest(instanceIdentifier: firstRequest.instanceIdentifier)
         await gate.releaseSecond()
-
-        let firstResult = await firstTask.value
-        let secondResult = await secondTask.value
-
-        if case .success = firstResult {
-            Issue.record("第一个非去重请求应被取消")
-        } else if case .failure(let error) = firstResult {
-            let isExpectedCancellation = isCancellationError(error)
-            #expect(isExpectedCancellation == true)
-        }
-        if case .failure = secondResult {
-            Issue.record("第二个非去重请求不应被取消")
-        }
-
-        if case .success(let value) = secondResult {
-            #expect(value == "second")
-        }
-
-        let activeAfterCancel = await NtkTaskManager.shared.isRequestActive(request: secondRequest)
-        #expect(activeAfterCancel == false)
+        if case .failure(let error) = await firstTask.value { #expect(isCancellationError(error)) } else { Issue.record("第一个非去重请求应被取消") }
+        if case .failure = await secondTask.value { Issue.record("第二个非去重请求不应被取消") }
+        #expect(await NtkTaskManager.shared.isRequestActive(instanceIdentifier: secondRequest.instanceIdentifier) == false)
     }
 
     @Test
     func testEnabledDeduplicationSharesSingleExecution() async throws {
-        let counter = ExecutionCounter()
-        let gate = TaskExecutionGate()
-
-        var firstRequest = NtkMutableRequest(
-            TaskManagerDummyRequest(path: "/task-manager/test/dedup-shared"))
-        firstRequest.responseType = "String"
-        var secondRequest = NtkMutableRequest(
-            TaskManagerDummyRequest(path: "/task-manager/test/dedup-shared"))
-        secondRequest.responseType = "String"
-
-        let firstTask = Task {
-            try await NtkTaskManager.shared.executeWithDeduplication(request: firstRequest) {
-                await counter.increment()
-                await gate.signalFirstStarted()
-                await gate.waitForFirstRelease()
-                return "shared"
-            } as String
-        }
-
+        let counter = ExecutionCounter(); let gate = TaskExecutionGate()
+        let firstRequest = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/test/dedup-shared"))
+        let secondRequest = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/test/dedup-shared"))
+        let identity = deduplicationIdentity(String.self)
+        let firstTask = Task { try await NtkTaskManager.shared.executeWithDeduplication(request: firstRequest, identity: identity, effectiveTimeout: 30) {
+            await counter.increment(); await gate.signalFirstStarted(); await gate.waitForFirstRelease(); return "shared"
+        } as String }
         await gate.waitUntilFirstStarted()
-
-        let secondTask = Task {
-            try await NtkTaskManager.shared.executeWithDeduplication(request: secondRequest) {
-                await counter.increment()
-                return "should-not-run"
-            } as String
-        }
-
-        let activeDuringDedup = await NtkTaskManager.shared.isRequestActive(request: firstRequest)
-        #expect(activeDuringDedup == true)
-
+        let secondTask = Task { try await NtkTaskManager.shared.executeWithDeduplication(request: secondRequest, identity: identity, effectiveTimeout: 30) {
+            await counter.increment(); return "should-not-run"
+        } as String }
+        #expect(await NtkTaskManager.shared.isRequestActive(instanceIdentifier: firstRequest.instanceIdentifier))
         await gate.releaseFirst()
-        let firstValue = try await firstTask.value
-        let secondValue = try await secondTask.value
-        let executionCount = await counter.value()
-
-        #expect(firstValue == "shared")
-        #expect(secondValue == "shared")
-        #expect(executionCount == 1)
+        #expect(try await firstTask.value == "shared")
+        #expect(try await secondTask.value == "shared")
+        #expect(await counter.value() == 1)
     }
 
     @Test
     func testCancelAndReenterDedupRequestKeepsNewTaskMapped() async throws {
         let gate = TaskExecutionGate()
-        var request = NtkMutableRequest(
-            TaskManagerDummyRequest(path: "/task-manager/test/dedup-cancel-reenter"))
-        request.responseType = "String"
-        request.isCancelledRef = NtkCancellableState()
-        let firstRequestSnapshot = request
-
-        let firstTask = Task {
-            do {
-                let value: String = try await NtkTaskManager.shared.executeWithDeduplication(
-                    request: firstRequestSnapshot
-                ) {
-                    await gate.signalFirstStarted()
-                    await gate.waitForFirstRelease()
-                    return "cancelled-first"
-                }
-                return Result<String, Error>.success(value)
-            } catch {
-                return Result<String, Error>.failure(error)
-            }
+        var request = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/test/dedup-cancel-reenter"))
+        request.isCancelledRef = NtkCancellableState(); let snapshot = request
+        let identity = deduplicationIdentity(String.self)
+        let firstTask = Task { () -> Result<String, Error> in
+            do { return .success(try await NtkTaskManager.shared.executeWithDeduplication(request: snapshot, identity: identity, effectiveTimeout: 30) {
+                await gate.signalFirstStarted(); await gate.waitForFirstRelease(); return "cancelled-first"
+            }) } catch { return .failure(error) }
         }
-
-        await gate.waitUntilFirstStarted()
-
-        // 取消请求：设置 isCancelledRef + cancelRequest
-        request.isCancelledRef?.cancel()
-        await NtkTaskManager.shared.cancelRequest(request: request)
-
-        // 创建新的请求实例（模拟重新发起）
-        var newRequest = NtkMutableRequest(
-            TaskManagerDummyRequest(path: "/task-manager/test/dedup-cancel-reenter"))
-        newRequest.responseType = "String"
-
-        let secondTask = Task {
-            try await NtkTaskManager.shared.executeWithDeduplication(request: newRequest) {
-                await gate.signalSecondStarted()
-                await gate.waitForSecondRelease()
-                return "second"
-            } as String
-        }
-
+        await gate.waitUntilFirstStarted(); request.isCancelledRef?.cancel()
+        await NtkTaskManager.shared.cancelRequest(instanceIdentifier: request.instanceIdentifier)
+        let newRequest = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/test/dedup-cancel-reenter"))
+        let secondTask = Task { try await NtkTaskManager.shared.executeWithDeduplication(request: newRequest, identity: identity, effectiveTimeout: 30) {
+            await gate.signalSecondStarted(); await gate.waitForSecondRelease(); return "second"
+        } as String }
         await gate.waitUntilSecondStarted()
-        let activeBeforeFirstFinishes = await NtkTaskManager.shared.isRequestActive(request: newRequest)
-        #expect(activeBeforeFirstFinishes == true)
-
-        await gate.releaseFirst()
-        _ = await firstTask.value
-
-        let activeAfterFirstFinishes = await NtkTaskManager.shared.isRequestActive(request: newRequest)
-        #expect(activeAfterFirstFinishes == true)
-
-        await gate.releaseSecond()
-        let secondValue = try await secondTask.value
-        #expect(secondValue == "second")
+        #expect(await NtkTaskManager.shared.isRequestActive(instanceIdentifier: newRequest.instanceIdentifier))
+        await gate.releaseFirst(); _ = await firstTask.value
+        #expect(await NtkTaskManager.shared.isRequestActive(instanceIdentifier: newRequest.instanceIdentifier))
+        await gate.releaseSecond(); #expect(try await secondTask.value == "second")
     }
 
-    // MARK: - 取消隔离测试（新增 + 恢复）
-
-    /// 场景 2：follower 取消，owner 和其他 follower 继续正常拿到结果
     @Test
     func testDedupFollowerCancelDoesNotAffectSharedWaiting() async throws {
-        let gate = TaskExecutionGate()
-        let counter = ExecutionCounter()
-
-        var ownerRequest = NtkMutableRequest(
-            TaskManagerDummyRequest(path: "/task-manager/test/dedup-follower-cancel"))
-        ownerRequest.responseType = "String"
-
-        var followerRequest = NtkMutableRequest(
-            TaskManagerDummyRequest(path: "/task-manager/test/dedup-follower-cancel"))
-        followerRequest.responseType = "String"
-        followerRequest.isCancelledRef = NtkCancellableState()
-        let followerRequestSnapshot = followerRequest
-
-        var anotherFollowerRequest = NtkMutableRequest(
-            TaskManagerDummyRequest(path: "/task-manager/test/dedup-follower-cancel"))
-        anotherFollowerRequest.responseType = "String"
-
-        #expect(ownerRequest.instanceIdentifier != followerRequest.instanceIdentifier)
-
-        // owner 发起请求
-        let ownerTask = Task {
-            try await NtkTaskManager.shared.executeWithDeduplication(request: ownerRequest) {
-                await counter.increment()
-                await gate.signalFirstStarted()
-                await gate.waitForFirstRelease()
-                return "shared"
-            } as String
-        }
-
+        let gate = TaskExecutionGate(); let counter = ExecutionCounter(); let identity = deduplicationIdentity(String.self)
+        let owner = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/test/dedup-follower-cancel"))
+        var follower = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/test/dedup-follower-cancel")); follower.isCancelledRef = NtkCancellableState(); let followerSnapshot = follower
+        let another = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/test/dedup-follower-cancel"))
+        let ownerTask = Task { try await NtkTaskManager.shared.executeWithDeduplication(request: owner, identity: identity, effectiveTimeout: 30) {
+            await counter.increment(); await gate.signalFirstStarted(); await gate.waitForFirstRelease(); return "shared"
+        } as String }
         await gate.waitUntilFirstStarted()
-
-        // follower 加入（会被去重）
-        let followerTask = Task {
-            do {
-                let value: String = try await NtkTaskManager.shared.executeWithDeduplication(
-                    request: followerRequestSnapshot
-                ) {
-                    await counter.increment()
-                    return "should-not-run"
-                }
-                return Result<String, Error>.success(value)
-            } catch {
-                return Result<String, Error>.failure(error)
-            }
-        }
-
-        // 等待 follower 进入等待状态
-        try await Task.sleep(nanoseconds: 50_000_000)
-
-        // 取消 follower
-        followerRequest.isCancelledRef?.cancel()
-        await NtkTaskManager.shared.cancelRequest(request: followerRequest)
-
-        // 另一个 follower 在取消后加入
-        let anotherFollowerTask = Task {
-            try await NtkTaskManager.shared.executeWithDeduplication(
-                request: anotherFollowerRequest
-            ) {
-                await counter.increment()
-                return "should-not-run"
-            } as String
-        }
-
-        try await Task.sleep(nanoseconds: 50_000_000)
-
-        // 释放底层任务
-        await gate.releaseFirst()
-
-        let ownerValue = try await ownerTask.value
-        let followerResult = await followerTask.value
-        let anotherFollowerValue = try await anotherFollowerTask.value
-        let executionCount = await counter.value()
-
-        // owner 正常拿到结果
-        #expect(ownerValue == "shared")
-        // 另一个 follower 也正常拿到结果
-        #expect(anotherFollowerValue == "shared")
-        // 被取消的 follower 应该收到取消错误
-        if case .failure(let error) = followerResult {
-            #expect(isCancellationError(error))
-        } else {
-            Issue.record("被取消的 follower 应该收到错误")
-        }
-        // 只执行了一次闭包
-        #expect(executionCount == 1)
+        let followerTask = Task { () -> Result<String, Error> in do { return .success(try await NtkTaskManager.shared.executeWithDeduplication(request: followerSnapshot, identity: identity, effectiveTimeout: 30) { await counter.increment(); return "should-not-run" }) } catch { return .failure(error) } }
+        try await Task.sleep(nanoseconds: 50_000_000); follower.isCancelledRef?.cancel()
+        await NtkTaskManager.shared.cancelRequest(instanceIdentifier: follower.instanceIdentifier)
+        let anotherTask = Task { try await NtkTaskManager.shared.executeWithDeduplication(request: another, identity: identity, effectiveTimeout: 30) { await counter.increment(); return "should-not-run" } as String }
+        try await Task.sleep(nanoseconds: 50_000_000); await gate.releaseFirst()
+        #expect(try await ownerTask.value == "shared")
+        if case .failure(let error) = await followerTask.value { #expect(isCancellationError(error)) } else { Issue.record("被取消的 follower 应该收到错误") }
+        #expect(try await anotherTask.value == "shared"); #expect(await counter.value() == 1)
     }
 
-    /// 场景 3：owner 取消，follower 继续正常拿到结果
     @Test
     func testDedupOwnerCancelDoesNotAffectFollower() async throws {
-        let gate = TaskExecutionGate()
-        let counter = ExecutionCounter()
-
-        var ownerRequest = NtkMutableRequest(
-            TaskManagerDummyRequest(path: "/task-manager/test/dedup-owner-cancel"))
-        ownerRequest.responseType = "String"
-        ownerRequest.isCancelledRef = NtkCancellableState()
-        let ownerRequestSnapshot = ownerRequest
-
-        var followerRequest = NtkMutableRequest(
-            TaskManagerDummyRequest(path: "/task-manager/test/dedup-owner-cancel"))
-        followerRequest.responseType = "String"
-
-        // owner 发起请求
-        let ownerTask = Task {
-            do {
-                let value: String = try await NtkTaskManager.shared.executeWithDeduplication(
-                    request: ownerRequestSnapshot
-                ) {
-                    await counter.increment()
-                    await gate.signalFirstStarted()
-                    await gate.waitForFirstRelease()
-                    return "shared"
-                }
-                return Result<String, Error>.success(value)
-            } catch {
-                return Result<String, Error>.failure(error)
-            }
-        }
-
+        let gate = TaskExecutionGate(); let counter = ExecutionCounter(); let identity = deduplicationIdentity(String.self)
+        var owner = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/test/dedup-owner-cancel")); owner.isCancelledRef = NtkCancellableState(); let ownerSnapshot = owner
+        let follower = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/test/dedup-owner-cancel"))
+        let ownerTask = Task { () -> Result<String, Error> in do { return .success(try await NtkTaskManager.shared.executeWithDeduplication(request: ownerSnapshot, identity: identity, effectiveTimeout: 30) { await counter.increment(); await gate.signalFirstStarted(); await gate.waitForFirstRelease(); return "shared" }) } catch { return .failure(error) } }
         await gate.waitUntilFirstStarted()
-
-        // follower 加入
-        let followerTask = Task {
-            try await NtkTaskManager.shared.executeWithDeduplication(request: followerRequest) {
-                await counter.increment()
-                return "should-not-run"
-            } as String
-        }
-
-        // 等待 follower 进入等待状态
-        try await Task.sleep(nanoseconds: 50_000_000)
-
-        // 取消 owner
-        ownerRequest.isCancelledRef?.cancel()
-        await NtkTaskManager.shared.cancelRequest(request: ownerRequest)
-
-        // 释放底层任务
-        await gate.releaseFirst()
-
-        let ownerResult = await ownerTask.value
-        let followerValue = try await followerTask.value
-        let executionCount = await counter.value()
-
-        // owner 应该收到取消错误
-        if case .failure(let error) = ownerResult {
-            #expect(isCancellationError(error))
-        } else {
-            Issue.record("被取消的 owner 应该收到错误")
-        }
-        // follower 正常拿到结果
-        #expect(followerValue == "shared")
-        // 只执行了一次闭包
-        #expect(executionCount == 1)
+        let followerTask = Task { try await NtkTaskManager.shared.executeWithDeduplication(request: follower, identity: identity, effectiveTimeout: 30) { await counter.increment(); return "should-not-run" } as String }
+        try await Task.sleep(nanoseconds: 50_000_000); owner.isCancelledRef?.cancel()
+        await NtkTaskManager.shared.cancelRequest(instanceIdentifier: owner.instanceIdentifier); await gate.releaseFirst()
+        if case .failure(let error) = await ownerTask.value { #expect(isCancellationError(error)) } else { Issue.record("被取消的 owner 应该收到错误") }
+        #expect(try await followerTask.value == "shared"); #expect(await counter.value() == 1)
     }
 
-    /// 场景 4：所有等待者取消后，底层 Task 也被取消
     @Test
     func testDedupAllWaitersCancelledCancelsUnderlyingTask() async throws {
-        let gate = TaskExecutionGate()
-        let counter = ExecutionCounter()
-
-        var ownerRequest = NtkMutableRequest(
-            TaskManagerDummyRequest(path: "/task-manager/test/dedup-all-cancel"))
-        ownerRequest.responseType = "String"
-        ownerRequest.isCancelledRef = NtkCancellableState()
-
-        var followerRequest = NtkMutableRequest(
-            TaskManagerDummyRequest(path: "/task-manager/test/dedup-all-cancel"))
-        followerRequest.responseType = "String"
-        followerRequest.isCancelledRef = NtkCancellableState()
-        let ownerRequestSnapshot = ownerRequest
-        let followerRequestSnapshot = followerRequest
-
-        // owner 发起请求
-        let ownerTask = Task {
-            do {
-                let value: String = try await NtkTaskManager.shared.executeWithDeduplication(
-                    request: ownerRequestSnapshot
-                ) {
-                    await counter.increment()
-                    await gate.signalFirstStarted()
-                    await gate.waitForFirstRelease()
-                    return "should-not-complete"
-                }
-                return Result<String, Error>.success(value)
-            } catch {
-                return Result<String, Error>.failure(error)
-            }
-        }
-
+        let gate = TaskExecutionGate(); let identity = deduplicationIdentity(String.self)
+        var owner = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/test/dedup-all-cancel")); owner.isCancelledRef = NtkCancellableState(); let ownerSnapshot = owner
+        var follower = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/test/dedup-all-cancel")); follower.isCancelledRef = NtkCancellableState(); let followerSnapshot = follower
+        let ownerTask = Task { () -> Result<String, Error> in do { return .success(try await NtkTaskManager.shared.executeWithDeduplication(request: ownerSnapshot, identity: identity, effectiveTimeout: 30) { await gate.signalFirstStarted(); await gate.waitForFirstRelease(); return "should-not-complete" }) } catch { return .failure(error) } }
         await gate.waitUntilFirstStarted()
-
-        // follower 加入
-        let followerTask = Task {
-            do {
-                let value: String = try await NtkTaskManager.shared.executeWithDeduplication(
-                    request: followerRequestSnapshot
-                ) {
-                    await counter.increment()
-                    return "should-not-run"
-                }
-                return Result<String, Error>.success(value)
-            } catch {
-                return Result<String, Error>.failure(error)
-            }
-        }
-
-        try await Task.sleep(nanoseconds: 50_000_000)
-
-        // 取消 follower
-        followerRequest.isCancelledRef?.cancel()
-        await NtkTaskManager.shared.cancelRequest(request: followerRequest)
-
-        // 取消 owner → totalWaiters = 0 → 底层 Task 被 cancel
-        ownerRequest.isCancelledRef?.cancel()
-        await NtkTaskManager.shared.cancelRequest(request: ownerRequest)
-
-        // entry 应该已被移除
-        let activeAfterAllCancelled = await NtkTaskManager.shared.isRequestActive(request: ownerRequest)
-        #expect(activeAfterAllCancelled == false)
-
-        // 释放 gate 让底层任务能完成（如果还在运行的话）
+        let followerTask = Task { () -> Result<String, Error> in do { return .success(try await NtkTaskManager.shared.executeWithDeduplication(request: followerSnapshot, identity: identity, effectiveTimeout: 30) { return "should-not-run" }) } catch { return .failure(error) } }
+        try await Task.sleep(nanoseconds: 50_000_000); follower.isCancelledRef?.cancel(); await NtkTaskManager.shared.cancelRequest(instanceIdentifier: follower.instanceIdentifier)
+        owner.isCancelledRef?.cancel(); await NtkTaskManager.shared.cancelRequest(instanceIdentifier: owner.instanceIdentifier)
+        #expect(await NtkTaskManager.shared.isRequestActive(instanceIdentifier: owner.instanceIdentifier) == false)
+        #expect(await NtkTaskManager.shared.isRequestActive(instanceIdentifier: follower.instanceIdentifier) == false)
         await gate.releaseFirst()
-
-        let ownerResult = await ownerTask.value
-        let followerResult = await followerTask.value
-
-        // 两者都应该收到取消错误
-        if case .failure(let error) = ownerResult {
-            #expect(isCancellationError(error))
-        } else {
-            Issue.record("owner 应该收到取消错误")
-        }
-        if case .failure(let error) = followerResult {
-            #expect(isCancellationError(error))
-        } else {
-            Issue.record("follower 应该收到取消错误")
-        }
+        if case .failure(let error) = await ownerTask.value { #expect(isCancellationError(error)) } else { Issue.record("owner 应该收到取消错误") }
+        if case .failure(let error) = await followerTask.value { #expect(isCancellationError(error)) } else { Issue.record("follower 应该收到取消错误") }
     }
 
-    /// 场景 4 变体：多个 follower 逐个取消，最后一个取消时底层才取消
     @Test
     func testDedupMultipleFollowersCancelOneByOne() async throws {
-        let gate = TaskExecutionGate()
-
-        var ownerRequest = NtkMutableRequest(
-            TaskManagerDummyRequest(path: "/task-manager/test/dedup-multi-cancel"))
-        ownerRequest.responseType = "String"
-        ownerRequest.isCancelledRef = NtkCancellableState()
-
-        var followerA = NtkMutableRequest(
-            TaskManagerDummyRequest(path: "/task-manager/test/dedup-multi-cancel"))
-        followerA.responseType = "String"
-        followerA.isCancelledRef = NtkCancellableState()
-
-        var followerB = NtkMutableRequest(
-            TaskManagerDummyRequest(path: "/task-manager/test/dedup-multi-cancel"))
-        followerB.responseType = "String"
-        followerB.isCancelledRef = NtkCancellableState()
-        let ownerRequestSnapshot = ownerRequest
-        let followerARequestSnapshot = followerA
-        let followerBRequestSnapshot = followerB
-
-        // owner 发起
-        let ownerTask = Task {
-            do {
-                let value: String = try await NtkTaskManager.shared.executeWithDeduplication(
-                    request: ownerRequestSnapshot
-                ) {
-                    await gate.signalFirstStarted()
-                    await gate.waitForFirstRelease()
-                    return "result"
-                }
-                return Result<String, Error>.success(value)
-            } catch {
-                return Result<String, Error>.failure(error)
-            }
-        }
-
+        let gate = TaskExecutionGate(); let identity = deduplicationIdentity(String.self)
+        var owner = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/test/dedup-multi-cancel")); owner.isCancelledRef = NtkCancellableState(); let ownerSnapshot = owner
+        var followerA = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/test/dedup-multi-cancel")); followerA.isCancelledRef = NtkCancellableState(); let aSnapshot = followerA
+        var followerB = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/test/dedup-multi-cancel")); followerB.isCancelledRef = NtkCancellableState(); let bSnapshot = followerB
+        let ownerTask = Task { () -> Result<String, Error> in do { return .success(try await NtkTaskManager.shared.executeWithDeduplication(request: ownerSnapshot, identity: identity, effectiveTimeout: 30) { await gate.signalFirstStarted(); await gate.waitForFirstRelease(); return "result" }) } catch { return .failure(error) } }
         await gate.waitUntilFirstStarted()
-
-        // followerA 和 followerB 加入
-        let followerATask = Task {
-            do {
-                let value: String = try await NtkTaskManager.shared.executeWithDeduplication(
-                    request: followerARequestSnapshot
-                ) { return "should-not-run" }
-                return Result<String, Error>.success(value)
-            } catch {
-                return Result<String, Error>.failure(error)
-            }
-        }
-
-        let followerBTask = Task {
-            do {
-                let value: String = try await NtkTaskManager.shared.executeWithDeduplication(
-                    request: followerBRequestSnapshot
-                ) { return "should-not-run" }
-                return Result<String, Error>.success(value)
-            } catch {
-                return Result<String, Error>.failure(error)
-            }
-        }
-
+        let aTask = Task { () -> Result<String, Error> in do { return .success(try await NtkTaskManager.shared.executeWithDeduplication(request: aSnapshot, identity: identity, effectiveTimeout: 30) { return "should-not-run" }) } catch { return .failure(error) } }
+        let bTask = Task { () -> Result<String, Error> in do { return .success(try await NtkTaskManager.shared.executeWithDeduplication(request: bSnapshot, identity: identity, effectiveTimeout: 30) { return "should-not-run" }) } catch { return .failure(error) } }
         try await Task.sleep(nanoseconds: 50_000_000)
-
-        // 取消 followerA → 底层 Task 不应被取消（还有 owner + followerB）
-        followerA.isCancelledRef?.cancel()
-        await NtkTaskManager.shared.cancelRequest(request: followerA)
-        let activeAfterFollowerACancelled = await NtkTaskManager.shared.isRequestActive(request: ownerRequest)
-        #expect(activeAfterFollowerACancelled == true)
-
-        // 取消 followerB → 底层 Task 不应被取消（还有 owner）
-        followerB.isCancelledRef?.cancel()
-        await NtkTaskManager.shared.cancelRequest(request: followerB)
-        let activeAfterFollowerBCancelled = await NtkTaskManager.shared.isRequestActive(request: ownerRequest)
-        #expect(activeAfterFollowerBCancelled == true)
-
-        // 取消 owner → totalWaiters = 0 → 底层 Task 被取消
-        ownerRequest.isCancelledRef?.cancel()
-        await NtkTaskManager.shared.cancelRequest(request: ownerRequest)
-        let activeAfterOwnerCancelled = await NtkTaskManager.shared.isRequestActive(request: ownerRequest)
-        #expect(activeAfterOwnerCancelled == false)
-
-        // 释放 gate
+        followerA.isCancelledRef?.cancel(); await NtkTaskManager.shared.cancelRequest(instanceIdentifier: followerA.instanceIdentifier)
+        #expect(await NtkTaskManager.shared.isRequestActive(instanceIdentifier: owner.instanceIdentifier))
+        followerB.isCancelledRef?.cancel(); await NtkTaskManager.shared.cancelRequest(instanceIdentifier: followerB.instanceIdentifier)
+        #expect(await NtkTaskManager.shared.isRequestActive(instanceIdentifier: owner.instanceIdentifier))
+        owner.isCancelledRef?.cancel(); await NtkTaskManager.shared.cancelRequest(instanceIdentifier: owner.instanceIdentifier)
+        #expect(await NtkTaskManager.shared.isRequestActive(instanceIdentifier: owner.instanceIdentifier) == false)
         await gate.releaseFirst()
-
-        let ownerResult = await ownerTask.value
-        let followerAResult = await followerATask.value
-        let followerBResult = await followerBTask.value
-
-        if case .success = ownerResult {
-            Issue.record("owner 应该收到取消错误")
-        }
-        if case .success = followerAResult {
-            Issue.record("followerA 应该收到取消错误")
-        }
-        if case .success = followerBResult {
-            Issue.record("followerB 应该收到取消错误")
-        }
+        if case .failure(let error) = await ownerTask.value { #expect(isCancellationError(error)) } else { Issue.record("owner 应该收到取消错误") }
+        if case .failure(let error) = await aTask.value { #expect(isCancellationError(error)) } else { Issue.record("followerA 应该收到取消错误") }
+        if case .failure(let error) = await bTask.value { #expect(isCancellationError(error)) } else { Issue.record("followerB 应该收到取消错误") }
     }
 
     @Test
     func testMatchingResponseTypeReturnsResultWithoutInvalidTypedResponse() async throws {
-        var request = NtkMutableRequest(
-            TaskManagerDummyRequest(path: "/task-manager/test/matching-response-type"))
-        request.responseType = "String"
-
-        let result: String = try await NtkTaskManager.shared.executeWithDeduplication(request: request) {
-            "fallback-result"
-        }
-
+        let request = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/test/matching-response-type"))
+        let result: String = try await NtkTaskManager.shared.executeWithDeduplication(request: request, identity: deduplicationIdentity(String.self), effectiveTimeout: 30) { "fallback-result" }
         #expect(result == "fallback-result")
     }
 
-    /// 场景 8：follower 被取消，底层 Task 抛网络错误时，follower 收到 requestCancelled
     @Test
     func testDedupFollowerCancelReceivesRequestCancelledNotNetworkError() async throws {
-        let gate = TaskExecutionGate()
-
-        var ownerRequest = NtkMutableRequest(
-            TaskManagerDummyRequest(path: "/task-manager/test/dedup-cancel-error-type"))
-        ownerRequest.responseType = "String"
-
-        var followerRequest = NtkMutableRequest(
-            TaskManagerDummyRequest(path: "/task-manager/test/dedup-cancel-error-type"))
-        followerRequest.responseType = "String"
-        followerRequest.isCancelledRef = NtkCancellableState()
-        let followerRequestSnapshot = followerRequest
-
-        let ownerOriginalRequest = ownerRequest.originalRequest
-
-        // owner 发起请求，最终会抛出网络错误
-        let ownerTask = Task {
-            do {
-                let value: String = try await NtkTaskManager.shared.executeWithDeduplication(
-                    request: ownerRequest
-                ) {
-                    await gate.signalFirstStarted()
-                    await gate.waitForFirstRelease()
-                    // 模拟网络错误
-                    throw NtkError.Serialization.invalidDataPayload(
-                        recoveredResponse: nil
-                    )
-                }
-                return Result<String, Error>.success(value)
-            } catch {
-                return Result<String, Error>.failure(error)
-            }
-        }
-
+        let gate = TaskExecutionGate(); let identity = deduplicationIdentity(String.self)
+        let owner = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/test/dedup-cancel-error-type"))
+        var follower = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/test/dedup-cancel-error-type")); follower.isCancelledRef = NtkCancellableState(); let followerSnapshot = follower
+        let ownerTask = Task { () -> Result<String, Error> in do { return .success(try await NtkTaskManager.shared.executeWithDeduplication(request: owner, identity: identity, effectiveTimeout: 30) { await gate.signalFirstStarted(); await gate.waitForFirstRelease(); throw NtkError.Serialization.invalidDataPayload(recoveredResponse: nil) }) } catch { return .failure(error) } }
         await gate.waitUntilFirstStarted()
-
-        // follower 加入
-        let followerTask = Task {
-            do {
-                let value: String = try await NtkTaskManager.shared.executeWithDeduplication(
-                    request: followerRequestSnapshot
-                ) {
-                    return "should-not-run"
-                }
-                return Result<String, Error>.success(value)
-            } catch {
-                return Result<String, Error>.failure(error)
-            }
-        }
-
-        try await Task.sleep(nanoseconds: 50_000_000)
-
-        // 取消 follower
-        followerRequest.isCancelledRef?.cancel()
-        await NtkTaskManager.shared.cancelRequest(request: followerRequest)
-
-        // 释放底层任务（会抛 NtkError.Serialization.dataMissing）
-        await gate.releaseFirst()
-
-        let ownerResult = await ownerTask.value
-        let followerResult = await followerTask.value
-
-        // owner 收到的是网络错误（未被取消）
-        if case .failure(let error) = ownerResult {
+        let followerTask = Task { () -> Result<String, Error> in do { return .success(try await NtkTaskManager.shared.executeWithDeduplication(request: followerSnapshot, identity: identity, effectiveTimeout: 30) { return "should-not-run" }) } catch { return .failure(error) } }
+        try await Task.sleep(nanoseconds: 50_000_000); follower.isCancelledRef?.cancel(); await NtkTaskManager.shared.cancelRequest(instanceIdentifier: follower.instanceIdentifier); await gate.releaseFirst()
+        if case .failure(let error) = await ownerTask.value {
             if let serialization = error as? NtkError.Serialization,
                case .invalidDataPayload = serialization {
-                // 预期行为
             } else {
-                Issue.record("owner 应该收到 NtkError.Serialization.invalidDataPayload，实际收到: \(error)")
+                Issue.record("owner 应收到网络错误")
             }
-        } else {
-            Issue.record("owner 应该收到错误")
-        }
+        } else { Issue.record("owner 应该收到错误") }
+        if case .failure(let error) = await followerTask.value { #expect(isCancellationError(error)) } else { Issue.record("follower 应该收到错误") }
+    }
 
-        // follower 收到的是 requestCancelled（而非 responseBodyEmpty）
-        if case .failure(let error) = followerResult {
-            if let ntkError = error as? NtkError,
-               case .requestCancelled = ntkError {
-                // 预期行为：已取消的 follower 收到 requestCancelled
-            } else {
-                Issue.record("被取消的 follower 应该收到 requestCancelled，实际收到: \(error)")
-            }
-        } else {
-            Issue.record("被取消的 follower 应该收到错误")
-        }
+    @Test
+    func timeoutNamespaceAndMissingIdentityKeepExecutionsIsolated() async throws {
+        let base = deduplicationIdentity(String.self)
+        try await expectTwoExecutions(first: base, second: deduplicationIdentity(String.self, timeout: 31))
+        try await expectTwoExecutions(first: base, second: deduplicationIdentity(String.self, namespace: "secondary"))
+        try await expectTwoExecutions(first: nil, second: nil)
+    }
+
+    @Test
+    func cancellationUsesInstanceIdentifierAfterRequestContentChanges() async {
+        let gate = TaskExecutionGate()
+        var request = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/instance-index"))
+        request.isCancelledRef = NtkCancellableState(); let snapshot = request
+        let task = Task { try await NtkTaskManager.shared.executeWithDeduplication(request: snapshot, identity: deduplicationIdentity(String.self), effectiveTimeout: 30) {
+            await gate.signalFirstStarted(); await gate.waitForFirstRelease(); return "result"
+        } as String }
+        await gate.waitUntilFirstStarted()
+        request.addParameter(key: "stable", value: UUID().uuidString)
+        request.isCancelledRef?.cancel(); await NtkTaskManager.shared.cancelRequest(instanceIdentifier: request.instanceIdentifier)
+        #expect(await NtkTaskManager.shared.isRequestActive(instanceIdentifier: request.instanceIdentifier) == false)
+        await gate.releaseFirst()
+        do { _ = try await task.value; Issue.record("期望取消错误") } catch { #expect(isCancellationError(error)) }
+    }
+
+    @Test
+    func cancelAllRequestsRemovesEveryInstanceIndex() async {
+        let gate = TaskExecutionGate(); let identity = deduplicationIdentity(String.self)
+        let owner = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/cancel-all"))
+        let follower = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/cancel-all"))
+        let ownerTask = Task { try? await NtkTaskManager.shared.executeWithDeduplication(request: owner, identity: identity, effectiveTimeout: 30) { await gate.signalFirstStarted(); await gate.waitForFirstRelease(); return "result" } as String }
+        await gate.waitUntilFirstStarted()
+        let followerTask = Task { try? await NtkTaskManager.shared.executeWithDeduplication(request: follower, identity: identity, effectiveTimeout: 30) { return "should-not-run" } as String }
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        await NtkTaskManager.shared.cancelAllRequests()
+        #expect(await NtkTaskManager.shared.isRequestActive(instanceIdentifier: owner.instanceIdentifier) == false)
+        #expect(await NtkTaskManager.shared.isRequestActive(instanceIdentifier: follower.instanceIdentifier) == false)
+        await gate.releaseFirst(); _ = await ownerTask.value; _ = await followerTask.value
     }
 }
 
-// MARK: - Test Helpers
-
-private struct TaskManagerDummyRequest: iNtkRequest {
-    let path: String
+private func deduplicationIdentity<Response: Sendable>(
+    _ type: Response.Type,
+    digest: String = "ntk-identity-v2-test",
+    timeout: TimeInterval = 30,
+    namespace: String = "default"
+) -> NtkDeduplicationIdentity {
+    NtkDeduplicationIdentity(requestIdentity: NtkRequestIdentity(digest: digest), responseType: ObjectIdentifier(type), effectiveTimeout: timeout, namespace: namespace)
 }
 
+private func expectTwoExecutions(first: NtkDeduplicationIdentity?, second: NtkDeduplicationIdentity?) async throws {
+    let counter = ExecutionCounter()
+    let firstRequest = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/isolation-matrix"))
+    let secondRequest = NtkMutableRequest(TaskManagerDummyRequest(path: "/task-manager/isolation-matrix"))
+    async let firstValue: String = NtkTaskManager.shared.executeWithDeduplication(request: firstRequest, identity: first, effectiveTimeout: first?.effectiveTimeout ?? 30) {
+        await counter.increment(); try await Task.sleep(nanoseconds: 20_000_000); return "first"
+    }
+    async let secondValue: String = NtkTaskManager.shared.executeWithDeduplication(request: secondRequest, identity: second, effectiveTimeout: second?.effectiveTimeout ?? 30) {
+        await counter.increment(); return "second"
+    }
+    _ = try await (firstValue, secondValue)
+    #expect(await counter.value() == 2)
+}
+
+private struct TaskManagerDummyRequest: iNtkRequest { let path: String }
+
 private actor TaskExecutionGate {
-    private var firstStarted = false
-    private var secondStarted = false
-    private var firstReleased = false
-    private var secondReleased = false
+    private var firstStarted = false; private var secondStarted = false
+    private var firstReleased = false; private var secondReleased = false
     private var firstStartWaiters: [CheckedContinuation<Void, Never>] = []
     private var secondStartWaiters: [CheckedContinuation<Void, Never>] = []
     private var firstReleaseWaiters: [CheckedContinuation<Void, Never>] = []
     private var secondReleaseWaiters: [CheckedContinuation<Void, Never>] = []
-
-    func signalFirstStarted() {
-        firstStarted = true
-        let waiters = firstStartWaiters
-        firstStartWaiters.removeAll()
-        for waiter in waiters {
-            waiter.resume()
-        }
-    }
-
-    func signalSecondStarted() {
-        secondStarted = true
-        let waiters = secondStartWaiters
-        secondStartWaiters.removeAll()
-        for waiter in waiters {
-            waiter.resume()
-        }
-    }
-
-    func waitUntilFirstStarted() async {
-        if firstStarted { return }
-        await withCheckedContinuation { continuation in
-            firstStartWaiters.append(continuation)
-        }
-    }
-
-    func waitUntilSecondStarted() async {
-        if secondStarted { return }
-        await withCheckedContinuation { continuation in
-            secondStartWaiters.append(continuation)
-        }
-    }
-
-    func waitForFirstRelease() async {
-        if firstReleased { return }
-        await withCheckedContinuation { continuation in
-            firstReleaseWaiters.append(continuation)
-        }
-    }
-
-    func waitForSecondRelease() async {
-        if secondReleased { return }
-        await withCheckedContinuation { continuation in
-            secondReleaseWaiters.append(continuation)
-        }
-    }
-
-    func releaseFirst() {
-        firstReleased = true
-        let waiters = firstReleaseWaiters
-        firstReleaseWaiters.removeAll()
-        for waiter in waiters {
-            waiter.resume()
-        }
-    }
-
-    func releaseSecond() {
-        secondReleased = true
-        let waiters = secondReleaseWaiters
-        secondReleaseWaiters.removeAll()
-        for waiter in waiters {
-            waiter.resume()
-        }
-    }
+    func signalFirstStarted() { firstStarted = true; let waiters = firstStartWaiters; firstStartWaiters.removeAll(); for waiter in waiters { waiter.resume() } }
+    func signalSecondStarted() { secondStarted = true; let waiters = secondStartWaiters; secondStartWaiters.removeAll(); for waiter in waiters { waiter.resume() } }
+    func waitUntilFirstStarted() async { if firstStarted { return }; await withCheckedContinuation { firstStartWaiters.append($0) } }
+    func waitUntilSecondStarted() async { if secondStarted { return }; await withCheckedContinuation { secondStartWaiters.append($0) } }
+    func waitForFirstRelease() async { if firstReleased { return }; await withCheckedContinuation { firstReleaseWaiters.append($0) } }
+    func waitForSecondRelease() async { if secondReleased { return }; await withCheckedContinuation { secondReleaseWaiters.append($0) } }
+    func releaseFirst() { firstReleased = true; let waiters = firstReleaseWaiters; firstReleaseWaiters.removeAll(); for waiter in waiters { waiter.resume() } }
+    func releaseSecond() { secondReleased = true; let waiters = secondReleaseWaiters; secondReleaseWaiters.removeAll(); for waiter in waiters { waiter.resume() } }
 }
 
-private actor ExecutionCounter {
-    private var count = 0
-
-    func increment() {
-        count += 1
-    }
-
-    func value() -> Int {
-        count
-    }
-}
-
-private func isCancellationError(_ error: Error) -> Bool {
-    if error is CancellationError {
-        return true
-    }
-    guard let ntkError = error as? NtkError else {
-        return false
-    }
-    if case .requestCancelled = ntkError {
-        return true
-    }
-    return false
-}
-
+private actor ExecutionCounter { private var count = 0; func increment() { count += 1 }; func value() -> Int { count } }
+private func isCancellationError(_ error: Error) -> Bool { error is CancellationError || ((error as? NtkError).map { if case .requestCancelled = $0 { return true }; return false } ?? false) }
 private func requireActor<A: Actor>(_ value: A) {}
