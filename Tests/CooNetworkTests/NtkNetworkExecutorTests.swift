@@ -563,7 +563,7 @@ struct NtkNetworkExecutorTests {
         var request = NtkMutableRequest(ExecSnapshotRequest(timeout: 0.01))
         request.addParameter(key: "custom", value: UnsupportedExecIdentityValue())
         let executor = NtkNetworkExecutor<Bool>(config: .init(
-            client: ExecDelayedClient(delayNanoseconds: 100_000_000),
+            client: ExecDelayedClient(delayNanoseconds: .max),
             request: request,
             interceptors: [NtkResponseParserBox(ExecMockParsingInterceptor())]
         ))
