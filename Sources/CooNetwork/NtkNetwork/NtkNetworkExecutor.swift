@@ -24,6 +24,29 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
         let client: any iNtkClient
         let request: NtkMutableRequest
         let interceptors: [any iNtkInterceptor]
+        let requestIdentityPolicy: NtkRequestIdentityPolicy
+        let isDeduplicationEnabled: Bool
+        let defaultTimeout: TimeInterval
+        let deduplicationNamespace: String
+
+        init(
+            client: any iNtkClient,
+            request: NtkMutableRequest,
+            interceptors: [any iNtkInterceptor],
+            globalConfiguration: NtkConfiguration = .current,
+            deduplicationNamespace: String = "default"
+        ) {
+            var request = request
+            request.refreshConfigurationSnapshot()
+            let builder = globalConfiguration.builder
+            self.client = client
+            self.request = request
+            self.interceptors = interceptors
+            self.requestIdentityPolicy = request.requestIdentityPolicy ?? builder.requestIdentityPolicy
+            self.isDeduplicationEnabled = builder.isDeduplicationEnabled
+            self.defaultTimeout = builder.defaultTimeout
+            self.deduplicationNamespace = deduplicationNamespace
+        }
     }
 
     private let config: Configuration
@@ -50,11 +73,64 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
         return request
     }
 
+    /// 在请求修改完成后冻结本次路径共用的身份和有效超时。
+    private func makeContext(
+        includeDeduplication: Bool,
+        includeCache: Bool
+    ) async throws -> NtkInterceptorContext {
+        var request = try await makeRequest()
+        request.pruneIdentityMetadata()
+        let effectiveTimeout = NtkEffectiveTimeoutResolver.resolve(
+            requested: request.timeout,
+            configuredDefault: config.defaultTimeout
+        )
+        request.applyEffectiveTimeout(effectiveTimeout)
+
+        let deduplicationEnabled = includeDeduplication &&
+            config.isDeduplicationEnabled && request.isDeduplicationEnabled
+        let cacheEnabled = includeCache && request.cacheConfiguration?.isEnabled == true
+        let identity: NtkRequestIdentity?
+        if deduplicationEnabled || cacheEnabled {
+            do {
+                identity = try NtkRequestIdentityBuilder.build(
+                    request: request,
+                    policy: config.requestIdentityPolicy
+                )
+            } catch let failure as NtkRequestIdentityBuilder.Failure {
+                logger.warning(
+                    "Request identity unavailable: \(failure.diagnosticDescription)",
+                    category: .identity
+                )
+                identity = nil
+            }
+        } else {
+            identity = nil
+        }
+
+        let deduplicationIdentity = deduplicationEnabled ? identity.map {
+            NtkDeduplicationIdentity(
+                requestIdentity: $0,
+                responseType: ObjectIdentifier(ResponseData.self),
+                effectiveTimeout: effectiveTimeout,
+                namespace: config.deduplicationNamespace
+            )
+        } : nil
+
+        return NtkInterceptorContext(
+            request: request,
+            requestIdentity: identity,
+            deduplicationIdentity: deduplicationIdentity,
+            effectiveTimeout: effectiveTimeout
+        )
+    }
+
     // MARK: - Core Execution
 
     func execute() async throws -> NtkResponse<ResponseData> {
-        let request = try await makeRequest()
-        let context = NtkInterceptorContext(request: request)
+        let context = try await makeContext(
+            includeDeduplication: true,
+            includeCache: cacheProvider != nil
+        )
 
         // 动态添加核心拦截器（Tier 保证正确排序）
         var interceptorsToRun = config.interceptors
@@ -80,14 +156,22 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
         guard let cacheProvider else {
             return nil
         }
-        let request = try await makeRequest()
-        let context = NtkInterceptorContext(request: request)
+        let context = try await makeContext(
+            includeDeduplication: false,
+            includeCache: true
+        )
+        guard let identity = context.requestIdentity else {
+            return nil
+        }
 
         let parserInterceptors = NtkInterceptorOrdering.sorted(config.interceptors)
             .filter { $0 is NtkResponseParserBox }
 
         let realChainManager = NtkInterceptorChainManager(interceptors: parserInterceptors) { context in
-            guard let data = try await cacheProvider.loadCacheData(for: context.request) else {
+            guard let data = try await cacheProvider.loadCacheData(
+                for: context.request,
+                identity: identity
+            ) else {
                 throw NtkError.Cache.noCache
             }
             return NtkClientResponse(data: data, msg: nil, response: data, request: context.request, isCache: true)
@@ -107,7 +191,11 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
 
     func hasCacheData() async -> Bool where ResponseData == Bool {
         guard let cacheProvider else { return false }
-        guard let request = try? await makeRequest() else { return false }
-        return await cacheProvider.hasCacheData(for: request)
+        guard let context = try? await makeContext(
+            includeDeduplication: false,
+            includeCache: true
+        ) else { return false }
+        guard let identity = context.requestIdentity else { return false }
+        return await cacheProvider.hasCacheData(for: context.request, identity: identity)
     }
 }

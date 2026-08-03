@@ -2,7 +2,245 @@ import Testing
 import Foundation
 @testable import CooNetwork
 
+/// 仅隔离会调用全局 cancelAllRequests 的测试与端到端共享 manager 测试。
+actor NtkTaskManagerTestIsolation {
+    static let shared = NtkTaskManagerTestIsolation()
+
+    private var isLocked = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func withLock<T: Sendable>(
+        _ operation: () async throws -> T
+    ) async rethrows -> T {
+        await acquire()
+        defer { release() }
+        return try await operation()
+    }
+
+    private func acquire() async {
+        if !isLocked {
+            isLocked = true
+            return
+        }
+        await withCheckedContinuation { continuation in
+            waiters.append(continuation)
+        }
+    }
+
+    private func release() {
+        if waiters.isEmpty {
+            isLocked = false
+        } else {
+            waiters.removeFirst().resume()
+        }
+    }
+}
+
+@Suite(.serialized)
 struct NtkNetworkIntegrationTests {
+
+    // MARK: - 稳定请求身份与去重隔离
+
+    @Test
+    func excludedDynamicFieldsDeduplicateForOneStableUser() async throws {
+        try await NtkTaskManagerTestIsolation.shared.withLock {
+            let client = IntegDedupCountingClient()
+            let first = makeIdentityNetwork(
+                client: client,
+                token: "token-one",
+                timestamp: 1_000,
+                userID: "user-42"
+            )
+            let second = makeIdentityNetwork(
+                client: client,
+                token: "token-two",
+                timestamp: 2_000,
+                userID: "user-42"
+            )
+            let secondInstanceIdentifier = second.mutableRequest.instanceIdentifier
+
+            let firstTask = Task { try await first.request() }
+            #expect(await waitForIntegExecutionCount(
+                client,
+                expected: 1,
+                description: "同一用户首个底层执行已登记"
+            ))
+
+            let secondTask = Task { try await second.request() }
+            #expect(await waitForIntegActiveRequest(
+                secondInstanceIdentifier,
+                description: "同一用户 follower 已登记"
+            ))
+
+            await client.release()
+            _ = try await (firstTask.value, secondTask.value)
+            #expect(await client.executionCount() == 1)
+        }
+    }
+
+    @Test
+    func stableUserComponentPreventsCrossUserDeduplication() async throws {
+        try await NtkTaskManagerTestIsolation.shared.withLock {
+            let client = IntegDedupCountingClient()
+            let first = makeIdentityNetwork(
+                client: client,
+                token: "token-one",
+                timestamp: 1_000,
+                userID: "user-a"
+            )
+            let second = makeIdentityNetwork(
+                client: client,
+                token: "token-two",
+                timestamp: 2_000,
+                userID: "user-b"
+            )
+            let secondInstanceIdentifier = second.mutableRequest.instanceIdentifier
+
+            let firstTask = Task { try await first.request() }
+            #expect(await waitForIntegExecutionCount(
+                client,
+                expected: 1,
+                description: "跨用户首个底层执行已登记"
+            ))
+
+            let secondTask = Task { try await second.request() }
+            #expect(await waitForIntegActiveRequest(
+                secondInstanceIdentifier,
+                description: "跨用户第二个请求已登记"
+            ))
+            #expect(await waitForIntegExecutionCount(
+                client,
+                expected: 2,
+                description: "跨用户两条底层执行已并发登记"
+            ))
+
+            await client.release()
+            _ = try await (firstTask.value, secondTask.value)
+            #expect(await client.executionCount() == 2)
+        }
+    }
+
+    @Test
+    func timeoutAndNamespaceSeparateOtherwiseEqualExecutions() async throws {
+        try await NtkTaskManagerTestIsolation.shared.withLock {
+            let timeoutClient = IntegDedupCountingClient()
+            let shortTimeout = makeIdentityNetwork(
+                client: timeoutClient,
+                token: "token-one",
+                timestamp: 1_000,
+                userID: "user-42",
+                timeout: 10
+            )
+            let longTimeout = makeIdentityNetwork(
+                client: timeoutClient,
+                token: "token-two",
+                timestamp: 2_000,
+                userID: "user-42",
+                timeout: 20
+            )
+            let longTimeoutInstanceIdentifier = longTimeout.mutableRequest.instanceIdentifier
+
+            let shortTimeoutTask = Task { try await shortTimeout.request() }
+            #expect(await waitForIntegExecutionCount(
+                timeoutClient,
+                expected: 1,
+                description: "timeout 首个底层执行已登记"
+            ))
+
+            let longTimeoutTask = Task { try await longTimeout.request() }
+            #expect(await waitForIntegActiveRequest(
+                longTimeoutInstanceIdentifier,
+                description: "timeout 第二个请求已登记"
+            ))
+            #expect(await waitForIntegExecutionCount(
+                timeoutClient,
+                expected: 2,
+                description: "timeout 两条底层执行已并发登记"
+            ))
+
+            await timeoutClient.release()
+            _ = try await (shortTimeoutTask.value, longTimeoutTask.value)
+            #expect(await timeoutClient.executionCount() == 2)
+
+            let namespaceClient = IntegDedupCountingClient()
+            let primary = makeIdentityNetwork(
+                client: namespaceClient,
+                token: "token-one",
+                timestamp: 1_000,
+                userID: "user-42",
+                namespace: "primary"
+            )
+            let secondary = makeIdentityNetwork(
+                client: namespaceClient,
+                token: "token-two",
+                timestamp: 2_000,
+                userID: "user-42",
+                namespace: "secondary"
+            )
+            let secondaryInstanceIdentifier = secondary.mutableRequest.instanceIdentifier
+
+            let primaryTask = Task { try await primary.request() }
+            #expect(await waitForIntegExecutionCount(
+                namespaceClient,
+                expected: 1,
+                description: "namespace 首个底层执行已登记"
+            ))
+
+            let secondaryTask = Task { try await secondary.request() }
+            #expect(await waitForIntegActiveRequest(
+                secondaryInstanceIdentifier,
+                description: "namespace 第二个请求已登记"
+            ))
+            #expect(await waitForIntegExecutionCount(
+                namespaceClient,
+                expected: 2,
+                description: "namespace 两条底层执行已并发登记"
+            ))
+
+            await namespaceClient.release()
+            _ = try await (primaryTask.value, secondaryTask.value)
+            #expect(await namespaceClient.executionCount() == 2)
+        }
+    }
+
+    @Test
+    func namespaceSetterDoesNotMutateAnExistingExecutorSnapshot() async throws {
+        try await NtkTaskManagerTestIsolation.shared.withLock {
+            let client = IntegDedupCountingClient()
+            let frozen = makeIdentityNetwork(
+                client: client,
+                token: "token-one",
+                timestamp: 1_000,
+                userID: "user-42"
+            )
+            _ = frozen.getOrCreateExecutor()
+            frozen.setDeduplicationNamespace("changed-after-freeze")
+            let defaultNamespace = makeIdentityNetwork(
+                client: client,
+                token: "token-two",
+                timestamp: 2_000,
+                userID: "user-42"
+            )
+            let defaultInstanceIdentifier = defaultNamespace.mutableRequest.instanceIdentifier
+
+            let frozenTask = Task { try await frozen.request() }
+            #expect(await waitForIntegExecutionCount(
+                client,
+                expected: 1,
+                description: "冻结 namespace 快照的底层执行已登记"
+            ))
+
+            let defaultTask = Task { try await defaultNamespace.request() }
+            #expect(await waitForIntegActiveRequest(
+                defaultInstanceIdentifier,
+                description: "默认 namespace follower 已登记"
+            ))
+
+            await client.release()
+            _ = try await (frozenTask.value, defaultTask.value)
+            #expect(await client.executionCount() == 1)
+        }
+    }
 
     // MARK: - request() 完整成功流程
 
@@ -248,18 +486,153 @@ private func makeNetwork(
     }
     return NtkNetwork<Bool>.with(
         client,
-        request: IntegDummyRequest(path: path),
+        request: IntegDummyRequest(
+            path: path,
+            cacheConfiguration: cacheStorage == nil ? nil : .default()
+        ),
         responseParser: IntegMockParsingInterceptor(),
         interceptors: interceptors
     )
 }
 
+private func makeIdentityNetwork(
+    client: IntegDedupCountingClient,
+    token: String,
+    timestamp: Int,
+    userID: String,
+    timeout: TimeInterval = 30,
+    namespace: String = "default"
+) -> NtkNetwork<Bool> {
+    let network = NtkNetwork<Bool>.with(
+        client,
+        request: IntegIdentityRequest(timeout: timeout),
+        responseParser: IntegMockParsingInterceptor()
+    )
+    network.addInterceptor(
+        IntegDynamicIdentityModifier(
+            token: token,
+            timestamp: timestamp,
+            userID: userID
+        )
+    )
+    network.setDeduplicationNamespace(namespace)
+    return network
+}
+
 // MARK: - Test Doubles
 
+private struct IntegDynamicIdentityModifier: iNtkRequestModifyingInterceptor {
+    let token: String
+    let timestamp: Int
+    let userID: String
+
+    func modifyRequest(_ request: NtkMutableRequest) async throws -> NtkMutableRequest {
+        var request = request
+        request.addHeader(key: "Authorization", value: token, identity: .excluded)
+        request.addParameter(key: "timestamp", value: timestamp, identity: .excluded)
+        request.addIdentityComponent(key: "user", value: userID)
+        return request
+    }
+}
+
+private struct IntegIdentityRequest: iNtkRequest {
+    let timeout: TimeInterval
+
+    var baseURL: URL? { URL(string: "https://api.example.com") }
+    var path: String { "/integration/request-identity" }
+    var method: NtkHTTPMethod { .get }
+}
+
+private actor IntegDedupCountingClient: iNtkClient {
+    private var count = 0
+    private var isReleased = false
+    private var releaseWaiters: [UUID: CheckedContinuation<Void, Error>] = [:]
+
+    func execute(_ request: NtkMutableRequest) async throws -> NtkClientResponse {
+        count += 1
+        try await waitForRelease()
+        return NtkClientResponse(data: true, msg: nil, response: true, request: request, isCache: false)
+    }
+
+    func executionCount() -> Int { count }
+
+    func release() {
+        isReleased = true
+        let waiters = releaseWaiters.values
+        releaseWaiters.removeAll()
+        for waiter in waiters {
+            waiter.resume()
+        }
+    }
+
+    private func waitForRelease() async throws {
+        if isReleased { return }
+        let waiterID = UUID()
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                if isReleased {
+                    continuation.resume()
+                } else if Task.isCancelled {
+                    continuation.resume(throwing: CancellationError())
+                } else {
+                    releaseWaiters[waiterID] = continuation
+                }
+            }
+        } onCancel: {
+            Task { await self.cancelWaiter(waiterID) }
+        }
+    }
+
+    private func cancelWaiter(_ waiterID: UUID) {
+        releaseWaiters.removeValue(forKey: waiterID)?.resume(throwing: CancellationError())
+    }
+}
+
+private func waitForIntegActiveRequest(
+    _ instanceIdentifier: UUID,
+    description: String
+) async -> Bool {
+    await waitForIntegCondition(description) {
+        await NtkTaskManager.shared.isRequestActive(instanceIdentifier: instanceIdentifier)
+    }
+}
+
+private func waitForIntegExecutionCount(
+    _ client: IntegDedupCountingClient,
+    expected: Int,
+    description: String
+) async -> Bool {
+    await waitForIntegCondition(description) {
+        await client.executionCount() == expected
+    }
+}
+
+private func waitForIntegCondition(
+    _ description: String,
+    condition: @escaping @Sendable () async -> Bool
+) async -> Bool {
+    let clock = ContinuousClock()
+    let deadline = clock.now.advanced(by: .seconds(1))
+    while clock.now < deadline {
+        if await condition() {
+            return true
+        }
+        await Task.yield()
+    }
+    Issue.record("等待超时：\(description)")
+    return false
+}
+
 private struct IntegDummyRequest: iNtkRequest {
-    var path: String
-    init(path: String = "/integration/test") {
+    let path: String
+    let cacheConfiguration: NtkCacheConfiguration?
+
+    init(
+        path: String = "/integration/test",
+        cacheConfiguration: NtkCacheConfiguration? = nil
+    ) {
         self.path = path
+        self.cacheConfiguration = cacheConfiguration
     }
 }
 

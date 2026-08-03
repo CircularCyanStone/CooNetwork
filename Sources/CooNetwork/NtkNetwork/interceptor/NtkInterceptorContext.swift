@@ -27,11 +27,21 @@ public struct NtkInterceptorContext: Sendable {
     /// `NtkMutableRequest.extraData` 自动同步。
     public var extraData: [String: any Sendable]
 
+    let requestIdentity: NtkRequestIdentity?
+    let deduplicationIdentity: NtkDeduplicationIdentity?
+    let effectiveTimeout: TimeInterval
+
     init(
         request: NtkMutableRequest,
+        requestIdentity: NtkRequestIdentity? = nil,
+        deduplicationIdentity: NtkDeduplicationIdentity? = nil,
+        effectiveTimeout: TimeInterval = NtkEffectiveTimeoutResolver.builtInDefault,
         extraData: [String: any Sendable] = [:]
     ) {
         self.request = request
+        self.requestIdentity = requestIdentity
+        self.deduplicationIdentity = deduplicationIdentity
+        self.effectiveTimeout = effectiveTimeout
         self.extraData = extraData
     }
 }

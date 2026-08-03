@@ -289,20 +289,50 @@ struct AuthenticatedRequest: iAFRequest {
 }
 ```
 
-### 使用缓存
+### 使用缓存与稳定请求身份
+
+缓存配置只决定是否读写缓存及其有效期；请求身份单独决定哪些字段代表同一资源。先在启动时声明确认安全的公共动态字段：
 
 ```swift
-// 启用缓存
-let storage = NtkMemoryCacheStorage()
-let network = NtkAF<User>.withAF(request, storage: storage)
+NtkConfiguration.configure {
+    $0.requestIdentityPolicy = .init(
+        excludedHeaderNames: ["X-Request-ID"],
+        excludedParameterNames: ["nonce", "sign"]
+    )
+}
 
-// 带缓存的请求
-let cacheConfig = NtkRequestConfiguration(
-    cachePolicy: .cacheElseNetwork,  // 优先使用缓存
-    expiration: .seconds(300)         // 5 分钟过期
-)
-let user = try await network.requestWithCache(configuration: cacheConfig)
+struct ProfileRequest: iAFRequest {
+    var baseURL: URL? { URL(string: "https://api.example.com") }
+    var path: String { "/profile" }
+    var method: NtkHTTPMethod { .get }
+    var cacheConfiguration: NtkCacheConfiguration? { .custom(duration: 300) }
+}
+
+let storage = NtkMemoryCacheStorage()
+for try await response in NtkAF<User>.withAF(ProfileRequest(), storage: storage)
+    .requestWithCache() {
+    print(response.data)
+}
 ```
+
+为动态鉴权字段标记其身份参与方式；稳定的业务主体使用仅本地的 identity component：
+
+```swift
+struct AuthenticationModifier: iNtkRequestModifyingInterceptor {
+    let token: String
+    let userID: String
+
+    func modifyRequest(_ request: NtkMutableRequest) async throws -> NtkMutableRequest {
+        var request = request
+        request.addHeader(key: "Authorization", value: "Bearer \(token)", identity: .excluded)
+        request.addParameter(key: "timestamp", value: Date().timeIntervalSince1970, identity: .excluded)
+        request.addIdentityComponent(key: "user", value: userID)
+        return request
+    }
+}
+```
+
+排除鉴权凭证却不加入稳定的 user/tenant component，可能让不同用户共享缓存或正在执行的结果；默认 `.strict` 不会替业务推断主体。`.included` 与 `.excluded` 会覆盖自定义 normalizer，identity component 不会发送到服务器；身份构建失败只关闭本次缓存和去重，网络请求仍继续。
 
 ### 文件上传
 
@@ -388,9 +418,8 @@ let user = try await network.request()
 ```
 
 `intercept(context:next:)` 中的请求是只读快照。请求头和参数只能在
-`iNtkRequestModifyingInterceptor.modifyRequest(_:)` 中构建。token、timestamp
-等动态字段还需要通过 `NtkRequestConfiguration.filterHeaders` 或
-`filterParameters` 排除缓存身份。
+`iNtkRequestModifyingInterceptor.modifyRequest(_:)` 中构建。动态字段通过全局或请求级
+`NtkRequestIdentityPolicy`，或写入时的 `.excluded` 标记控制身份参与；请求级策略非空时完整替换全局策略。
 
 ### 自定义响应解析
 
