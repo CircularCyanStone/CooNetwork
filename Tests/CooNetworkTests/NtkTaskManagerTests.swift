@@ -771,44 +771,46 @@ struct NtkTaskManagerTests {
 
     @Test
     func cancelAllRequestsRemovesEveryInstanceIndex() async {
-        let gate = TaskExecutionGate()
-        let identity = deduplicationIdentity(String.self)
-        let owner = NtkMutableRequest(
-            TaskManagerDummyRequest(path: "/task-manager/cancel-all")
-        )
-        let follower = NtkMutableRequest(
-            TaskManagerDummyRequest(path: "/task-manager/cancel-all")
-        )
-        let ownerTask = Task {
-            try? await NtkTaskManager.shared.executeWithDeduplication(
-                request: owner,
-                identity: identity,
-                effectiveTimeout: 30
-            ) {
-                await gate.signalFirstStarted()
-                await gate.waitForFirstRelease()
-                return "result"
-            } as String
-        }
-        #expect(await waitUntil("cancelAll owner 开始") { await gate.firstStarted() })
+        await NtkTaskManagerTestIsolation.shared.withLock {
+            let gate = TaskExecutionGate()
+            let identity = deduplicationIdentity(String.self)
+            let owner = NtkMutableRequest(
+                TaskManagerDummyRequest(path: "/task-manager/cancel-all")
+            )
+            let follower = NtkMutableRequest(
+                TaskManagerDummyRequest(path: "/task-manager/cancel-all")
+            )
+            let ownerTask = Task {
+                try? await NtkTaskManager.shared.executeWithDeduplication(
+                    request: owner,
+                    identity: identity,
+                    effectiveTimeout: 30
+                ) {
+                    await gate.signalFirstStarted()
+                    await gate.waitForFirstRelease()
+                    return "result"
+                } as String
+            }
+            #expect(await waitUntil("cancelAll owner 开始") { await gate.firstStarted() })
 
-        let followerTask = Task {
-            try? await NtkTaskManager.shared.executeWithDeduplication(
-                request: follower,
-                identity: identity,
-                effectiveTimeout: 30
-            ) {
-                return "should-not-run"
-            } as String
-        }
-        #expect(await waitUntilActive(follower, description: "cancelAll follower 已登记"))
+            let followerTask = Task {
+                try? await NtkTaskManager.shared.executeWithDeduplication(
+                    request: follower,
+                    identity: identity,
+                    effectiveTimeout: 30
+                ) {
+                    return "should-not-run"
+                } as String
+            }
+            #expect(await waitUntilActive(follower, description: "cancelAll follower 已登记"))
 
-        await NtkTaskManager.shared.cancelAllRequests()
-        #expect(await isActive(owner) == false)
-        #expect(await isActive(follower) == false)
-        await gate.releaseFirst()
-        _ = await ownerTask.value
-        _ = await followerTask.value
+            await NtkTaskManager.shared.cancelAllRequests()
+            #expect(await isActive(owner) == false)
+            #expect(await isActive(follower) == false)
+            await gate.releaseFirst()
+            _ = await ownerTask.value
+            _ = await followerTask.value
+        }
     }
 }
 

@@ -1,4 +1,3 @@
-import CoreFoundation
 import Foundation
 import Testing
 @testable import CooNetwork
@@ -8,30 +7,31 @@ struct NtkRequestIdentityBuilderPerformanceTests {
     @Test
     func commonRequestBuildsWithinBudget() throws {
         let request = makePerformanceRequest(parameterCount: 12)
-        let start = CFAbsoluteTimeGetCurrent()
+        let clock = ContinuousClock()
+        let start = clock.now
         for _ in 0..<1_000 {
             _ = try NtkRequestIdentityBuilder.build(request: request, policy: .strict)
         }
-        let milliseconds = (CFAbsoluteTimeGetCurrent() - start) * 1_000
-        #expect(milliseconds < 1_000)
+        #expect(start.duration(to: clock.now) < .seconds(1))
     }
 
     @Test
     func nestedRequestProducesOneConcurrentDigest() async throws {
         let request = makePerformanceRequest(parameterCount: 100)
-        let digests = await withTaskGroup(of: String?.self, returning: [String?].self) { group in
+        let digests = try await withThrowingTaskGroup(of: String.self, returning: [String].self) { group in
             for _ in 0..<100 {
                 group.addTask {
-                    try? NtkRequestIdentityBuilder.build(request: request, policy: .strict).digest
+                    try NtkRequestIdentityBuilder.build(request: request, policy: .strict).digest
                 }
             }
-            var values: [String?] = []
-            for await value in group {
+            var values: [String] = []
+            for try await value in group {
                 values.append(value)
             }
             return values
         }
-        #expect(Set(digests.compactMap { $0 }).count == 1)
+        #expect(digests.count == 100)
+        #expect(Set(digests).count == 1)
     }
 }
 
