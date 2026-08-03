@@ -7,7 +7,11 @@
 
 import Foundation
 
-enum NtkDynamicIdentityValue: Sendable {
+/// `NtkRequestIdentityEncoder` 可稳定编码的 `NtkDynamicData` 内部值。
+///
+/// 该枚举只是把私有 `Storage` 暴露给同模块的请求 key 编码器，不是新的业务数据模型。
+/// 编码器会继续按普通字典、数组和标量处理这些值，使包装前后的相同内容生成同一个请求 key。
+enum NtkDynamicRequestIdentityValue: Sendable {
     case dictionary([String: any Sendable])
     case array([any Sendable])
     case string(String)
@@ -211,7 +215,13 @@ public final class NtkDynamicData: NSObject, Sendable, Codable {
 
     // MARK: - Internal Bridging
 
-    var identityValue: NtkDynamicIdentityValue {
+    /// 向请求 key 编码器暴露封闭且可递归的值视图。
+    ///
+    /// `NtkDynamicData` 继承 NSObject，若请求 key 编码器直接使用 `description`，结果可能受
+    /// Foundation、调试格式或对象地址影响。这里不改变或复制业务语义，只把不可变 storage 映射
+    /// 成内部枚举，让请求 key 编码器按普通字典、数组和标量的同一规则编码。运行结果是：内容
+    /// 等价的 `NtkDynamicData` 与普通 Swift 容器得到相同请求 key，包装类型本身不会制造差异。
+    var requestIdentityValue: NtkDynamicRequestIdentityValue {
         switch storage {
         case .dictionary(let value): return .dictionary(value)
         case .array(let value):      return .array(value)

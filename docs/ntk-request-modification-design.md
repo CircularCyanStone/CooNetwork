@@ -11,7 +11,7 @@
 本设计解决两个相关但独立的问题：
 
 1. `requestWithCache()` 的网络分支和缓存分支共用一个 `NtkNetworkExecutor` 时，请求状态不能互相覆盖或依赖。
-2. `loadCache()`、`hasCacheData()` 必须在计算缓存身份前获得请求修改拦截器加入的稳定公共参数。
+2. `loadCache()`、`hasCacheData()` 必须在生成请求 key 前获得请求修改拦截器加入的稳定公共参数。
 
 最终模型采用显式值流：
 
@@ -123,7 +123,7 @@ public struct CommonParameterInterceptor: iNtkRequestModifyingInterceptor {
         _ request: NtkMutableRequest
     ) async throws -> NtkMutableRequest {
         var modifiedRequest = request
-        modifiedRequest.addHeader(key: "X-Application", value: "CooNetwork")
+        modifiedRequest.setHeader("CooNetwork", forField: "X-Application")
         return modifiedRequest
     }
 }
@@ -223,23 +223,23 @@ executor.initialRequest
 2. 从 `initialRequest` 构建局部请求。
 3. cache provider 使用局部请求检查缓存。
 
-## 9. 缓存与请求身份
+## 9. 缓存与请求 key
 
-缓存配置和身份策略是两个独立维度：`cacheConfiguration` 只决定缓存读写、时长和响应写入资格，`NtkRequestIdentityPolicy` 决定请求字段的本地身份投影；缓存模块不再过滤字段或自行计算 key。`cacheConfiguration == nil` 不读写缓存，身份策略仍可供去重使用。
+缓存配置和请求 key 策略是两个独立维度：`cacheConfiguration` 只决定缓存读写、时长和响应写入资格，`NtkRequestIdentityPolicy` 决定哪些请求字段写入本地请求 key；缓存模块不再过滤字段或自行计算 key。`cacheConfiguration == nil` 不读写缓存，请求 key 策略仍可供去重使用。
 
 全局 `requestIdentityPolicy` 默认 `.strict`，不会替业务猜测 token、Authorization 或主体。请求级非 `nil` policy 会完整替换 executor 创建时冻结的全局 policy，而不是合并；这允许特殊接口重新纳入全局排除的字段。
 
 请求修改器应在写入动态字段时声明参与状态：
 
 ```swift
-request.addHeader(key: "Authorization", value: token, identity: .excluded)
-request.addParameter(key: "timestamp", value: timestamp, identity: .excluded)
-request.addIdentityComponent(key: "user", value: userID)
+request.setHeader(token, forField: "Authorization", requestIdentityRule: .exclude)
+request.setParameter(timestamp, forKey: "timestamp", requestIdentityRule: .exclude)
+request.setRequestIdentityValue(userID, forKey: "user")
 ```
 
-`.included` 和 `.excluded` 直接覆盖 policy 的名称排除与 custom normalizer；仅 `.automatic` 字段交由 policy 处理。Header 名称按 HTTP 规则大小写不敏感，参数键按精确且区分大小写的名称匹配。identity component 按 key 进入本地身份投影，绝不发送给服务器；排除凭证却未加入稳定 user/tenant component 可能造成跨主体缓存或执行结果共享。
+`.include` 和 `.exclude` 直接覆盖 policy 的名称排除与字段转换闭包；仅 `.automatic` 字段交由 policy 处理。Header 名称按 HTTP 规则大小写不敏感，参数键按精确且区分大小写的名称匹配。`setRequestIdentityValue` 添加的 key/value 只写入本地请求 key，绝不发送给服务器；排除凭证却未加入稳定 user/tenant 值可能造成跨主体缓存或执行结果共享。
 
-每条动作先执行修改器、prune 陈旧身份元数据，再冻结一次身份与有效超时，随后以同一个 context 结果供缓存和去重消费。身份构建或 normalizer 失败时不是 `NtkError`：本次缓存读取/写入和去重关闭，网络请求继续。
+`NtkMutableRequest.headers` 和 `parameters` 对外保留只读能力，公开 setter 已关闭。修改器必须通过 `set`、`merge`、`remove` 方法修改请求，这些方法会同步维护真实字段和字段级 Request Identity 规则，所以 executor 不再需要冻结前补救性清理。每条动作执行完修改器后生成一次请求 key 并解析有效超时，随后以同一个 context 结果供缓存和去重消费。请求 key 构建或字段转换闭包失败时不是 `NtkError`：本次缓存读取、缓存写入和去重关闭，网络请求继续。
 
 ## 10. 错误语义
 
@@ -279,7 +279,7 @@ request.addIdentityComponent(key: "user", value: userID)
 - `requestWithCache()` 的网络和缓存分支共享 executor，但请求值互相独立。
 - `loadCache()`、`hasCacheData()` 不调用 `markRequestConsumed()`。
 - `loadCache()` 不触发 retry、loading、toast、dedup 等完整网络拦截副作用。
-- 稳定公共参数和 identity component 参与本地身份；动态字段由 policy 或字段 participation 明确控制。
+- 稳定公共参数和 `setRequestIdentityValue` 添加的业务值写入本地请求 key；动态字段由 policy 或 `requestIdentityRule` 明确控制。
 - `execute()` 和 `loadCache()` 传播请求修改错误；`hasCacheData()` 在请求修改失败时返回 `false`。
 
 ## 13. 兼容性说明

@@ -455,13 +455,13 @@ struct NtkNetworkExecutorTests {
     }
 
     @Test
-    func identityFailureSkipsCacheButStillExecutesNetwork() async throws {
+    func requestIdentityBuildFailureSkipsCacheButStillExecutesNetwork() async throws {
         let capture = ExecCacheRequestCapture()
         let storage = ExecCapturingCacheStorage(capture: capture)
         var request = NtkMutableRequest(
             ExecDummyRequest(cacheConfiguration: .default())
         )
-        request.addParameter(key: "unsupported", value: UnsupportedExecIdentityValue())
+        request.setParameter(UnsupportedExecRequestIdentityValue(), forKey: "unsupported")
         let executor = NtkNetworkExecutor<Bool>(config: .init(
             client: ExecMockClient(result: .success(())),
             request: request,
@@ -529,12 +529,12 @@ struct NtkNetworkExecutorTests {
     }
 
     @Test
-    func stableParametersParticipateAndExcludedDynamicParametersShareCacheIdentity() async throws {
+    func stableParametersParticipateAndExcludedDynamicParametersShareCacheRequestIdentity() async throws {
         let cacheState = ExecInMemoryCacheState()
         let dynamicSource = ExecDynamicParameterSource()
         var request = NtkMutableRequest(
             ExecDummyRequest(
-                path: "/executor/cache-identity",
+                path: "/executor/cache-request-identity",
                 cacheConfiguration: .default()
             )
         )
@@ -546,7 +546,7 @@ struct NtkNetworkExecutorTests {
                 NtkCacheInterceptor(
                     storage: ExecInMemoryCacheStorage(state: cacheState)
                 ),
-                ExecCacheIdentityRequestInterceptor(source: dynamicSource)
+                ExecCacheRequestIdentityModifier(source: dynamicSource)
             ]
         )
         let executor = NtkNetworkExecutor<Bool>(config: config)
@@ -571,8 +571,8 @@ struct NtkNetworkExecutorTests {
         let global = NtkConfiguration(builder: builder)
         let capture = ExecPreparedContextCapture()
         var request = NtkMutableRequest(ExecSnapshotRequest(timeout: .nan))
-        request.addParameter(key: "timestamp", value: 123)
-        let expectedIdentity = try NtkRequestIdentityBuilder.build(
+        request.setParameter(123, forKey: "timestamp")
+        let expectedRequestIdentity = try NtkRequestIdentityBuilder.build(
             request: request,
             policy: builder.requestIdentityPolicy
         )
@@ -592,27 +592,27 @@ struct NtkNetworkExecutorTests {
         #expect(await capture.effectiveTimeout() == 45)
         #expect(await capture.namespace() == "account-a")
         #expect(await capture.responseType() == ObjectIdentifier(Bool.self))
-        #expect(await capture.requestIdentity() == expectedIdentity)
+        #expect(await capture.requestIdentity() == expectedRequestIdentity)
     }
 
     @Test
-    func unsupportedIdentityValueKeepsNetworkAvailableAndDisablesSharing() async throws {
+    func unsupportedRequestIdentityValueKeepsNetworkAvailableAndDisablesSharing() async throws {
         let capture = ExecPreparedContextCapture()
-        var request = NtkMutableRequest(ExecDummyRequest(path: "/executor/identity-failure"))
-        request.addParameter(key: "custom", value: UnsupportedExecIdentityValue())
+        var request = NtkMutableRequest(ExecDummyRequest(path: "/executor/request-identity-failure"))
+        request.setParameter(UnsupportedExecRequestIdentityValue(), forKey: "custom")
         let executor = makeExecutorCapturingPreparedContext(request: request, capture: capture)
 
         let response = try await executor.execute()
 
         #expect(response.data == true)
         #expect(await capture.requestIdentity() == nil)
-        #expect(await capture.deduplicationIdentity() == nil)
+        #expect(await capture.deduplicationKey() == nil)
     }
 
     @Test
-    func unsupportedIdentityValueStillUsesFrameworkTimeout() async {
+    func unsupportedRequestIdentityValueStillUsesFrameworkTimeout() async {
         var request = NtkMutableRequest(ExecSnapshotRequest(timeout: 0.01))
-        request.addParameter(key: "custom", value: UnsupportedExecIdentityValue())
+        request.setParameter(UnsupportedExecRequestIdentityValue(), forKey: "custom")
         let executor = NtkNetworkExecutor<Bool>(config: .init(
             client: ExecDelayedClient(delayNanoseconds: .max),
             request: request,
@@ -640,7 +640,7 @@ struct NtkNetworkExecutorTests {
             timeout: 30,
             requestIdentityPolicy: .strict
         ))
-        request.addParameter(key: "tenant", value: "a")
+        request.setParameter("a", forKey: "tenant")
         let expected = try NtkRequestIdentityBuilder.build(request: request, policy: .strict)
         let executor = NtkNetworkExecutor<Bool>(config: .init(
             client: ExecMockClient(result: .success(())),
@@ -766,18 +766,18 @@ private struct ExecSnapshotRequest: iNtkRequest {
     }
 }
 
-private struct UnsupportedExecIdentityValue: Sendable {}
+private struct UnsupportedExecRequestIdentityValue: Sendable {}
 
 private actor ExecPreparedContextCapture {
     private var context: NtkInterceptorContext?
 
     func record(_ context: NtkInterceptorContext) { self.context = context }
     func effectiveTimeout() -> TimeInterval? { context?.effectiveTimeout }
-    func namespace() -> String? { context?.deduplicationIdentity?.namespace }
-    func responseType() -> ObjectIdentifier? { context?.deduplicationIdentity?.responseType }
+    func namespace() -> String? { context?.deduplicationKey?.namespace }
+    func responseType() -> ObjectIdentifier? { context?.deduplicationKey?.responseType }
     func requestIdentity() -> NtkRequestIdentity? { context?.requestIdentity }
-    func deduplicationIdentity() -> NtkDeduplicationIdentity? {
-        context?.deduplicationIdentity
+    func deduplicationKey() -> NtkDeduplicationKey? {
+        context?.deduplicationKey
     }
 }
 
@@ -910,7 +910,7 @@ private struct ExecPriorityRecordingInterceptor: iNtkInterceptor {
 private struct ExecLookalikeRequestInterceptor: iNtkInterceptor {
     func modifyRequest(_ request: NtkMutableRequest) async throws -> NtkMutableRequest {
         var request = request
-        request.addHeader(key: "X-Lookalike-Modifier", value: "unexpected")
+        request.setHeader("unexpected", forField: "X-Lookalike-Modifier")
         return request
     }
 
@@ -924,7 +924,7 @@ private struct ExecCombinedRequestInterceptor: iNtkRequestModifyingInterceptor {
 
     func modifyRequest(_ request: NtkMutableRequest) async throws -> NtkMutableRequest {
         var request = request
-        request.addHeader(key: "X-Combined", value: "modified")
+        request.setHeader("modified", forField: "X-Combined")
         return request
     }
 
@@ -939,7 +939,7 @@ private struct ExecIncrementingRequestInterceptor: iNtkRequestModifyingIntercept
     func modifyRequest(_ request: NtkMutableRequest) async throws -> NtkMutableRequest {
         var request = request
         let previousValue = Int(request.headers?["X-Execution-Count"] ?? "") ?? 0
-        request.addHeader(key: "X-Execution-Count", value: String(previousValue + 1))
+        request.setHeader(String(previousValue + 1), forField: "X-Execution-Count")
         return request
     }
 }
@@ -947,7 +947,7 @@ private struct ExecIncrementingRequestInterceptor: iNtkRequestModifyingIntercept
 private struct ExecStableRequestInterceptor: iNtkRequestModifyingInterceptor {
     func modifyRequest(_ request: NtkMutableRequest) async throws -> NtkMutableRequest {
         var request = request
-        request.addHeader(key: "X-Stable-Parameter", value: "stable")
+        request.setHeader("stable", forField: "X-Stable-Parameter")
         return request
     }
 }
@@ -962,7 +962,7 @@ private struct ExecAppendingRequestInterceptor: iNtkRequestModifyingInterceptor 
         var request = request
         let existing = request.headers?["X-Modifier-Order"]
         let value = [existing, id].compactMap { $0 }.joined(separator: ",")
-        request.addHeader(key: "X-Modifier-Order", value: value)
+        request.setHeader(value, forField: "X-Modifier-Order")
         return request
     }
 }
@@ -988,22 +988,22 @@ private actor ExecDynamicParameterSource {
     }
 }
 
-private struct ExecCacheIdentityRequestInterceptor: iNtkRequestModifyingInterceptor {
+private struct ExecCacheRequestIdentityModifier: iNtkRequestModifyingInterceptor {
     let source: ExecDynamicParameterSource
 
     func modifyRequest(
         _ request: NtkMutableRequest
     ) async throws -> NtkMutableRequest {
         var request = request
-        request.addParameter(
-            key: "tenant",
-            value: "coo",
-            identity: .included
+        request.setParameter(
+            "coo",
+            forKey: "tenant",
+            requestIdentityRule: .include
         )
-        request.addParameter(
-            key: "token",
-            value: await source.nextToken(),
-            identity: .excluded
+        request.setParameter(
+            await source.nextToken(),
+            forKey: "token",
+            requestIdentityRule: .exclude
         )
         return request
     }

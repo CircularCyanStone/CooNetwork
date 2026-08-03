@@ -14,8 +14,8 @@ public typealias ResponseExtractor = @Sendable (any iNtkResponse) -> Sendable?
 
 /// 默认缓存拦截器实现。
 ///
-/// 拦截器只消费 executor 在请求修改后确定的 identity，绝不根据 request 自行推导 key，因此缓存
-/// 与去重共享同一身份。缓存配置无效、身份失败、响应不符合写入资格或数据无法提取时都会跳过写入，
+/// 拦截器只消费 executor 在请求修改后确定的 request identity，绝不根据 request 自行推导 key，因此缓存
+/// 与去重共享同一个 key。缓存配置无效、key 构建失败、响应不符合写入资格或数据无法提取时都会跳过写入，
 /// 已成功的网络响应照常返回；排除凭证时调用方仍须保留 user、tenant 等稳定隔离字段。
 public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
     /// 拦截器优先级
@@ -30,7 +30,7 @@ public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
 
     /// 使用默认响应提取器创建缓存拦截器。
     ///
-    /// 默认提取 `response.response`。storage key 始终来自 context 中不透明的框架身份，不能由存储
+    /// 默认提取 `response.response`。storage key 始终来自 context 中不透明的 request identity，不能由存储
     /// 或拦截器重新计算；缓存失败不会改变网络响应。
     public init(storage: iNtkCacheStorage) {
         self.storage = storage
@@ -39,7 +39,7 @@ public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
 
     /// 使用自定义响应提取器创建缓存拦截器。
     ///
-    /// 提取器只决定是否存在可写入的数据，不能改变身份或真实请求；返回 nil 会安全跳过缓存写入。
+    /// 提取器只决定是否存在可写入的数据，不能改变请求 key 或真实请求；返回 nil 会安全跳过缓存写入。
     /// - Parameters:
     ///   - storage: 缓存存储器
     ///   - responseExtractor: 自定义的响应提取器闭包
@@ -54,13 +54,13 @@ public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
     }
     /// 先执行内层链并在成功响应后尝试写入缓存。
     ///
-    /// 只有有效缓存配置、已确定 identity、写入资格和可提取数据同时具备才访问 storage。任何一个条件
-    /// 缺失都直接返回网络响应，保证身份构建失败不会转换成 NtkError 或阻塞网络。
+    /// 只有有效缓存配置、已确定 request identity、写入资格和可提取数据同时具备才访问 storage。任何一个条件
+    /// 缺失都直接返回网络响应，保证 key 构建失败不会转换成 NtkError 或阻塞网络。
     public func intercept(context: NtkInterceptorContext, next: iNtkRequestHandler) async throws -> any iNtkResponse {
         let response = try await next.handle(context: context)
         guard let cacheConfiguration = context.request.cacheConfiguration,
               cacheConfiguration.isEnabled,
-              let identity = context.requestIdentity,
+              let requestIdentity = context.requestIdentity,
               cacheConfiguration.shouldCache(response),
               let extractedResponse = responseExtractor(response) else {
             return response
@@ -69,7 +69,7 @@ public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
         let result = await cache.save(
             data: extractedResponse,
             for: context.request,
-            identity: identity
+            requestIdentity: requestIdentity
         )
         logger.debug("NTK请求缓存\(result ? "成功" : "失败")")
         return response
@@ -79,17 +79,17 @@ public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
 
     public func loadCacheData(
         for request: NtkMutableRequest,
-        identity: NtkRequestIdentity
+        requestIdentity: NtkRequestIdentity
     ) async throws -> (any Sendable)? {
         let cache = NtkNetworkCache(storage: storage)
-        return try await cache.loadData(for: request, identity: identity)
+        return try await cache.loadData(for: request, requestIdentity: requestIdentity)
     }
 
     public func hasCacheData(
         for request: NtkMutableRequest,
-        identity: NtkRequestIdentity
+        requestIdentity: NtkRequestIdentity
     ) async -> Bool {
         let cache = NtkNetworkCache(storage: storage)
-        return await cache.hasData(for: request, identity: identity)
+        return await cache.hasData(for: request, requestIdentity: requestIdentity)
     }
 }

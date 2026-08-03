@@ -45,13 +45,13 @@ struct NtkNetworkIntegrationTests {
     func excludedDynamicFieldsDeduplicateForOneStableUser() async throws {
         try await NtkTaskManagerTestIsolation.shared.withLock {
             let client = IntegDedupCountingClient()
-            let first = makeIdentityNetwork(
+            let first = makeRequestIdentityNetwork(
                 client: client,
                 token: "token-one",
                 timestamp: 1_000,
                 userID: "user-42"
             )
-            let second = makeIdentityNetwork(
+            let second = makeRequestIdentityNetwork(
                 client: client,
                 token: "token-two",
                 timestamp: 2_000,
@@ -82,13 +82,13 @@ struct NtkNetworkIntegrationTests {
     func stableUserComponentPreventsCrossUserDeduplication() async throws {
         try await NtkTaskManagerTestIsolation.shared.withLock {
             let client = IntegDedupCountingClient()
-            let first = makeIdentityNetwork(
+            let first = makeRequestIdentityNetwork(
                 client: client,
                 token: "token-one",
                 timestamp: 1_000,
                 userID: "user-a"
             )
-            let second = makeIdentityNetwork(
+            let second = makeRequestIdentityNetwork(
                 client: client,
                 token: "token-two",
                 timestamp: 2_000,
@@ -124,14 +124,14 @@ struct NtkNetworkIntegrationTests {
     func timeoutAndNamespaceSeparateOtherwiseEqualExecutions() async throws {
         try await NtkTaskManagerTestIsolation.shared.withLock {
             let timeoutClient = IntegDedupCountingClient()
-            let shortTimeout = makeIdentityNetwork(
+            let shortTimeout = makeRequestIdentityNetwork(
                 client: timeoutClient,
                 token: "token-one",
                 timestamp: 1_000,
                 userID: "user-42",
                 timeout: 10
             )
-            let longTimeout = makeIdentityNetwork(
+            let longTimeout = makeRequestIdentityNetwork(
                 client: timeoutClient,
                 token: "token-two",
                 timestamp: 2_000,
@@ -163,14 +163,14 @@ struct NtkNetworkIntegrationTests {
             #expect(await timeoutClient.executionCount() == 2)
 
             let namespaceClient = IntegDedupCountingClient()
-            let primary = makeIdentityNetwork(
+            let primary = makeRequestIdentityNetwork(
                 client: namespaceClient,
                 token: "token-one",
                 timestamp: 1_000,
                 userID: "user-42",
                 namespace: "primary"
             )
-            let secondary = makeIdentityNetwork(
+            let secondary = makeRequestIdentityNetwork(
                 client: namespaceClient,
                 token: "token-two",
                 timestamp: 2_000,
@@ -207,7 +207,7 @@ struct NtkNetworkIntegrationTests {
     func namespaceSetterDoesNotMutateAnExistingExecutorSnapshot() async throws {
         try await NtkTaskManagerTestIsolation.shared.withLock {
             let client = IntegDedupCountingClient()
-            let frozen = makeIdentityNetwork(
+            let frozen = makeRequestIdentityNetwork(
                 client: client,
                 token: "token-one",
                 timestamp: 1_000,
@@ -215,7 +215,7 @@ struct NtkNetworkIntegrationTests {
             )
             _ = frozen.getOrCreateExecutor()
             frozen.setDeduplicationNamespace("changed-after-freeze")
-            let defaultNamespace = makeIdentityNetwork(
+            let defaultNamespace = makeRequestIdentityNetwork(
                 client: client,
                 token: "token-two",
                 timestamp: 2_000,
@@ -495,7 +495,7 @@ private func makeNetwork(
     )
 }
 
-private func makeIdentityNetwork(
+private func makeRequestIdentityNetwork(
     client: IntegDedupCountingClient,
     token: String,
     timestamp: Int,
@@ -505,11 +505,11 @@ private func makeIdentityNetwork(
 ) -> NtkNetwork<Bool> {
     let network = NtkNetwork<Bool>.with(
         client,
-        request: IntegIdentityRequest(timeout: timeout),
+        request: IntegRequestIdentityRequest(timeout: timeout),
         responseParser: IntegMockParsingInterceptor()
     )
     network.addInterceptor(
-        IntegDynamicIdentityModifier(
+        IntegDynamicRequestIdentityModifier(
             token: token,
             timestamp: timestamp,
             userID: userID
@@ -521,21 +521,21 @@ private func makeIdentityNetwork(
 
 // MARK: - Test Doubles
 
-private struct IntegDynamicIdentityModifier: iNtkRequestModifyingInterceptor {
+private struct IntegDynamicRequestIdentityModifier: iNtkRequestModifyingInterceptor {
     let token: String
     let timestamp: Int
     let userID: String
 
     func modifyRequest(_ request: NtkMutableRequest) async throws -> NtkMutableRequest {
         var request = request
-        request.addHeader(key: "Authorization", value: token, identity: .excluded)
-        request.addParameter(key: "timestamp", value: timestamp, identity: .excluded)
-        request.addIdentityComponent(key: "user", value: userID)
+        request.setHeader(token, forField: "Authorization", requestIdentityRule: .exclude)
+        request.setParameter(timestamp, forKey: "timestamp", requestIdentityRule: .exclude)
+        request.setRequestIdentityValue(userID, forKey: "user")
         return request
     }
 }
 
-private struct IntegIdentityRequest: iNtkRequest {
+private struct IntegRequestIdentityRequest: iNtkRequest {
     let timeout: TimeInterval
 
     var baseURL: URL? { URL(string: "https://api.example.com") }
@@ -768,7 +768,7 @@ private struct IntegFlagInterceptor: iNtkInterceptor {
 private struct IntegHeaderRequestInterceptor: iNtkRequestModifyingInterceptor {
     func modifyRequest(_ request: NtkMutableRequest) async throws -> NtkMutableRequest {
         var request = request
-        request.addHeader(key: "X-Stable-Parameter", value: "stable")
+        request.setHeader("stable", forField: "X-Stable-Parameter")
         return request
     }
 }
@@ -796,9 +796,9 @@ private struct IntegCountingRequestInterceptor: iNtkRequestModifyingInterceptor 
         let previousValue = Int(
             request.headers?["X-Execution-Count"] ?? ""
         ) ?? 0
-        request.addHeader(
-            key: "X-Execution-Count",
-            value: String(previousValue + 1)
+        request.setHeader(
+            String(previousValue + 1),
+            forField: "X-Execution-Count"
         )
         return request
     }

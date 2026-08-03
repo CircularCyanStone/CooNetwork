@@ -18,7 +18,7 @@
 
 Actor 在 `await` 处允许重入。它只保证同一时刻 actor 隔离代码的同步片段不会并发执行，不保证一个异步方法从入口到返回构成原子事务，也不会让多个步骤天然保持快照一致性。
 
-最终迁移已完成：仅 `NtkTaskManager` 以独立 actor 隔离运行中任务和实例反向索引；无状态 `NtkRequestIdentityBuilder` 在 executor 中完成确定性身份投影，缓存门面和执行值流通过 `Sendable` 跨并发域传递，同步配置继续使用短临界区锁。生产代码、测试和当前架构文档已不再依赖 `NtkActor`，全局 actor 声明已删除。Loading/Toast 的 `MainActor` 契约仍属于独立的 UI API 决策，不影响本次删除结论。
+最终迁移已完成：仅 `NtkTaskManager` 以独立 actor 隔离运行中任务和实例反向索引；无状态 `NtkRequestIdentityBuilder` 在 executor 中生成确定性的请求 key，缓存门面和执行值流通过 `Sendable` 跨并发域传递，同步配置继续使用短临界区锁。生产代码、测试和当前架构文档已不再依赖 `NtkActor`，全局 actor 声明已删除。Loading/Toast 的 `MainActor` 契约仍属于独立的 UI API 决策，不影响本次删除结论。
 
 ## 问题清单
 
@@ -90,7 +90,7 @@ Actor 在 `await` 处允许重入。它只保证同一时刻 actor 隔离代码�
 
 缓存可能是磁盘、数据库、内存 actor 或第三方存储，各实现应拥有自己的同步策略。协议强制 `@NtkActor` 既不能替代存储内部线程安全，也限制了实现方式。`NtkNetworkCache` 只有不可变的 `storage`，类型级隔离本身没有保护对象内可变状态。
 
-处理方式：已移除 `iNtkCacheStorage`、`iNtkCacheProvider` 的协议级全局 actor 要求。`NtkNetworkCache` 改为不可变 `final class: Sendable`，同步创建并只在异步缓存操作中等待存储；它消费 executor 已冻结的 `NtkRequestIdentity`，不拥有过滤、LRU 或身份计算状态。
+处理方式：已移除 `iNtkCacheStorage`、`iNtkCacheProvider` 的协议级全局 actor 要求。`NtkNetworkCache` 改为不可变 `final class: Sendable`，同步创建并只在异步缓存操作中等待存储；它消费 executor 已生成的 `NtkRequestIdentity`，不拥有字段过滤、LRU 或请求 key 计算状态。
 
 ### A08：NtkActor 不能保证 execute/loadCache 的异步事务原子性
 
@@ -112,15 +112,15 @@ Actor 在 `await` 处允许重入。它只保证同一时刻 actor 隔离代码�
 
 处理方式：`NtkTaskManager` 已改为独立 `actor`，任务表、owner/follower 生命周期和取消控制均由状态所有者自身隔离。请求去重标识生成保持同步，因此取消检查到任务注册之间没有新增跨 actor 重入点。
 
-### A10：请求身份计算不应拥有 actor 或 LRU
+### A10：请求 key 计算不应拥有 actor 或 LRU
 
 - 优先级：中
 - 位置：`NtkRequestIdentityBuilder`
 - 状态：已修正
 
-请求身份投影是纯函数，不应混入 LRU 或 actor 状态。把身份计算放进共享隔离器会增加不必要的串行化，也模糊缓存、去重与任务调度的职责边界。
+请求 key 计算是纯函数，不应混入 LRU 或 actor 状态。把 key 计算放进共享隔离器会增加不必要的串行化，也模糊缓存、去重与任务调度的职责边界。
 
-处理方式：删除旧管理器及其 LRU。无状态 `NtkRequestIdentityBuilder` 在请求修改、元数据 prune 后生成确定性身份；executor 冻结结果一次并交给缓存和去重。身份失败只关闭这些优化，网络继续。
+处理方式：删除旧管理器及其 LRU。无状态 `NtkRequestIdentityBuilder` 在请求修改和陈旧规则清理后生成确定性请求 key；executor 只生成一次并交给缓存和去重。构建失败只关闭这些优化，网络继续。
 
 ### A11：Loading/Toast 回调没有 UI 执行保证
 
@@ -155,7 +155,7 @@ Actor 在 `await` 处允许重入。它只保证同一时刻 actor 隔离代码�
 ## 最终迁移结果
 
 1. `NtkTaskManager` 是独立 actor，只拥有运行中任务、等待者生命周期、取消及实例反向索引；它不重新计算请求键。
-2. `NtkRequestIdentityBuilder` 是无状态投影器；`NtkNetworkCache` 成为消费既有身份的不可变 `Sendable` 门面，`NtkInterceptorContext` 与 `NtkNetworkExecutor` 继续采用值流和不可变快照。
+2. `NtkRequestIdentityBuilder` 是无状态构建器；`NtkNetworkCache` 成为消费既有请求 key 的不可变 `Sendable` 门面，`NtkInterceptorContext` 与 `NtkNetworkExecutor` 继续采用值流和不可变快照。
 3. README、架构文档与模块注释已移除“网络功能统一运行在 NtkActor”的过时描述。
 4. 生产代码和测试中的属性引用清零后，`NtkActor` 声明已删除。
 5. Loading/Toast 的 `MainActor` 契约作为独立 UI 决策保留，不用网络 global actor 代替主线程保证。

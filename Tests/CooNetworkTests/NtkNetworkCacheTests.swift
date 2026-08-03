@@ -7,10 +7,10 @@ struct NtkNetworkCacheTests {
     func cache_can_be_constructed_and_shared_outside_an_actor() async {
         let cache = NtkNetworkCache(storage: NetworkCacheTestStorage())
         let request = NtkMutableRequest(NetworkCacheTestRequest())
-        let identity = NtkRequestIdentity(digest: "ntk-identity-v2-sendable")
+        let requestIdentity = NtkRequestIdentity(value: "opaque-request-identity-sendable")
 
-        async let firstResult = cache.hasData(for: request, identity: identity)
-        async let secondResult = cache.hasData(for: request, identity: identity)
+        async let firstResult = cache.hasData(for: request, requestIdentity: requestIdentity)
+        async let secondResult = cache.hasData(for: request, requestIdentity: requestIdentity)
 
         let (first, second) = await (firstResult, secondResult)
         #expect(first)
@@ -19,15 +19,15 @@ struct NtkNetworkCacheTests {
     }
 
     @Test
-    func cacheUsesProvidedOpaqueIdentityWithoutRecalculation() async {
+    func cacheUsesProvidedOpaqueRequestIdentityWithoutRecalculation() async {
         let capture = NetworkCacheKeyCapture()
         let cache = NtkNetworkCache(storage: NetworkCacheTestStorage(capture: capture))
         let request = NtkMutableRequest(NetworkCacheTestRequest())
-        let identity = NtkRequestIdentity(digest: "ntk-identity-v2-explicit")
+        let requestIdentity = NtkRequestIdentity(value: "opaque-request-identity-explicit")
 
-        _ = await cache.hasData(for: request, identity: identity)
+        _ = await cache.hasData(for: request, requestIdentity: requestIdentity)
 
-        #expect(await capture.key() == identity.digest)
+        #expect(await capture.key() == requestIdentity.value)
         requireSendable(cache)
     }
 }

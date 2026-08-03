@@ -1,5 +1,7 @@
 # 请求身份、缓存键与去重键设计
 
+> 历史设计记录：本文保留重命名前的术语和接口草案，用于解释当时为什么引入这套能力，不代表当前 API。当前代码请以 [Request Key 代码阅读路线](../../request-key-code-walkthrough.md) 和 [Request Key 命名设计](./2026-08-03-request-key-naming-design.md) 为准。
+
 ## 背景
 
 `iNtkRequest.requestConfiguration` 当前同时承担缓存时长、响应缓存判断、请求头过滤、请求参数过滤和去重身份生成。这个接口造成两个问题：
@@ -63,14 +65,14 @@ public struct NtkCacheConfiguration: Sendable {
 ```swift
 public protocol iNtkRequest {
     var cacheConfiguration: NtkCacheConfiguration? { get }
-    var requestIdentityPolicy: NtkRequestIdentityPolicy? { get }
+    var requestKeyPolicy: NtkRequestKeyPolicy? { get }
 }
 ```
 
 语义固定为：
 
 - `cacheConfiguration == nil` 表示不缓存。
-- `requestIdentityPolicy == nil` 表示继承全局请求身份策略。
+- `requestKeyPolicy == nil` 表示继承全局请求身份策略。
 - 非空的请求级身份策略完整替换全局策略，适用于需要重新纳入全局排除字段的特殊接口。
 
 协议扩展为两个属性提供默认 `nil` 实现，因此只有需要缓存或覆盖身份策略的请求需要声明它们。
@@ -80,7 +82,7 @@ public protocol iNtkRequest {
 新增三态枚举：
 
 ```swift
-public enum NtkIdentityParticipation: Sendable {
+public enum NtkRequestKeyRule: Sendable {
     case automatic
     case included
     case excluded
@@ -88,8 +90,8 @@ public enum NtkIdentityParticipation: Sendable {
 ```
 
 - `.automatic` 交给请求级或全局策略决定。
-- `.included` 强制字段参与身份计算。
-- `.excluded` 强制字段不参与身份计算。
+- `.include` 强制字段参与身份计算。
+- `.exclude` 强制字段不参与身份计算。
 
 三态而不是布尔值的原因是：调用方必须能够让某个字段继承默认策略，也必须能够在特殊接口中显式覆盖全局排除规则。
 
@@ -101,28 +103,28 @@ public enum NtkIdentityParticipation: Sendable {
 public mutating func addHeader(
     key: String,
     value: String,
-    identity: NtkIdentityParticipation = .automatic
+    identity: NtkRequestKeyRule = .automatic
 )
 
 public mutating func addParameter(
     key: String,
     value: Sendable,
-    identity: NtkIdentityParticipation = .automatic
+    identity: NtkRequestKeyRule = .automatic
 )
 
 public mutating func addHeaders(
     _ headers: [String: String],
-    identity: NtkIdentityParticipation = .automatic
+    identity: NtkRequestKeyRule = .automatic
 )
 
 public mutating func addParameters(
     _ parameters: [String: Sendable],
-    identity: NtkIdentityParticipation = .automatic
+    identity: NtkRequestKeyRule = .automatic
 )
 
 public mutating func setParameter(
     _ parameters: [String: Sendable],
-    identity: NtkIdentityParticipation = .automatic
+    identity: NtkRequestKeyRule = .automatic
 )
 ```
 
@@ -132,13 +134,13 @@ public mutating func setParameter(
 request.addHeader(
     key: "Authorization",
     value: token,
-    identity: .excluded
+    identity: .exclude
 )
 
 request.addParameter(
     key: "timestamp",
     value: timestamp,
-    identity: .excluded
+    identity: .exclude
 )
 ```
 
@@ -163,19 +165,19 @@ request.addParameter(
 排除 token 后可能让不同用户的请求发生碰撞。为此，`NtkMutableRequest` 提供不发送到服务器的稳定身份组成：
 
 ```swift
-public mutating func addIdentityComponent(
+public mutating func addRequestKeyValue(
     key: String,
     value: String
 )
 
-public mutating func removeIdentityComponent(key: String)
+public mutating func removeRequestKeyValue(key: String)
 ```
 
 典型用法：
 
 ```swift
-request.addIdentityComponent(key: "user", value: userID)
-request.addIdentityComponent(key: "tenant", value: tenantID)
+request.addRequestKeyValue(key: "user", value: userID)
+request.addRequestKeyValue(key: "tenant", value: tenantID)
 ```
 
 相同 key 再次写入时采用最后一个值。身份组成按 key 排序后参与规范化编码。
@@ -189,7 +191,7 @@ request.addIdentityComponent(key: "tenant", value: tenantID)
 `NtkConfiguration.Builder` 增加：
 
 ```swift
-public var requestIdentityPolicy: NtkRequestIdentityPolicy = .strict
+public var requestKeyPolicy: NtkRequestKeyPolicy = .strict
 ```
 
 `.strict` 不排除任何字段。框架不能默认排除 `Authorization` 或 `token`，因为它们可能是唯一能够区分用户的身份信息。
@@ -198,7 +200,7 @@ public var requestIdentityPolicy: NtkRequestIdentityPolicy = .strict
 
 ```swift
 NtkConfiguration.configure {
-    $0.requestIdentityPolicy = .init(
+    $0.requestKeyPolicy = .init(
         excludedHeaderNames: ["Authorization", "X-Request-ID"],
         excludedParameterNames: ["token", "timestamp", "nonce", "sign"]
     )
@@ -208,21 +210,21 @@ NtkConfiguration.configure {
 ### 策略接口
 
 ```swift
-public struct NtkRequestIdentityPolicy: Sendable {
+public struct NtkRequestKeyPolicy: Sendable {
     public let excludedHeaderNames: Set<String>
     public let excludedParameterNames: Set<String>
 
-    public let normalizeHeaders:
+    public let transformHeaders:
         (@Sendable ([String: String]) throws -> [String: String])?
 
-    public let normalizeParameters:
+    public let transformParameters:
         (@Sendable ([String: Sendable]) throws -> [String: Sendable])?
 
     public init(
         excludedHeaderNames: Set<String> = [],
         excludedParameterNames: Set<String> = [],
-        normalizeHeaders: (@Sendable ([String: String]) throws -> [String: String])? = nil,
-        normalizeParameters: (@Sendable ([String: Sendable]) throws -> [String: Sendable])? = nil
+        transformHeaders: (@Sendable ([String: String]) throws -> [String: String])? = nil,
+        transformParameters: (@Sendable ([String: Sendable]) throws -> [String: Sendable])? = nil
     )
 
     public static let strict: Self
@@ -238,18 +240,18 @@ public struct NtkRequestIdentityPolicy: Sendable {
 - 是纯函数，相同输入始终返回相同输出。
 - 不读取当前时间、随机数或可变全局状态。
 - 只影响身份投影，不修改真正发送的请求。
-- 可以过滤或转换 `.automatic` 字段，但无法接触 `.included` 和 `.excluded` 字段。
+- 可以过滤或转换 `.automatic` 字段，但无法接触 `.include` 和 `.exclude` 字段。
 - 抛错时本次身份不可用，由框架执行安全降级。
 
-名称列表先过滤传给闭包的 `.automatic` 输入，闭包返回值作为该部分的最终身份投影；高级闭包可以创建新的投影字段。闭包输出与 `.included` 字段发生同名冲突，或规范化后出现重复 Header 名称时，不猜测覆盖顺序，直接判定身份构建失败。
+名称列表先过滤传给闭包的 `.automatic` 输入，闭包返回值作为该部分的最终身份投影；高级闭包可以创建新的投影字段。闭包输出与 `.include` 字段发生同名冲突，或规范化后出现重复 Header 名称时，不猜测覆盖顺序，直接判定身份构建失败。
 
 ### 解析优先级
 
 身份投影按以下固定顺序构建：
 
 1. 请求级策略存在时完整替换全局策略，否则使用全局策略快照。
-2. `.excluded` 字段直接删除，不交给策略。
-3. `.included` 字段直接保留，不交给策略。
+2. `.exclude` 字段直接删除，不交给策略。
+3. `.include` 字段直接保留，不交给策略。
 4. `.automatic` 字段经过名称列表和自定义规范化闭包。
 5. 加入稳定身份组成。
 6. 执行确定性编码并生成摘要。
@@ -260,11 +262,11 @@ Header 排除名称按 HTTP 规则不区分大小写并精确匹配。参数排�
 
 `NtkNetworkExecutor` 创建时一次性冻结全局配置快照、请求级策略、去重命名空间和响应类型标识。请求修改器随后可以为每条执行路径添加字段级状态和身份组成，但已经冻结的策略不会因后续 `NtkConfiguration.configure` 调用而变化。
 
-同一快照中的 `requestIdentityPolicy`、`isDeduplicationEnabled` 和 `defaultTimeout` 必须一起解析，`NtkTaskManager` 不再在任务注册时重新读取全局配置。这样 key 的组成、是否共享以及实际超时不会来自不同时间点的配置。
+同一快照中的 `requestKeyPolicy`、`isDeduplicationEnabled` 和 `defaultTimeout` 必须一起解析，`NtkTaskManager` 不再在任务注册时重新读取全局配置。这样 key 的组成、是否共享以及实际超时不会来自不同时间点的配置。
 
 ## 确定性身份构建
 
-新增无状态的内部深模块 `NtkRequestIdentityBuilder`。其接口只接收最终请求投影并返回不可变身份，缓存和去重不能再各自实现过滤或字符串化。
+新增无状态的内部深模块 `NtkRequestKeyBuilder`。其接口只接收最终请求投影并返回不可变身份，缓存和去重不能再各自实现过滤或字符串化。
 
 执行器在请求修改完成后构建一次身份解析结果，并将其随不可变 `NtkInterceptorContext` 传递。网络执行路径上的去重和缓存写入消费同一个结果；显式缓存读取和 `hasCacheData()` 各自针对其最终请求快照构建一次结果，但必须使用同一 builder 和算法版本。任何缓存协议适配都不能根据 request 再计算第二份 key。
 
@@ -302,23 +304,23 @@ Header 排除名称按 HTTP 规则不区分大小写并精确匹配。参数排�
 ### 身份类型
 
 ```swift
-public struct NtkRequestIdentity: Hashable, Sendable {
+public struct NtkRequestKey: Hashable, Sendable {
     public let digest: String
 
     internal init(digest: String)
 }
 
-struct NtkDeduplicationIdentity: Hashable, Sendable {
-    let requestIdentity: NtkRequestIdentity
+struct NtkDeduplicationKey: Hashable, Sendable {
+    let requestKey: NtkRequestKey
     let responseType: ObjectIdentifier
     let effectiveTimeout: TimeInterval
     let namespace: String
 }
 ```
 
-缓存直接使用 `NtkRequestIdentity.digest`。去重使用结构化的 `NtkDeduplicationIdentity`，不再拼接字符串 runtime key。响应类型使用 `ObjectIdentifier(ResponseData.self)`，因为去重只发生在当前进程；它能精确区分运行时类型，也避免 `String(describing:)` 的跨模块同名碰撞。现有写入 `NtkMutableRequest.responseType` 的字符串元数据随之删除。
+缓存直接使用 `NtkRequestKey.digest`。去重使用结构化的 `NtkDeduplicationKey`，不再拼接字符串 runtime key。响应类型使用 `ObjectIdentifier(ResponseData.self)`，因为去重只发生在当前进程；它能精确区分运行时类型，也避免 `String(describing:)` 的跨模块同名碰撞。现有写入 `NtkMutableRequest.responseType` 的字符串元数据随之删除。
 
-`NtkRequestIdentity` 公开是为了让自定义缓存 provider 消费框架生成的同一身份，不是为了允许调用方自行构造。`digest` 是可持久化但不透明的版本化键；调用方可以存储和比较它，不能解析其内部格式或假设未来算法版本不变。
+`NtkRequestKey` 公开是为了让自定义缓存 provider 消费框架生成的同一身份，不是为了允许调用方自行构造。`digest` 是可持久化但不透明的版本化键；调用方可以存储和比较它，不能解析其内部格式或假设未来算法版本不变。
 
 ### 缓存身份传递
 
@@ -328,12 +330,12 @@ struct NtkDeduplicationIdentity: Hashable, Sendable {
 public protocol iNtkCacheProvider: Sendable {
     func loadCacheData(
         for request: NtkMutableRequest,
-        identity: NtkRequestIdentity
+        identity: NtkRequestKey
     ) async throws -> (any Sendable)?
 
     func hasCacheData(
         for request: NtkMutableRequest,
-        identity: NtkRequestIdentity
+        identity: NtkRequestKey
     ) async -> Bool
 }
 ```
@@ -399,7 +401,7 @@ initial request
   -> client
 ```
 
-此时请求修改已经完成，普通拦截器不能再修改请求身份。上下文持有可用的 `NtkRequestIdentity` 或不可用状态，以及已经规范化的有效 timeout 和精确响应类型。最外层去重使 retry、client、parser、validation 和 cache write 只执行一次，follower 共享完整结果。
+此时请求修改已经完成，普通拦截器不能再修改请求身份。上下文持有可用的 `NtkRequestKey` 或不可用状态，以及已经规范化的有效 timeout 和精确响应类型。最外层去重使 retry、client、parser、validation 和 cache write 只执行一次，follower 共享完整结果。
 
 只有缓存或去重至少有一个实际启用时才构建请求身份，避免在没有消费者的路径上触发无意义的规范化工作和警告。有效 timeout 无论是否去重都必须解析，因为独立请求同样由任务管理器负责超时。
 
@@ -417,7 +419,7 @@ private var runtimeKeyByInstanceID: [UUID: RuntimeKey]
 
 ```swift
 enum RuntimeKey: Hashable, Sendable {
-    case shared(NtkDeduplicationIdentity)
+    case shared(NtkDeduplicationKey)
     case isolated(UUID)
 }
 ```
@@ -444,7 +446,7 @@ owner 和 follower 注册时都记录 `instanceIdentifier -> runtimeKey`。取�
 失败类型归属于身份构建模块：
 
 ```swift
-struct NtkRequestIdentityBuilder {
+struct NtkRequestKeyBuilder {
     enum Failure: Error, Sendable {
         case unsupportedValue(path: String, type: String)
         case normalizationFailed(section: Section, errorType: String)
@@ -463,7 +465,7 @@ struct NtkRequestIdentityBuilder {
 - warning 包含字段路径和类型，不输出字段值、凭证或自定义错误的描述文本。
 - 所有构建模式都执行相同的安全降级。用户输入不受支持或自定义规范化抛错是可恢复问题，不能用会中断 Debug 请求的 assertion；只有框架自身不可能发生的内部不变量破坏才允许断言。
 
-未来只有在身份失败能够从公开接口抛给业务层时，才重新评估公开错误类型。即使公开独立的身份预检接口，也应优先使用独立的 `NtkRequestIdentityError`，而不是自动并入网络请求失败语义的 `NtkError`。
+未来只有在身份失败能够从公开接口抛给业务层时，才重新评估公开错误类型。即使公开独立的身份预检接口，也应优先使用独立的 `NtkRequestKeyError`，而不是自动并入网络请求失败语义的 `NtkError`。
 
 ## 模块与文件布局
 
@@ -476,15 +478,15 @@ NtkNetwork/
     NtkNetworkCache.swift
 
   identity/
-    NtkIdentityParticipation.swift
-    NtkRequestIdentityPolicy.swift
-    NtkRequestIdentity.swift
-    NtkRequestIdentityBuilder.swift
-    NtkRequestIdentityBuilder+Failure.swift
-    NtkEffectiveTimeoutResolver.swift
+    NtkRequestKeyRule.swift
+    NtkRequestKeyPolicy.swift
+    NtkRequestKey.swift
+    NtkRequestKeyBuilder.swift
+    NtkRequestKeyBuilder+Failure.swift
+    NtkRequestTimeoutResolver.swift
 
   deduplication/
-    NtkDeduplicationIdentity.swift
+    NtkDeduplicationKey.swift
     NtkDeduplicationInterceptor.swift
     NtkTaskManager.swift
 ```
@@ -500,9 +502,9 @@ NtkRequestConfiguration -> NtkCacheConfiguration
 requestConfiguration    -> cacheConfiguration
 ```
 
-所有源代码、测试、示例和文档同步迁移。过滤字段、过滤闭包和参数规范化能力迁移到 `NtkRequestIdentityPolicy`，不保留 deprecated typealias 或属性桥。
+所有源代码、测试、示例和文档同步迁移。过滤字段、过滤闭包和参数规范化能力迁移到 `NtkRequestKeyPolicy`，不保留 deprecated typealias 或属性桥。
 
-旧配置默认排除 `token`，新全局身份策略出于跨用户安全考虑默认为 `.strict`。因此只做类型重命名不会继续排除 `token`：迁移时必须按业务语义选择全局排除、请求级策略或字段级 `.excluded`，并在排除鉴权凭证时加入稳定的 user/tenant 身份组成。
+旧配置默认排除 `token`，新全局身份策略出于跨用户安全考虑默认为 `.strict`。因此只做类型重命名不会继续排除 `token`：迁移时必须按业务语义选择全局排除、请求级策略或字段级 `.exclude`，并在排除鉴权凭证时加入稳定的 user/tenant 身份组成。
 
 缓存键算法版本变化会自然使旧缓存不可达。实现和发布说明需要明确这是一次缓存键版本升级；旧缓存由现有存储淘汰策略处理，不在本次引入批量删除接口。
 
@@ -526,10 +528,10 @@ requestConfiguration    -> cacheConfiguration
 
 ### 请求身份
 
-- token、timestamp 值不同但标记 `.excluded` 时身份相同。
+- token、timestamp 值不同但标记 `.exclude` 时身份相同。
 - 参与身份的稳定参数不同时身份不同。
-- `.included` 覆盖全局排除规则。
-- `.excluded` 字段不进入自定义规范化闭包。
+- `.include` 覆盖全局排除规则。
+- `.exclude` 字段不进入自定义规范化闭包。
 - Header 名称大小写不影响身份。
 - Header 便捷方法按大小写不敏感语义更新、移除并维护身份状态。
 - 批量 Header 中大小写不同的同名字段按稳定规则选择结果。
@@ -541,7 +543,7 @@ requestConfiguration    -> cacheConfiguration
 - 不支持的自定义 `Sendable` 返回结构化 Failure，不使用字符串描述。
 - Header/参数的 nil 集合与空集合身份相同。
 - `UUID` 和 `Date` 不依赖描述字符串且跨重复构建稳定。
-- 自定义规范化输出与 `.included` 字段冲突时身份不可用。
+- 自定义规范化输出与 `.include` 字段冲突时身份不可用。
 
 ### 策略与快照
 
@@ -553,7 +555,7 @@ requestConfiguration    -> cacheConfiguration
 
 ### 缓存
 
-- 缓存和去重消费同一个 `NtkRequestIdentity`。
+- 缓存和去重消费同一个 `NtkRequestKey`。
 - cacheTime 不改变缓存键。
 - identity unavailable 时不读取、不写入缓存。
 - cacheConfiguration 缺失或 cacheTime 无效时不读取、不写入缓存。

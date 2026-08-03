@@ -5,143 +5,141 @@ import Testing
 struct NtkMutableRequestIdentityTests {
     @Test
     func headerHelpersTreatNamesAsCaseInsensitiveLogicalKeys() {
-        var request = NtkMutableRequest(IdentityMetadataRequest())
+        var request = NtkMutableRequest(RequestIdentityMetadataRequest())
 
-        request.addHeader(key: "Authorization", value: "first", identity: .excluded)
-        request.addHeader(key: "authorization", value: "second", identity: .included)
+        request.setHeader("first", forField: "Authorization", requestIdentityRule: .exclude)
+        request.setHeader("second", forField: "authorization", requestIdentityRule: .include)
 
         #expect(request.headers == ["authorization": "second"])
-        #expect(request.identityParticipation(forHeader: "AUTHORIZATION") == .included)
+        #expect(request.requestIdentityRuleForHeader(named: "AUTHORIZATION") == .include)
 
-        request.removeHeader(key: "AUTHORIZATION")
+        request.removeHeader(forField: "AUTHORIZATION")
 
         #expect(request.headers == [:])
-        #expect(request.identityParticipation(forHeader: "Authorization") == .automatic)
+        #expect(request.requestIdentityRuleForHeader(named: "Authorization") == .automatic)
     }
 
     @Test
-    func addHeadersUsesSortedLastCaseVariantAndAppliesUniformParticipation() {
-        var request = NtkMutableRequest(IdentityMetadataRequest())
+    func mergeHeadersUsesSortedLastCaseVariantAndAppliesUniformRequestIdentityRule() {
+        var request = NtkMutableRequest(RequestIdentityMetadataRequest())
 
-        request.addHeaders(
+        request.mergeHeaders(
             ["authorization": "lowercase", "Authorization": "uppercase"],
-            identity: .excluded
+            requestIdentityRule: .exclude
         )
 
         #expect(request.headers == ["authorization": "lowercase"])
-        #expect(request.identityParticipation(forHeader: "AUTHORIZATION") == .excluded)
+        #expect(request.requestIdentityRuleForHeader(named: "AUTHORIZATION") == .exclude)
     }
 
     @Test
-    func parameterMetadataAndIdentityComponentsStayOutOfTheRequestPayload() {
-        var request = NtkMutableRequest(IdentityMetadataRequest())
+    func parameterRulesAndRequestIdentityValuesStayOutOfTheRequestPayload() {
+        var request = NtkMutableRequest(RequestIdentityMetadataRequest())
 
-        request.addParameter(key: "timestamp", value: 123, identity: .excluded)
-        request.addIdentityComponent(key: "user", value: "42")
+        request.setParameter(123, forKey: "timestamp", requestIdentityRule: .exclude)
+        request.setRequestIdentityValue("42", forKey: "user")
 
         #expect(request.parameters?["timestamp"] as? Int == 123)
-        #expect(request.identityParticipation(forParameter: "timestamp") == .excluded)
-        #expect(request.identityComponents == ["user": "42"])
+        #expect(request.requestIdentityRuleForParameter(named: "timestamp") == .exclude)
+        #expect(request.requestIdentityValues == ["user": "42"])
         #expect(request.extraData.isEmpty)
         #expect(request.headers == nil)
     }
 
     @Test
-    func automaticClearsOverridesAndSetParameterReplacesParameterMetadata() {
-        var request = NtkMutableRequest(IdentityMetadataRequest())
+    func automaticClearsOverridesAndSetParametersReplacesParameterMetadata() {
+        var request = NtkMutableRequest(RequestIdentityMetadataRequest())
 
-        request.addParameter(key: "token", value: "first", identity: .excluded)
-        request.addParameter(key: "token", value: "second", identity: .automatic)
-        #expect(request.identityParticipation(forParameter: "token") == .automatic)
+        request.setParameter("first", forKey: "token", requestIdentityRule: .exclude)
+        request.setParameter("second", forKey: "token", requestIdentityRule: .automatic)
+        #expect(request.requestIdentityRuleForParameter(named: "token") == .automatic)
 
-        request.addParameter(key: "tenant", value: "coo", identity: .included)
-        request.setParameter(["next": 1], identity: .excluded)
+        request.setParameter("coo", forKey: "tenant", requestIdentityRule: .include)
+        request.setParameters(["next": 1], requestIdentityRule: .exclude)
 
         #expect(request.parameters?["next"] as? Int == 1)
         #expect(request.parameters?["tenant"] == nil)
-        #expect(request.identityParticipation(forParameter: "tenant") == .automatic)
-        #expect(request.identityParticipation(forParameter: "next") == .excluded)
+        #expect(request.requestIdentityRuleForParameter(named: "tenant") == .automatic)
+        #expect(request.requestIdentityRuleForParameter(named: "next") == .exclude)
     }
 
     @Test
-    func removeParameterAlsoRemovesItsParticipationOverride() {
-        var request = NtkMutableRequest(IdentityMetadataRequest())
+    func removeParameterAlsoRemovesItsRequestIdentityRuleOverride() {
+        var request = NtkMutableRequest(RequestIdentityMetadataRequest())
 
-        request.addParameter(key: "Token", value: "secret", identity: .excluded)
-        request.removeParameter(key: "token")
+        request.setParameter("secret", forKey: "Token", requestIdentityRule: .exclude)
+        request.removeParameter(forKey: "token")
 
         #expect(request.parameters?["Token"] as? String == "secret")
-        #expect(request.identityParticipation(forParameter: "Token") == .excluded)
+        #expect(request.requestIdentityRuleForParameter(named: "Token") == .exclude)
 
-        request.removeParameter(key: "Token")
+        request.removeParameter(forKey: "Token")
 
         #expect(request.parameters?["Token"] == nil)
-        #expect(request.identityParticipation(forParameter: "Token") == .automatic)
+        #expect(request.requestIdentityRuleForParameter(named: "Token") == .automatic)
     }
 
     @Test
-    func clearHelpersAlsoClearTheirParticipationOverrides() {
-        var request = NtkMutableRequest(IdentityMetadataRequest())
+    func removeAllMethodsAlsoClearTheirRequestIdentityRuleOverrides() {
+        var request = NtkMutableRequest(RequestIdentityMetadataRequest())
 
-        request.addHeader(key: "Authorization", value: "secret", identity: .excluded)
-        request.addParameter(key: "tenant", value: "coo", identity: .included)
-        request.addIdentityComponent(key: "user", value: "42")
-        request.clearHeaders()
-        request.clearParameters()
+        request.setHeader("secret", forField: "Authorization", requestIdentityRule: .exclude)
+        request.setParameter("coo", forKey: "tenant", requestIdentityRule: .include)
+        request.setRequestIdentityValue("42", forKey: "user")
+        request.removeAllHeaders()
+        request.removeAllParameters()
 
         #expect(request.headers == nil)
         #expect(request.parameters == nil)
-        #expect(request.identityParticipation(forHeader: "authorization") == .automatic)
-        #expect(request.identityParticipation(forParameter: "tenant") == .automatic)
-        #expect(request.identityComponents == ["user": "42"])
+        #expect(request.requestIdentityRuleForHeader(named: "authorization") == .automatic)
+        #expect(request.requestIdentityRuleForParameter(named: "tenant") == .automatic)
+        #expect(request.requestIdentityValues == ["user": "42"])
     }
 
     @Test
-    func pruneIdentityMetadataPreservesExistingOverridesAndRemovesStaleOnes() {
-        var request = NtkMutableRequest(IdentityMetadataRequest())
+    func setCollectionsReplacePayloadAndDiscardAllPreviousFieldRules() {
+        var request = NtkMutableRequest(RequestIdentityMetadataRequest())
 
-        request.addHeader(key: "X-Retained", value: "first", identity: .included)
-        request.addHeader(key: "X-Removed", value: "removed", identity: .excluded)
-        request.addParameter(key: "retained", value: "first", identity: .included)
-        request.addParameter(key: "removed", value: "removed", identity: .excluded)
-        request.addParameter(key: "CaseSensitive", value: "first", identity: .excluded)
+        request.setHeader("first", forField: "X-Retained", requestIdentityRule: .include)
+        request.setHeader("removed", forField: "X-Removed", requestIdentityRule: .exclude)
+        request.setParameter("first", forKey: "retained", requestIdentityRule: .include)
+        request.setParameter("removed", forKey: "removed", requestIdentityRule: .exclude)
 
-        request.headers = ["x-retained": "second", "X-New": "new"]
-        request.parameters = ["retained": "second", "new": "new", "casesensitive": "second"]
-        request.pruneIdentityMetadata()
+        request.setHeaders(["x-retained": "second", "X-New": "new"])
+        request.setParameters(["retained": "second", "new": "new"])
 
-        #expect(request.identityParticipation(forHeader: "X-RETAINED") == .included)
-        #expect(request.identityParticipation(forHeader: "X-New") == .automatic)
-        #expect(request.identityParticipation(forHeader: "X-Removed") == .automatic)
-        #expect(request.identityParticipation(forParameter: "retained") == .included)
-        #expect(request.identityParticipation(forParameter: "new") == .automatic)
-        #expect(request.identityParticipation(forParameter: "removed") == .automatic)
-        #expect(request.identityParticipation(forParameter: "CaseSensitive") == .automatic)
-        #expect(request.identityParticipation(forParameter: "casesensitive") == .automatic)
+        #expect(request.headers == ["x-retained": "second", "X-New": "new"])
+        #expect(request.parameters?["retained"] as? String == "second")
+        #expect(request.requestIdentityRuleForHeader(named: "X-RETAINED") == .automatic)
+        #expect(request.requestIdentityRuleForHeader(named: "X-New") == .automatic)
+        #expect(request.requestIdentityRuleForHeader(named: "X-Removed") == .automatic)
+        #expect(request.requestIdentityRuleForParameter(named: "retained") == .automatic)
+        #expect(request.requestIdentityRuleForParameter(named: "new") == .automatic)
+        #expect(request.requestIdentityRuleForParameter(named: "removed") == .automatic)
     }
 
     @Test
-    func identityComponentRemovalIsCaseSensitiveAndNeverChangesPayload() {
-        var request = NtkMutableRequest(IdentityMetadataRequest())
+    func requestIdentityValueRemovalIsCaseSensitiveAndNeverChangesPayload() {
+        var request = NtkMutableRequest(RequestIdentityMetadataRequest())
 
-        request.addIdentityComponent(key: "User", value: "42")
-        request.addIdentityComponent(key: "user", value: "84")
+        request.setRequestIdentityValue("42", forKey: "User")
+        request.setRequestIdentityValue("84", forKey: "user")
 
-        #expect(request.identityComponents == ["User": "42", "user": "84"])
+        #expect(request.requestIdentityValues == ["User": "42", "user": "84"])
         #expect(request.parameters == nil)
         #expect(request.headers == nil)
         #expect(request.extraData.isEmpty)
 
-        request.removeIdentityComponent(key: "User")
+        request.removeRequestIdentityValue(forKey: "User")
 
-        #expect(request.identityComponents == ["user": "84"])
+        #expect(request.requestIdentityValues == ["user": "84"])
         #expect(request.parameters == nil)
         #expect(request.headers == nil)
         #expect(request.extraData.isEmpty)
     }
 
     @Test
-    func identityPolicyNormalizesOnlyHeaderExclusions() {
+    func requestIdentityPolicyLowercasesOnlyHeaderExclusions() {
         let policy = NtkRequestIdentityPolicy(
             excludedHeaderNames: ["Authorization"],
             excludedParameterNames: ["Token"]
@@ -174,7 +172,7 @@ struct NtkMutableRequestIdentityTests {
             data: true,
             msg: nil,
             response: true,
-            request: IdentityMetadataRequest(),
+            request: RequestIdentityMetadataRequest(),
             isCache: false
         )
 
@@ -185,8 +183,8 @@ struct NtkMutableRequestIdentityTests {
     }
 
     @Test
-    func mutableRequestForwardsCacheAndIdentityConfigurationFromOriginalRequest() {
-        let originalRequest = IdentityMetadataRequest(
+    func mutableRequestForwardsCacheAndRequestIdentityConfigurationFromOriginalRequest() {
+        let originalRequest = RequestIdentityMetadataRequest(
             cacheConfiguration: .custom(duration: 60),
             requestIdentityPolicy: NtkRequestIdentityPolicy(
                 excludedHeaderNames: ["Authorization"],
@@ -201,8 +199,8 @@ struct NtkMutableRequestIdentityTests {
     }
 }
 
-private struct IdentityMetadataRequest: iNtkRequest {
-    let path = "/identity/metadata"
+private struct RequestIdentityMetadataRequest: iNtkRequest {
+    let path = "/request-identity/metadata"
     let cacheConfiguration: NtkCacheConfiguration?
     let requestIdentityPolicy: NtkRequestIdentityPolicy?
 

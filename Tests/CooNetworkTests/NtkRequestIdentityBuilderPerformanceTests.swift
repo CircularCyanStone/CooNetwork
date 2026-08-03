@@ -16,12 +16,12 @@ struct NtkRequestIdentityBuilderPerformanceTests {
     }
 
     @Test
-    func nestedRequestProducesOneConcurrentDigest() async throws {
+    func nestedRequestProducesOneConcurrentKeyValue() async throws {
         let request = makePerformanceRequest(parameterCount: 100)
-        let digests = try await withThrowingTaskGroup(of: String.self, returning: [String].self) { group in
+        let requestIdentityValues = try await withThrowingTaskGroup(of: String.self, returning: [String].self) { group in
             for _ in 0..<100 {
                 group.addTask {
-                    try NtkRequestIdentityBuilder.build(request: request, policy: .strict).digest
+                    try NtkRequestIdentityBuilder.build(request: request, policy: .strict).value
                 }
             }
             var values: [String] = []
@@ -30,12 +30,12 @@ struct NtkRequestIdentityBuilderPerformanceTests {
             }
             return values
         }
-        #expect(digests.count == 100)
-        #expect(Set(digests).count == 1)
+        #expect(requestIdentityValues.count == 100)
+        #expect(Set(requestIdentityValues).count == 1)
     }
 }
 
-private struct IdentityPerformanceRequest: iNtkRequest {
+private struct RequestIdentityPerformanceRequest: iNtkRequest {
     let values: [String: any Sendable]
 
     var baseURL: URL? { URL(string: "https://api.example.com") }
@@ -54,5 +54,5 @@ private func makePerformanceRequest(parameterCount: Int) -> NtkMutableRequest {
     for index in 0..<parameterCount {
         values["parameter_\(index)"] = "fixed-value-\(index)"
     }
-    return NtkMutableRequest(IdentityPerformanceRequest(values: values))
+    return NtkMutableRequest(RequestIdentityPerformanceRequest(values: values))
 }

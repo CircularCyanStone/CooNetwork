@@ -4,100 +4,100 @@ import Testing
 
 struct NtkRequestIdentityBuilderTests {
     @Test
-    func excludedDynamicFieldsProduceOneIdentity() throws {
+    func excludedDynamicFieldsProduceOneRequestIdentity() throws {
         var first = makeRequest(token: "token-a", timestamp: 1)
-        first.addHeader(key: "Authorization", value: "token-a", identity: .excluded)
-        first.addParameter(key: "token", value: "token-a", identity: .excluded)
-        first.addParameter(key: "timestamp", value: 1, identity: .excluded)
-        first.addIdentityComponent(key: "user", value: "42")
+        first.setHeader("token-a", forField: "Authorization", requestIdentityRule: .exclude)
+        first.setParameter("token-a", forKey: "token", requestIdentityRule: .exclude)
+        first.setParameter(1, forKey: "timestamp", requestIdentityRule: .exclude)
+        first.setRequestIdentityValue("42", forKey: "user")
 
         var second = makeRequest(token: "token-b", timestamp: 2)
-        second.addHeader(key: "authorization", value: "token-b", identity: .excluded)
-        second.addParameter(key: "token", value: "token-b", identity: .excluded)
-        second.addParameter(key: "timestamp", value: 2, identity: .excluded)
-        second.addIdentityComponent(key: "user", value: "42")
+        second.setHeader("token-b", forField: "authorization", requestIdentityRule: .exclude)
+        second.setParameter("token-b", forKey: "token", requestIdentityRule: .exclude)
+        second.setParameter(2, forKey: "timestamp", requestIdentityRule: .exclude)
+        second.setRequestIdentityValue("42", forKey: "user")
 
         #expect(try NtkRequestIdentityBuilder.build(request: first, policy: .strict) ==
                 NtkRequestIdentityBuilder.build(request: second, policy: .strict))
     }
 
     @Test
-    func includedTenantOverridesGlobalExclusionAndSeparatesIdentity() throws {
+    func includedTenantOverridesGlobalExclusionAndSeparatesRequestIdentity() throws {
         let policy = NtkRequestIdentityPolicy(excludedParameterNames: ["tenant"])
         var first = makeRequest()
-        first.addParameter(key: "tenant", value: "a", identity: .included)
+        first.setParameter("a", forKey: "tenant", requestIdentityRule: .include)
         var second = makeRequest()
-        second.addParameter(key: "tenant", value: "b", identity: .included)
+        second.setParameter("b", forKey: "tenant", requestIdentityRule: .include)
 
         #expect(try NtkRequestIdentityBuilder.build(request: first, policy: policy) !=
                 NtkRequestIdentityBuilder.build(request: second, policy: policy))
     }
 
     @Test
-    func userComponentChangeSeparatesIdentity() throws {
+    func userRequestIdentityValueChangeSeparatesRequestIdentity() throws {
         var first = makeRequest()
-        first.addIdentityComponent(key: "user", value: "1")
+        first.setRequestIdentityValue("1", forKey: "user")
         var second = makeRequest()
-        second.addIdentityComponent(key: "user", value: "2")
+        second.setRequestIdentityValue("2", forKey: "user")
 
         #expect(try NtkRequestIdentityBuilder.build(request: first, policy: .strict) !=
                 NtkRequestIdentityBuilder.build(request: second, policy: .strict))
     }
 
     @Test
-    func headerCaseAndDictionaryInsertionOrderDoNotChangeIdentity() throws {
+    func headerCaseAndDictionaryInsertionOrderDoNotChangeRequestIdentity() throws {
         var first = makeRequest()
-        first.addHeader(key: "X-CLIENT", value: "ios")
-        first.setParameter(["outer": ["b": 2, "a": 1] as [String: Sendable]])
+        first.setHeader("ios", forField: "X-CLIENT")
+        first.setParameters(["outer": ["b": 2, "a": 1] as [String: Sendable]])
         var second = makeRequest()
-        second.addHeader(key: "x-client", value: "ios")
-        second.setParameter(["outer": ["a": 1, "b": 2] as [String: Sendable]])
+        second.setHeader("ios", forField: "x-client")
+        second.setParameters(["outer": ["a": 1, "b": 2] as [String: Sendable]])
 
         #expect(try NtkRequestIdentityBuilder.build(request: first, policy: .strict) ==
                 NtkRequestIdentityBuilder.build(request: second, policy: .strict))
     }
 
     @Test
-    func normalizerCannotSeeExplicitFieldsAndCollisionFails() throws {
-        let policy = NtkRequestIdentityPolicy(normalizeParameters: { parameters in
+    func transformClosureCannotSeeExplicitFieldsAndCollisionFails() throws {
+        let policy = NtkRequestIdentityPolicy(transformParameters: { parameters in
             #expect(parameters["secret"] == nil)
-            return ["stable": "from-normalizer"]
+            return ["stable": "from-transform"]
         })
         var request = makeRequest()
-        request.addParameter(key: "secret", value: "value", identity: .excluded)
-        request.addParameter(key: "stable", value: "included", identity: .included)
+        request.setParameter("value", forKey: "secret", requestIdentityRule: .exclude)
+        request.setParameter("included", forKey: "stable", requestIdentityRule: .include)
 
-        #expect(throws: NtkRequestIdentityBuilder.Failure.self) {
+        #expect(throws: NtkRequestIdentityBuilder.BuildError.self) {
             try NtkRequestIdentityBuilder.build(request: request, policy: policy)
         }
     }
 
     @Test
-    func includedHeadersAndParametersBypassNormalizersAndParticipateInIdentity() throws {
+    func includedHeadersAndParametersBypassTransformClosuresAndAffectRequestIdentity() throws {
         let policy = NtkRequestIdentityPolicy(
-            normalizeHeaders: { headers in
+            transformHeaders: { headers in
                 #expect(headers["X-Stable"] == nil)
                 return headers
             },
-            normalizeParameters: { parameters in
+            transformParameters: { parameters in
                 #expect(parameters["tenant"] == nil)
                 return parameters
             }
         )
         var baseline = makeRequest()
-        baseline.addHeader(key: "X-Stable", value: "header-a", identity: .included)
-        baseline.addParameter(key: "tenant", value: "tenant-a", identity: .included)
+        baseline.setHeader("header-a", forField: "X-Stable", requestIdentityRule: .include)
+        baseline.setParameter("tenant-a", forKey: "tenant", requestIdentityRule: .include)
         var changedHeader = baseline
-        changedHeader.addHeader(key: "X-Stable", value: "header-b", identity: .included)
+        changedHeader.setHeader("header-b", forField: "X-Stable", requestIdentityRule: .include)
         var changedParameter = baseline
-        changedParameter.addParameter(key: "tenant", value: "tenant-b", identity: .included)
+        changedParameter.setParameter("tenant-b", forKey: "tenant", requestIdentityRule: .include)
 
-        let baselineIdentity = try NtkRequestIdentityBuilder.build(request: baseline, policy: policy)
-        #expect(baselineIdentity != (try NtkRequestIdentityBuilder.build(
+        let baselineKey = try NtkRequestIdentityBuilder.build(request: baseline, policy: policy)
+        #expect(baselineKey != (try NtkRequestIdentityBuilder.build(
             request: changedHeader,
             policy: policy
         )))
-        #expect(baselineIdentity != (try NtkRequestIdentityBuilder.build(
+        #expect(baselineKey != (try NtkRequestIdentityBuilder.build(
             request: changedParameter,
             policy: policy
         )))
@@ -106,8 +106,8 @@ struct NtkRequestIdentityBuilderTests {
     @Test
     func unsupportedValueReturnsInternalFailure() {
         var request = makeRequest()
-        request.addParameter(key: "custom", value: UnsupportedIdentityParameter())
-        #expect(throws: NtkRequestIdentityBuilder.Failure.self) {
+        request.setParameter(UnsupportedRequestIdentityParameter(), forKey: "custom")
+        #expect(throws: NtkRequestIdentityBuilder.BuildError.self) {
             try NtkRequestIdentityBuilder.build(request: request, policy: .strict)
         }
     }
@@ -115,49 +115,49 @@ struct NtkRequestIdentityBuilderTests {
     @Test
     func excludedParameterNamesAreCaseSensitiveExactMatches() throws {
         let policy = NtkRequestIdentityPolicy(excludedParameterNames: ["token"])
-        var first = NtkMutableRequest(IdentityBuilderRequest())
-        first.setParameter(["token": "a", "Token": "A", "tokenValue": "one"])
-        var second = NtkMutableRequest(IdentityBuilderRequest())
-        second.setParameter(["token": "b", "Token": "A", "tokenValue": "one"])
+        var first = NtkMutableRequest(RequestIdentityBuilderRequest())
+        first.setParameters(["token": "a", "Token": "A", "tokenValue": "one"])
+        var second = NtkMutableRequest(RequestIdentityBuilderRequest())
+        second.setParameters(["token": "b", "Token": "A", "tokenValue": "one"])
         #expect(try NtkRequestIdentityBuilder.build(request: first, policy: policy) ==
                 NtkRequestIdentityBuilder.build(request: second, policy: policy))
 
-        second.addParameter(key: "tokenValue", value: "two")
+        second.setParameter("two", forKey: "tokenValue")
         #expect(try NtkRequestIdentityBuilder.build(request: first, policy: policy) !=
                 NtkRequestIdentityBuilder.build(request: second, policy: policy))
     }
 
     @Test
-    func nilAndEmptyCollectionsHaveOneIdentity() throws {
-        let nilCollections = NtkMutableRequest(IdentityBuilderRequest())
-        var emptyCollections = NtkMutableRequest(IdentityBuilderRequest())
-        emptyCollections.headers = [:]
-        emptyCollections.parameters = [:]
+    func nilAndEmptyCollectionsHaveOneRequestIdentity() throws {
+        let nilCollections = NtkMutableRequest(RequestIdentityBuilderRequest())
+        var emptyCollections = NtkMutableRequest(RequestIdentityBuilderRequest())
+        emptyCollections.setHeaders([:])
+        emptyCollections.setParameters([:])
         #expect(try NtkRequestIdentityBuilder.build(request: nilCollections, policy: .strict) ==
                 NtkRequestIdentityBuilder.build(request: emptyCollections, policy: .strict))
     }
 
     @Test
-    func arrayOrderAndScalarTypesChangeIdentity() throws {
-        var first = NtkMutableRequest(IdentityBuilderRequest())
-        first.setParameter(["value": [1, 2] as [any Sendable]])
-        var reordered = NtkMutableRequest(IdentityBuilderRequest())
-        reordered.setParameter(["value": [2, 1] as [any Sendable]])
-        var stringValue = NtkMutableRequest(IdentityBuilderRequest())
-        stringValue.setParameter(["value": "1"])
-        var booleanValue = NtkMutableRequest(IdentityBuilderRequest())
-        booleanValue.setParameter(["value": true])
+    func arrayOrderAndScalarTypesChangeRequestIdentity() throws {
+        var first = NtkMutableRequest(RequestIdentityBuilderRequest())
+        first.setParameters(["value": [1, 2] as [any Sendable]])
+        var reordered = NtkMutableRequest(RequestIdentityBuilderRequest())
+        reordered.setParameters(["value": [2, 1] as [any Sendable]])
+        var stringValue = NtkMutableRequest(RequestIdentityBuilderRequest())
+        stringValue.setParameters(["value": "1"])
+        var booleanValue = NtkMutableRequest(RequestIdentityBuilderRequest())
+        booleanValue.setParameters(["value": true])
 
-        let integerIdentity = try NtkRequestIdentityBuilder.build(request: first, policy: .strict)
-        #expect(integerIdentity != (try NtkRequestIdentityBuilder.build(request: reordered, policy: .strict)))
-        #expect(integerIdentity != (try NtkRequestIdentityBuilder.build(request: stringValue, policy: .strict)))
-        #expect(integerIdentity != (try NtkRequestIdentityBuilder.build(request: booleanValue, policy: .strict)))
+        let integerKey = try NtkRequestIdentityBuilder.build(request: first, policy: .strict)
+        #expect(integerKey != (try NtkRequestIdentityBuilder.build(request: reordered, policy: .strict)))
+        #expect(integerKey != (try NtkRequestIdentityBuilder.build(request: stringValue, policy: .strict)))
+        #expect(integerKey != (try NtkRequestIdentityBuilder.build(request: booleanValue, policy: .strict)))
     }
 
     @Test
     func supportedFoundationAndDynamicValuesRepeatExactly() throws {
-        var request = NtkMutableRequest(IdentityBuilderRequest())
-        request.setParameter([
+        var request = NtkMutableRequest(RequestIdentityBuilderRequest())
+        request.setParameters([
             "data": Data([1, 2, 3]),
             "url": URL(string: "https://example.com/resource")!,
             "uuid": UUID(uuidString: "00112233-4455-6677-8899-AABBCCDDEEFF")!,
@@ -171,36 +171,36 @@ struct NtkRequestIdentityBuilderTests {
     }
 
     @Test
-    func digestUsesVersionedLowercaseSHA256Format() throws {
-        let identity = try NtkRequestIdentityBuilder.build(
+    func requestIdentityValueUsesVersionedLowercaseSHA256Format() throws {
+        let requestIdentity = try NtkRequestIdentityBuilder.build(
             request: makeRequest(),
             policy: .strict
         )
         let prefix = "ntk-identity-v2-"
-        let digestBytes = identity.digest.dropFirst(prefix.count).utf8
+        let hashBytes = requestIdentity.value.dropFirst(prefix.count).utf8
 
-        #expect(identity.digest.hasPrefix(prefix))
-        #expect(digestBytes.count == 64)
-        #expect(digestBytes.allSatisfy {
+        #expect(requestIdentity.value.hasPrefix(prefix))
+        #expect(hashBytes.count == 64)
+        #expect(hashBytes.allSatisfy {
             (48...57).contains($0) || (97...102).contains($0)
         })
     }
 
     @Test
-    func normalizationFailureStoresOnlyErrorType() {
-        let policy = NtkRequestIdentityPolicy(normalizeParameters: { _ in
-            throw IdentityNormalizerError.containsSensitiveDescription
+    func transformationFailureStoresOnlyErrorType() {
+        let policy = NtkRequestIdentityPolicy(transformParameters: { _ in
+            throw RequestIdentityTransformError.containsSensitiveDescription
         })
-        let request = NtkMutableRequest(IdentityBuilderRequest())
+        let request = NtkMutableRequest(RequestIdentityBuilderRequest())
         do {
             _ = try NtkRequestIdentityBuilder.build(request: request, policy: policy)
-            Issue.record("期望规范化失败")
-        } catch let failure as NtkRequestIdentityBuilder.Failure {
-            guard case .normalizationFailed(.parameters, let errorType) = failure else {
+            Issue.record("期望字段转换失败")
+        } catch let failure as NtkRequestIdentityBuilder.BuildError {
+            guard case .transformationFailed(.parameters, let errorType) = failure else {
                 Issue.record("错误类型不符: \(failure)")
                 return
             }
-            #expect(errorType.contains("IdentityNormalizerError"))
+            #expect(errorType.contains("RequestIdentityTransformError"))
             #expect(!errorType.contains("secret-value"))
         } catch {
             Issue.record("错误类型不符: \(error)")
@@ -208,10 +208,11 @@ struct NtkRequestIdentityBuilderTests {
     }
 
     @Test
-    func duplicateCaseInsensitiveHeadersFailIdentityOnly() {
-        var request = NtkMutableRequest(IdentityBuilderRequest())
-        request.headers = ["Authorization": "a", "authorization": "b"]
-        #expect(throws: NtkRequestIdentityBuilder.Failure.self) {
+    func duplicateCaseInsensitiveHeadersFailRequestIdentityOnly() {
+        let request = NtkMutableRequest(RequestIdentityBuilderRequest(
+            requestHeaders: ["Authorization": "a", "authorization": "b"]
+        ))
+        #expect(throws: NtkRequestIdentityBuilder.BuildError.self) {
             try NtkRequestIdentityBuilder.build(request: request, policy: .strict)
         }
     }
@@ -219,25 +220,25 @@ struct NtkRequestIdentityBuilderTests {
     @Test
     func headerExclusionIsCaseInsensitiveAndExact() throws {
         let policy = NtkRequestIdentityPolicy(excludedHeaderNames: ["Authorization"])
-        var first = NtkMutableRequest(IdentityBuilderRequest())
-        first.headers = ["authorization": "a", "Authorization-Mode": "stable"]
-        var second = NtkMutableRequest(IdentityBuilderRequest())
-        second.headers = ["AUTHORIZATION": "b", "Authorization-Mode": "stable"]
+        var first = NtkMutableRequest(RequestIdentityBuilderRequest())
+        first.setHeaders(["authorization": "a", "Authorization-Mode": "stable"])
+        var second = NtkMutableRequest(RequestIdentityBuilderRequest())
+        second.setHeaders(["AUTHORIZATION": "b", "Authorization-Mode": "stable"])
         #expect(try NtkRequestIdentityBuilder.build(request: first, policy: policy) ==
                 NtkRequestIdentityBuilder.build(request: second, policy: policy))
 
-        second.headers?["Authorization-Mode"] = "changed"
+        second.setHeader("changed", forField: "Authorization-Mode")
         #expect(try NtkRequestIdentityBuilder.build(request: first, policy: policy) !=
                 NtkRequestIdentityBuilder.build(request: second, policy: policy))
     }
 
     @Test
-    func cacheTimeAndTimeoutDoNotChangeResourceIdentity() throws {
-        let first = NtkMutableRequest(IdentityBuilderConfiguredRequest(
+    func cacheTimeAndTimeoutDoNotChangeRequestIdentity() throws {
+        let first = NtkMutableRequest(RequestIdentityBuilderConfiguredRequest(
             timeout: 10,
             cacheTime: 60
         ))
-        let second = NtkMutableRequest(IdentityBuilderConfiguredRequest(
+        let second = NtkMutableRequest(RequestIdentityBuilderConfiguredRequest(
             timeout: 20,
             cacheTime: 3_600
         ))
@@ -246,32 +247,34 @@ struct NtkRequestIdentityBuilderTests {
     }
 
     private func makeRequest(token: String = "token", timestamp: Int = 0) -> NtkMutableRequest {
-        var request = NtkMutableRequest(IdentityBuilderRequest())
-        request.addHeader(key: "Content-Type", value: "application/json")
-        request.addParameter(key: "token", value: token)
-        request.addParameter(key: "timestamp", value: timestamp)
+        var request = NtkMutableRequest(RequestIdentityBuilderRequest())
+        request.setHeader("application/json", forField: "Content-Type")
+        request.setParameter(token, forKey: "token")
+        request.setParameter(timestamp, forKey: "timestamp")
         return request
     }
 }
 
-private struct IdentityBuilderRequest: iNtkRequest {
+private struct RequestIdentityBuilderRequest: iNtkRequest {
+    var requestHeaders: [String: String]? = nil
     var baseURL: URL? { URL(string: "https://api.example.com") }
-    var path: String { "/identity/build" }
+    var path: String { "/request-identity/build" }
     var method: NtkHTTPMethod { .post }
+    var headers: [String: String]? { requestHeaders }
 }
 
-private struct UnsupportedIdentityParameter: Sendable {}
+private struct UnsupportedRequestIdentityParameter: Sendable {}
 
-private enum IdentityNormalizerError: Error, CustomStringConvertible {
+private enum RequestIdentityTransformError: Error, CustomStringConvertible {
     case containsSensitiveDescription
     var description: String { "secret-value" }
 }
 
-private struct IdentityBuilderConfiguredRequest: iNtkRequest {
+private struct RequestIdentityBuilderConfiguredRequest: iNtkRequest {
     let timeout: TimeInterval
     let cacheTime: TimeInterval
     var baseURL: URL? { URL(string: "https://api.example.com") }
-    var path: String { "/identity/config-independent" }
+    var path: String { "/request-identity/config-independent" }
     var method: NtkHTTPMethod { .get }
     var cacheConfiguration: NtkCacheConfiguration? {
         .custom(duration: cacheTime)

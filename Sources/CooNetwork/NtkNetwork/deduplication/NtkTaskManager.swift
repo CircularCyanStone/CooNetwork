@@ -7,11 +7,11 @@ import Foundation
 
 /// 网络请求任务管理器（去重调度中心）。
 ///
-/// 去重键只来自执行器已冻结的身份；身份不可用时，每次执行仅使用请求实例隔离。
+/// 去重 key 只来自执行器已冻结的结果；key 不可用时，每次执行仅使用请求实例隔离。
 actor NtkTaskManager {
 
     private enum RuntimeKey: Hashable, Sendable {
-        case shared(NtkDeduplicationIdentity)
+        case shared(NtkDeduplicationKey)
         case isolated(UUID)
     }
 
@@ -35,7 +35,7 @@ actor NtkTaskManager {
 
     func executeWithDeduplication<T: Sendable>(
         request: NtkMutableRequest,
-        identity: NtkDeduplicationIdentity?,
+        deduplicationKey: NtkDeduplicationKey?,
         effectiveTimeout: TimeInterval,
         execution: @escaping @Sendable () async throws -> T
     ) async throws -> T {
@@ -43,11 +43,13 @@ actor NtkTaskManager {
             throw NtkError.requestCancelled
         }
 
-        let runtimeKey = identity.map(RuntimeKey.shared) ?? .isolated(request.instanceIdentifier)
-        let timeoutForExecution = identity?.effectiveTimeout ?? effectiveTimeout
+        // 构建失败或功能关闭时没有 deduplicationKey，此时使用每个请求实例自己的 UUID，保证
+        // 字典管理、取消与超时逻辑仍走同一条路径，但两个请求永远不会意外共享底层任务。
+        let runtimeKey = deduplicationKey.map(RuntimeKey.shared) ?? .isolated(request.instanceIdentifier)
+        let timeoutForExecution = deduplicationKey?.effectiveTimeout ?? effectiveTimeout
 
-        // 只有已经成功建立身份的执行可以共享；身份缺失必须始终独立执行。
-        if identity != nil,
+        // 只有已经成功建立去重 key 的执行可以查找共享任务；key 缺失必须始终独立执行。
+        if deduplicationKey != nil,
            let result: T = try await awaitOngoingResultIfAvailable(
                runtimeKey: runtimeKey,
                request: request
@@ -94,7 +96,7 @@ actor NtkTaskManager {
 extension NtkTaskManager {
 
     /// 仅接收执行器解析并冻结的超时值；任务管理器不读取全局配置或请求原始超时。
-    /// 前置不变量：`NtkEffectiveTimeoutResolver` 已保证该值有限、为正且不超过最大值，
+    /// 前置不变量：`NtkRequestTimeoutResolver` 已保证该值有限、为正且不超过最大值，
     /// 因此可安全转换为 `UInt64` 纳秒；这里不重新回退或夹取。
     private static func executeWithTimeout<T: Sendable>(
         effectiveTimeout: TimeInterval,

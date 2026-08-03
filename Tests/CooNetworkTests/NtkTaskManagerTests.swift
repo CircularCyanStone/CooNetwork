@@ -26,7 +26,7 @@ struct NtkTaskManagerTests {
         let firstTask = Task {
             try await NtkTaskManager.shared.executeWithDeduplication(
                 request: firstRequest,
-                identity: nil,
+                deduplicationKey: nil,
                 effectiveTimeout: 30
             ) {
                 await gate.signalFirstStarted()
@@ -39,7 +39,7 @@ struct NtkTaskManagerTests {
         let secondTask = Task {
             try await NtkTaskManager.shared.executeWithDeduplication(
                 request: secondRequest,
-                identity: nil,
+                deduplicationKey: nil,
                 effectiveTimeout: 30
             ) {
                 await gate.signalSecondStarted()
@@ -74,7 +74,7 @@ struct NtkTaskManagerTests {
         let stringTask = Task {
             try await NtkTaskManager.shared.executeWithDeduplication(
                 request: stringRequest,
-                identity: deduplicationIdentity(String.self),
+                deduplicationKey: makeDeduplicationKey(String.self),
                 effectiveTimeout: 30
             ) {
                 await counter.increment()
@@ -88,7 +88,7 @@ struct NtkTaskManagerTests {
         let intTask = Task {
             try await NtkTaskManager.shared.executeWithDeduplication(
                 request: intRequest,
-                identity: deduplicationIdentity(Int.self),
+                deduplicationKey: makeDeduplicationKey(Int.self),
                 effectiveTimeout: 30
             ) {
                 await counter.increment()
@@ -126,7 +126,7 @@ struct NtkTaskManagerTests {
             do {
                 let result: String = try await NtkTaskManager.shared.executeWithDeduplication(
                     request: firstSnapshot,
-                    identity: nil,
+                    deduplicationKey: nil,
                     effectiveTimeout: 30
                 ) {
                     await gate.signalFirstStarted()
@@ -142,7 +142,7 @@ struct NtkTaskManagerTests {
             do {
                 let result: String = try await NtkTaskManager.shared.executeWithDeduplication(
                     request: secondRequest,
-                    identity: nil,
+                    deduplicationKey: nil,
                     effectiveTimeout: 30
                 ) {
                     await gate.signalSecondStarted()
@@ -185,12 +185,12 @@ struct NtkTaskManagerTests {
         let secondRequest = NtkMutableRequest(
             TaskManagerDummyRequest(path: "/task-manager/test/dedup-shared")
         )
-        let identity = deduplicationIdentity(String.self)
+        let deduplicationKey = makeDeduplicationKey(String.self)
 
         let firstTask = Task {
             try await NtkTaskManager.shared.executeWithDeduplication(
                 request: firstRequest,
-                identity: identity,
+                deduplicationKey: deduplicationKey,
                 effectiveTimeout: 30
             ) {
                 await counter.increment()
@@ -204,7 +204,7 @@ struct NtkTaskManagerTests {
         let secondTask = Task {
             try await NtkTaskManager.shared.executeWithDeduplication(
                 request: secondRequest,
-                identity: identity,
+                deduplicationKey: deduplicationKey,
                 effectiveTimeout: 30
             ) {
                 await counter.increment()
@@ -227,13 +227,13 @@ struct NtkTaskManagerTests {
         )
         request.isCancelledRef = NtkCancellableState()
         let snapshot = request
-        let identity = deduplicationIdentity(String.self)
+        let deduplicationKey = makeDeduplicationKey(String.self)
 
         let firstTask = Task { () -> Result<String, Error> in
             do {
                 let result: String = try await NtkTaskManager.shared.executeWithDeduplication(
                     request: snapshot,
-                    identity: identity,
+                    deduplicationKey: deduplicationKey,
                     effectiveTimeout: 30
                 ) {
                     await gate.signalFirstStarted()
@@ -256,7 +256,7 @@ struct NtkTaskManagerTests {
         let secondTask = Task {
             try await NtkTaskManager.shared.executeWithDeduplication(
                 request: newRequest,
-                identity: identity,
+                deduplicationKey: deduplicationKey,
                 effectiveTimeout: 30
             ) {
                 await gate.signalSecondStarted()
@@ -279,7 +279,7 @@ struct NtkTaskManagerTests {
     func testDedupFollowerCancelDoesNotAffectSharedWaiting() async throws {
         let gate = TaskExecutionGate()
         let counter = ExecutionCounter()
-        let identity = deduplicationIdentity(String.self)
+        let deduplicationKey = makeDeduplicationKey(String.self)
         let owner = NtkMutableRequest(
             TaskManagerDummyRequest(path: "/task-manager/test/dedup-follower-cancel")
         )
@@ -295,7 +295,7 @@ struct NtkTaskManagerTests {
         let ownerTask = Task {
             try await NtkTaskManager.shared.executeWithDeduplication(
                 request: owner,
-                identity: identity,
+                deduplicationKey: deduplicationKey,
                 effectiveTimeout: 30
             ) {
                 await counter.increment()
@@ -310,7 +310,7 @@ struct NtkTaskManagerTests {
             do {
                 let result: String = try await NtkTaskManager.shared.executeWithDeduplication(
                     request: followerSnapshot,
-                    identity: identity,
+                    deduplicationKey: deduplicationKey,
                     effectiveTimeout: 30
                 ) {
                     await counter.increment()
@@ -328,7 +328,7 @@ struct NtkTaskManagerTests {
         let anotherTask = Task {
             try await NtkTaskManager.shared.executeWithDeduplication(
                 request: another,
-                identity: identity,
+                deduplicationKey: deduplicationKey,
                 effectiveTimeout: 30
             ) {
                 await counter.increment()
@@ -353,7 +353,7 @@ struct NtkTaskManagerTests {
     func testDedupOwnerCancelDoesNotAffectFollower() async throws {
         let gate = TaskExecutionGate()
         let counter = ExecutionCounter()
-        let identity = deduplicationIdentity(String.self)
+        let deduplicationKey = makeDeduplicationKey(String.self)
         var owner = NtkMutableRequest(
             TaskManagerDummyRequest(path: "/task-manager/test/dedup-owner-cancel")
         )
@@ -367,7 +367,7 @@ struct NtkTaskManagerTests {
             do {
                 let result: String = try await NtkTaskManager.shared.executeWithDeduplication(
                     request: ownerSnapshot,
-                    identity: identity,
+                    deduplicationKey: deduplicationKey,
                     effectiveTimeout: 30
                 ) {
                     await counter.increment()
@@ -390,7 +390,7 @@ struct NtkTaskManagerTests {
         let followerTask = Task {
             try await NtkTaskManager.shared.executeWithDeduplication(
                 request: follower,
-                identity: identity,
+                deduplicationKey: deduplicationKey,
                 effectiveTimeout: 30
             ) {
                 await counter.increment()
@@ -423,7 +423,7 @@ struct NtkTaskManagerTests {
     func testDedupAllWaitersCancelledCancelsUnderlyingTask() async throws {
         let gate = TaskExecutionGate()
         let cancellationSignal = TaskCancellationSignal()
-        let identity = deduplicationIdentity(String.self)
+        let deduplicationKey = makeDeduplicationKey(String.self)
         var owner = NtkMutableRequest(
             TaskManagerDummyRequest(path: "/task-manager/test/dedup-all-cancel")
         )
@@ -439,7 +439,7 @@ struct NtkTaskManagerTests {
             do {
                 let result: String = try await NtkTaskManager.shared.executeWithDeduplication(
                     request: ownerSnapshot,
-                    identity: identity,
+                    deduplicationKey: deduplicationKey,
                     effectiveTimeout: 30
                 ) {
                     await gate.signalFirstStarted()
@@ -464,7 +464,7 @@ struct NtkTaskManagerTests {
             do {
                 let result: String = try await NtkTaskManager.shared.executeWithDeduplication(
                     request: followerSnapshot,
-                    identity: identity,
+                    deduplicationKey: deduplicationKey,
                     effectiveTimeout: 30
                 ) {
                     return "should-not-run"
@@ -504,7 +504,7 @@ struct NtkTaskManagerTests {
     @Test
     func testDedupMultipleFollowersCancelOneByOne() async throws {
         let gate = TaskExecutionGate()
-        let identity = deduplicationIdentity(String.self)
+        let deduplicationKey = makeDeduplicationKey(String.self)
         var owner = NtkMutableRequest(
             TaskManagerDummyRequest(path: "/task-manager/test/dedup-multi-cancel")
         )
@@ -525,7 +525,7 @@ struct NtkTaskManagerTests {
             do {
                 let result: String = try await NtkTaskManager.shared.executeWithDeduplication(
                     request: ownerSnapshot,
-                    identity: identity,
+                    deduplicationKey: deduplicationKey,
                     effectiveTimeout: 30
                 ) {
                     await gate.signalFirstStarted()
@@ -543,7 +543,7 @@ struct NtkTaskManagerTests {
             do {
                 let result: String = try await NtkTaskManager.shared.executeWithDeduplication(
                     request: followerASnapshot,
-                    identity: identity,
+                    deduplicationKey: deduplicationKey,
                     effectiveTimeout: 30
                 ) {
                     return "should-not-run"
@@ -559,7 +559,7 @@ struct NtkTaskManagerTests {
             do {
                 let result: String = try await NtkTaskManager.shared.executeWithDeduplication(
                     request: followerBSnapshot,
-                    identity: identity,
+                    deduplicationKey: deduplicationKey,
                     effectiveTimeout: 30
                 ) {
                     return "should-not-run"
@@ -606,7 +606,7 @@ struct NtkTaskManagerTests {
         )
         let result: String = try await NtkTaskManager.shared.executeWithDeduplication(
             request: request,
-            identity: deduplicationIdentity(String.self),
+            deduplicationKey: makeDeduplicationKey(String.self),
             effectiveTimeout: 30
         ) {
             "fallback-result"
@@ -618,7 +618,7 @@ struct NtkTaskManagerTests {
     @Test
     func testDedupFollowerCancelReceivesRequestCancelledNotNetworkError() async throws {
         let gate = TaskExecutionGate()
-        let identity = deduplicationIdentity(String.self)
+        let deduplicationKey = makeDeduplicationKey(String.self)
         let owner = NtkMutableRequest(
             TaskManagerDummyRequest(path: "/task-manager/test/dedup-cancel-error-type")
         )
@@ -632,7 +632,7 @@ struct NtkTaskManagerTests {
             do {
                 let result: String = try await NtkTaskManager.shared.executeWithDeduplication(
                     request: owner,
-                    identity: identity,
+                    deduplicationKey: deduplicationKey,
                     effectiveTimeout: 30
                 ) {
                     await gate.signalFirstStarted()
@@ -650,7 +650,7 @@ struct NtkTaskManagerTests {
             do {
                 let result: String = try await NtkTaskManager.shared.executeWithDeduplication(
                     request: followerSnapshot,
-                    identity: identity,
+                    deduplicationKey: deduplicationKey,
                     effectiveTimeout: 30
                 ) {
                     return "should-not-run"
@@ -682,31 +682,31 @@ struct NtkTaskManagerTests {
     }
 
     @Test
-    func timeoutNamespaceAndMissingIdentityKeepExecutionsIsolated() async throws {
-        let base = deduplicationIdentity(String.self)
+    func timeoutNamespaceAndMissingDeduplicationKeyKeepExecutionsIsolated() async throws {
+        let base = makeDeduplicationKey(String.self)
         try await expectTwoExecutions(
             first: base,
-            second: deduplicationIdentity(String.self, timeout: 31)
+            second: makeDeduplicationKey(String.self, timeout: 31)
         )
         try await expectTwoExecutions(
             first: base,
-            second: deduplicationIdentity(String.self, namespace: "secondary")
+            second: makeDeduplicationKey(String.self, namespace: "secondary")
         )
         try await expectTwoExecutions(first: nil, second: nil)
     }
 
     @Test
-    func sharedIdentityUsesIdentityEffectiveTimeout() async {
+    func sharedDeduplicationKeyUsesDeduplicationKeyEffectiveTimeout() async {
         let gate = TaskExecutionGate()
         let request = NtkMutableRequest(
-            TaskManagerDummyRequest(path: "/task-manager/identity-timeout")
+            TaskManagerDummyRequest(path: "/task-manager/deduplication-key-timeout")
         )
-        let identity = deduplicationIdentity(String.self, timeout: 0.03)
+        let deduplicationKey = makeDeduplicationKey(String.self, timeout: 0.03)
         let task = Task { () -> Result<String, Error> in
             do {
                 let value: String = try await NtkTaskManager.shared.executeWithDeduplication(
                     request: request,
-                    identity: identity,
+                    deduplicationKey: deduplicationKey,
                     effectiveTimeout: 1
                 ) {
                     await gate.signalFirstStarted()
@@ -718,17 +718,17 @@ struct NtkTaskManagerTests {
                 return .failure(error)
             }
         }
-        #expect(await waitUntil("identity timeout 执行开始") { await gate.firstStarted() })
+        #expect(await waitUntil("去重 key timeout 执行开始") { await gate.firstStarted() })
 
         if case .failure(let error) = await task.value {
-            #expect(isFrameworkTimeout(error, expected: identity.effectiveTimeout))
+            #expect(isFrameworkTimeout(error, expected: deduplicationKey.effectiveTimeout))
         } else {
-            Issue.record("identity timeout 应抛出 framework timeout")
+            Issue.record("去重 key timeout 应抛出 framework timeout")
         }
     }
 
     @Test
-    func missingIdentityUsesExplicitEffectiveTimeout() async {
+    func missingDeduplicationKeyUsesExplicitEffectiveTimeout() async {
         let gate = TaskExecutionGate()
         let request = NtkMutableRequest(
             TaskManagerDummyRequest(path: "/task-manager/explicit-timeout")
@@ -738,7 +738,7 @@ struct NtkTaskManagerTests {
             do {
                 let value: String = try await NtkTaskManager.shared.executeWithDeduplication(
                     request: request,
-                    identity: nil,
+                    deduplicationKey: nil,
                     effectiveTimeout: effectiveTimeout
                 ) {
                     await gate.signalFirstStarted()
@@ -770,7 +770,7 @@ struct NtkTaskManagerTests {
         let task = Task {
             try await NtkTaskManager.shared.executeWithDeduplication(
                 request: snapshot,
-                identity: deduplicationIdentity(String.self),
+                deduplicationKey: makeDeduplicationKey(String.self),
                 effectiveTimeout: 30
             ) {
                 await gate.signalFirstStarted()
@@ -780,7 +780,7 @@ struct NtkTaskManagerTests {
         }
         #expect(await waitUntil("实例索引请求开始") { await gate.firstStarted() })
 
-        request.addParameter(key: "stable", value: UUID().uuidString)
+        request.setParameter(UUID().uuidString, forKey: "stable")
         request.isCancelledRef?.cancel()
         await NtkTaskManager.shared.cancelRequest(instanceIdentifier: request.instanceIdentifier)
         #expect(await isActive(request) == false)
@@ -797,7 +797,7 @@ struct NtkTaskManagerTests {
     func cancelAllRequestsRemovesEveryInstanceIndex() async {
         await NtkTaskManagerTestIsolation.shared.withLock {
             let gate = TaskExecutionGate()
-            let identity = deduplicationIdentity(String.self)
+            let deduplicationKey = makeDeduplicationKey(String.self)
             let owner = NtkMutableRequest(
                 TaskManagerDummyRequest(path: "/task-manager/cancel-all")
             )
@@ -807,7 +807,7 @@ struct NtkTaskManagerTests {
             let ownerTask = Task {
                 try? await NtkTaskManager.shared.executeWithDeduplication(
                     request: owner,
-                    identity: identity,
+                    deduplicationKey: deduplicationKey,
                     effectiveTimeout: 30
                 ) {
                     await gate.signalFirstStarted()
@@ -820,7 +820,7 @@ struct NtkTaskManagerTests {
             let followerTask = Task {
                 try? await NtkTaskManager.shared.executeWithDeduplication(
                     request: follower,
-                    identity: identity,
+                    deduplicationKey: deduplicationKey,
                     effectiveTimeout: 30
                 ) {
                     return "should-not-run"
@@ -838,14 +838,14 @@ struct NtkTaskManagerTests {
     }
 }
 
-private func deduplicationIdentity<Response: Sendable>(
+private func makeDeduplicationKey<Response: Sendable>(
     _ type: Response.Type,
-    digest: String = "ntk-identity-v2-test",
+    requestIdentityValue: String = "ntk-identity-v2-test",
     timeout: TimeInterval = 30,
     namespace: String = "default"
-) -> NtkDeduplicationIdentity {
-    NtkDeduplicationIdentity(
-        requestIdentity: NtkRequestIdentity(digest: digest),
+) -> NtkDeduplicationKey {
+    NtkDeduplicationKey(
+        requestIdentity: NtkRequestIdentity(value: requestIdentityValue),
         responseType: ObjectIdentifier(type),
         effectiveTimeout: timeout,
         namespace: namespace
@@ -853,8 +853,8 @@ private func deduplicationIdentity<Response: Sendable>(
 }
 
 private func expectTwoExecutions(
-    first: NtkDeduplicationIdentity?,
-    second: NtkDeduplicationIdentity?
+    first: NtkDeduplicationKey?,
+    second: NtkDeduplicationKey?
 ) async throws {
     let counter = ExecutionCounter()
     let gate = TaskExecutionGate()
@@ -868,7 +868,7 @@ private func expectTwoExecutions(
     let firstTask = Task {
         try await NtkTaskManager.shared.executeWithDeduplication(
             request: firstRequest,
-            identity: first,
+            deduplicationKey: first,
             effectiveTimeout: first?.effectiveTimeout ?? 30
         ) {
             await counter.increment()
@@ -882,7 +882,7 @@ private func expectTwoExecutions(
     let secondTask = Task {
         try await NtkTaskManager.shared.executeWithDeduplication(
             request: secondRequest,
-            identity: second,
+            deduplicationKey: second,
             effectiveTimeout: second?.effectiveTimeout ?? 30
         ) {
             await counter.increment()

@@ -15,4 +15,4 @@
 - `iNtkRequestHandler` - 请求处理器协议实现
 - `NtkCacheInterceptor` - 缓存拦截器，同时遵循 `iNtkCacheProvider`，优先级为 `innerLow`
 
-executor 在请求修改器结束并 prune 后冻结一次身份、有效超时和结构化去重键，再写入同一只读 context；缓存与去重只能消费该结果。身份构建失败时 context 不提供身份，缓存/共享执行降级关闭而网络继续。
+executor 在请求修改器结束后生成一次请求 key，解析有效超时，再创建结构化去重 key，并把三者写入同一只读 context。`NtkMutableRequest` 的公开写入方法已经同步维护字段及其规则，不需要冻结前补救清理。缓存与去重只能消费该结果。请求 key 构建失败时 context 不提供这两个 key，缓存与共享执行降级关闭而网络继续。

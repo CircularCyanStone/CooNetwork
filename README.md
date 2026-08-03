@@ -289,9 +289,9 @@ struct AuthenticatedRequest: iAFRequest {
 }
 ```
 
-### 使用缓存与稳定请求身份
+### 使用缓存与稳定请求 key
 
-缓存配置只决定是否读写缓存及其有效期；请求身份单独决定哪些字段代表同一资源。先在启动时声明确认安全的公共动态字段：
+缓存配置只决定是否读写缓存及其有效期；请求 key 单独决定哪些字段代表同一资源。先在启动时声明确认安全的公共动态字段：
 
 ```swift
 NtkConfiguration.configure {
@@ -315,7 +315,7 @@ for try await response in NtkAF<User>.withAF(ProfileRequest(), storage: storage)
 }
 ```
 
-为动态鉴权字段标记其身份参与方式；稳定的业务主体使用仅本地的 identity component：
+用 `requestIdentityRule` 明确动态鉴权字段是否写入请求 key；稳定的业务主体使用只在本地生效的 `setRequestIdentityValue`：
 
 ```swift
 struct AuthenticationModifier: iNtkRequestModifyingInterceptor {
@@ -324,15 +324,25 @@ struct AuthenticationModifier: iNtkRequestModifyingInterceptor {
 
     func modifyRequest(_ request: NtkMutableRequest) async throws -> NtkMutableRequest {
         var request = request
-        request.addHeader(key: "Authorization", value: "Bearer \(token)", identity: .excluded)
-        request.addParameter(key: "timestamp", value: Date().timeIntervalSince1970, identity: .excluded)
-        request.addIdentityComponent(key: "user", value: userID)
+        request.setHeader(
+            "Bearer \(token)",
+            forField: "Authorization",
+            requestIdentityRule: .exclude
+        )
+        request.setParameter(
+            Date().timeIntervalSince1970,
+            forKey: "timestamp",
+            requestIdentityRule: .exclude
+        )
+        request.setRequestIdentityValue(userID, forKey: "user")
         return request
     }
 }
 ```
 
-排除鉴权凭证却不加入稳定的 user/tenant component，可能让不同用户共享缓存或正在执行的结果；默认 `.strict` 不会替业务推断主体。`.included` 与 `.excluded` 会覆盖自定义 normalizer，identity component 不会发送到服务器；身份构建失败只关闭本次缓存和去重，网络请求仍继续。
+排除鉴权凭证却不通过 `setRequestIdentityValue` 加入稳定的 user/tenant 值，可能让不同用户共享缓存或正在执行的结果；默认 `.strict` 不会替业务推断主体。`.include` 与 `.exclude` 会覆盖策略中的字段转换闭包，附加请求 key 值不会发送到服务器；请求 key 构建失败只关闭本次缓存和去重，网络请求仍继续。
+
+完整接入点、构建顺序以及缓存/去重两个终点见 [Request Identity 代码阅读路线](docs/request-identity-code-walkthrough.md)。
 
 ### 文件上传
 
@@ -406,7 +416,7 @@ struct CommonParameterInterceptor: iNtkRequestModifyingInterceptor {
         _ request: NtkMutableRequest
     ) async throws -> NtkMutableRequest {
         var request = request
-        request.addHeader(key: "X-App-Channel", value: "iOS")
+        request.setHeader("iOS", forField: "X-App-Channel")
         return request
     }
 }
@@ -418,8 +428,10 @@ let user = try await network.request()
 ```
 
 `intercept(context:next:)` 中的请求是只读快照。请求头和参数只能在
-`iNtkRequestModifyingInterceptor.modifyRequest(_:)` 中构建。动态字段通过全局或请求级
-`NtkRequestIdentityPolicy`，或写入时的 `.excluded` 标记控制身份参与；请求级策略非空时完整替换全局策略。
+`iNtkRequestModifyingInterceptor.modifyRequest(_:)` 中通过明确方法构建：改单个字段使用
+`setHeader` / `setParameter`，批量合并并保留旧字段使用 `mergeHeaders` / `mergeParameters`，
+完整替换使用 `setHeaders` / `setParameters`。动态字段通过全局或请求级
+`NtkRequestIdentityPolicy`，或写入时的 `requestIdentityRule` 控制字段是否写入请求 key；请求级策略非空时完整替换全局策略。
 
 ### 自定义响应解析
 

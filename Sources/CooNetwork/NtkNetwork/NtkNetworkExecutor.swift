@@ -18,8 +18,12 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
         case network(NtkResponse<ResponseData>)
     }
 
-    /// 执行器配置快照
-    /// 由 NtkNetwork 在 getOrCreateExecutor() 时冻结，执行期间不可变
+    /// 执行器配置快照。
+    ///
+    /// 这是 request identity 进入执行框架的第一个位置：`NtkNetwork.getOrCreateExecutor()` 首次创建
+    /// executor 时，把原始请求、全局 request identity policy、去重开关、默认超时和 namespace 一次性
+    /// 冻结。之后即使应用再次修改 `NtkConfiguration` 或 network builder，已有 executor 也不会
+    /// 混用新旧配置。
     struct Configuration: Sendable {
         let client: any iNtkClient
         let request: NtkMutableRequest
@@ -37,11 +41,15 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
             deduplicationNamespace: String = "default"
         ) {
             var request = request
+            // 请求协议的默认 timeout 可能读取全局配置；在冻结点重新取一次并存进值类型快照，
+            // 防止后续每条执行路径从 originalRequest 读取到不同时间点的配置。
             request.refreshConfigurationSnapshot()
             let builder = globalConfiguration.builder
             self.client = client
             self.request = request
             self.interceptors = interceptors
+            // 请求级 policy 是完整替换，不是与全局排除集合合并。这样特殊接口可以明确重新纳入
+            // 被全局排除的字段，不会出现无法撤销的隐式规则。
             self.requestIdentityPolicy = request.requestIdentityPolicy ?? builder.requestIdentityPolicy
             self.isDeduplicationEnabled = builder.isDeduplicationEnabled
             self.defaultTimeout = builder.defaultTimeout
@@ -61,7 +69,12 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
         self.cacheProvider = config.interceptors.first(where: { $0 is iNtkCacheProvider }) as? iNtkCacheProvider
     }
     
-    /// 从初始请求快照按请求修改器的优先级顺序构建本次动作的请求。
+    /// 从初始请求快照按请求修改器优先级构建本次动作的最终请求。
+    ///
+    /// 每次 `execute`、`loadCache`、`hasCacheData` 都从同一初始值复制后重新运行修改器，路径之间
+    /// 不回写。request identity 因此包含修改器真正注入的 token、公共参数和附加 key/value；同时也意味着
+    /// `requestWithCache()` 的缓存读取与网络执行会各运行一次修改器，动态字段必须通过
+    /// `.exclude`/policy 正确排除，才能让两条路径得到同一个资源 key。
     private func makeRequest() async throws -> NtkMutableRequest {
         var request = initialRequest
         let requestModifiers = NtkInterceptorOrdering.sorted(config.interceptors).compactMap {
@@ -73,14 +86,24 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
         return request
     }
 
-    /// 在请求修改完成后冻结本次路径共用的身份和有效超时。
+    /// 在请求修改完成后生成本次路径共用的 request identity、deduplication key 和有效超时。
+    ///
+    /// 这是 requestIdentity 目录在执行框架中的实际调用入口。方法先得到修改器生成的最终请求，再解析
+    /// timeout。`NtkMutableRequest` 的写入方法已经同步维护真实字段与字段级 key 规则，因此请求
+    /// 到达这里时不需要再执行一次补救性清理。只有缓存或去重至少有一个消费者真正启用时才构建
+    /// 资源 key，避免无消费者时执行转换闭包或为不支持参数产生无意义警告。
+    ///
+    /// 构建成功后，request identity 和有效 timeout 被放进不可变 context；普通 interceptor 无法
+    /// 替换它们。构建失败只令 request identity 为 nil：缓存会跳过，去重会退化为 instance UUID 隔离，
+    /// 网络和框架 timeout 仍继续。请求修改器本身抛错发生在 key 构建前，仍由本方法向上抛出。
     private func makeContext(
         includeDeduplication: Bool,
         includeCache: Bool
     ) async throws -> NtkInterceptorContext {
         var request = try await makeRequest()
-        request.pruneIdentityMetadata()
-        let effectiveTimeout = NtkEffectiveTimeoutResolver.resolve(
+
+        /// 合并多维度的超时时间，统一去重时超时时间的稳定性。
+        let effectiveTimeout = NtkRequestTimeoutResolver.resolve(
             requested: request.timeout,
             configuredDefault: config.defaultTimeout
         )
@@ -89,26 +112,32 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
         let deduplicationEnabled = includeDeduplication &&
             config.isDeduplicationEnabled && request.isDeduplicationEnabled
         let cacheEnabled = includeCache && request.cacheConfiguration?.isEnabled == true
-        let identity: NtkRequestIdentity?
+        let requestIdentity: NtkRequestIdentity?
         if deduplicationEnabled || cacheEnabled {
             do {
-                identity = try NtkRequestIdentityBuilder.build(
+                // 单条网络执行路径只构建这一份 request identity。下面生成的 deduplication key 和响应阶段的
+                // NtkCacheInterceptor 都引用它，禁止各自根据 request 重算 key。
+                requestIdentity = try NtkRequestIdentityBuilder.build(
                     request: request,
                     policy: config.requestIdentityPolicy
                 )
-            } catch let failure as NtkRequestIdentityBuilder.Failure {
+            } catch let error as NtkRequestIdentityBuilder.BuildError {
+                // 失败内容已经由 BuildError 脱敏。这里不抛 NtkError，因为缓存和去重是可选优化，
+                // 参数仍可能完全能够被具体 HTTP client 正常序列化和发送。
                 logger.warning(
-                    "Request identity unavailable: \(failure.diagnosticDescription)",
-                    category: .identity
+                    "Request key unavailable: \(error.logMessage)",
+                    category: .requestIdentity
                 )
-                identity = nil
+                requestIdentity = nil
             }
         } else {
-            identity = nil
+            requestIdentity = nil
         }
 
-        let deduplicationIdentity = deduplicationEnabled ? identity.map {
-            NtkDeduplicationIdentity(
+        // 缓存只关心资源 key；去重共享的是完整执行结果，所以还必须隔离响应泛型、实际
+        // timeout 和执行 namespace。四者任一不同都会创建独立底层任务。
+        let deduplicationKey = deduplicationEnabled ? requestIdentity.map {
+            NtkDeduplicationKey(
                 requestIdentity: $0,
                 responseType: ObjectIdentifier(ResponseData.self),
                 effectiveTimeout: effectiveTimeout,
@@ -118,8 +147,8 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
 
         return NtkInterceptorContext(
             request: request,
-            requestIdentity: identity,
-            deduplicationIdentity: deduplicationIdentity,
+            requestIdentity: requestIdentity,
+            deduplicationKey: deduplicationKey,
             effectiveTimeout: effectiveTimeout
         )
     }
@@ -160,7 +189,7 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
             includeDeduplication: false,
             includeCache: true
         )
-        guard let identity = context.requestIdentity else {
+        guard let requestIdentity = context.requestIdentity else {
             return nil
         }
 
@@ -170,7 +199,7 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
         let realChainManager = NtkInterceptorChainManager(interceptors: parserInterceptors) { context in
             guard let data = try await cacheProvider.loadCacheData(
                 for: context.request,
-                identity: identity
+                requestIdentity: requestIdentity
             ) else {
                 throw NtkError.Cache.noCache
             }
@@ -195,7 +224,7 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
             includeDeduplication: false,
             includeCache: true
         ) else { return false }
-        guard let identity = context.requestIdentity else { return false }
-        return await cacheProvider.hasCacheData(for: context.request, identity: identity)
+        guard let requestIdentity = context.requestIdentity else { return false }
+        return await cacheProvider.hasCacheData(for: context.request, requestIdentity: requestIdentity)
     }
 }

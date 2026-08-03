@@ -41,11 +41,11 @@
 - **单次请求共享 executor 是刻意设计** — `requestWithCache()`、普通请求和相关执行路径复用同一个 `NtkNetworkExecutor`，以共享冻结的请求配置和 cache provider；每条执行路径拥有独立的 `NtkInterceptorContext`，拦截器修改不会通过 executor 的可变请求状态互相覆盖
 - **请求修改是显式 interceptor 能力** — 基础 `iNtkInterceptor` 不提供默认修改方法；只有 `iNtkRequestModifyingInterceptor` 参与 `execute()`、`loadCache()`、`hasCacheData()` 的请求构建阶段，同 priority 保持注册顺序
 
-## 请求身份不变量
+## 请求 key 不变量
 
-- **缓存配置与身份策略分离** — `NtkCacheConfiguration` 只控制缓存启用、时长和写入资格，不改变资源身份；`NtkRequestIdentityPolicy` 专门投影 Header/参数。请求级非 `nil` policy 完整替换冻结的全局 policy，`.included`/`.excluded` 优先于 normalizer；Header 名按 HTTP 语义大小写不敏感，参数名精确区分大小写。
-- **身份失败是优化降级，不是 `NtkError`** — 不支持的值或 normalizer 失败只禁用该路径的缓存与共享执行，网络仍继续；这样内部身份实现细节不会变成业务错误契约。
-- **去重键保持执行语义隔离** — `NtkDeduplicationIdentity` 使用 `ObjectIdentifier(ResponseData.self)` 区分响应类型，并以结构化字段纳入已解析的 effective timeout 与 namespace，避免字符串拼接和不同执行流水线误共享。
+- **缓存配置与请求 key 策略分离** — `NtkCacheConfiguration` 只控制缓存启用、时长和写入资格，不改变请求 key；`NtkRequestIdentityPolicy` 专门筛选或转换 Header/参数。请求级非 `nil` policy 完整替换冻结的全局 policy，字段级 `.include`/`.exclude` 优先于 policy；Header 名按 HTTP 语义大小写不敏感，参数名精确区分大小写。
+- **请求 key 构建失败是优化降级，不是 `NtkError`** — 不支持的值或字段转换闭包失败只禁用该路径的缓存与共享执行，网络仍继续；这样内部 key 实现细节不会变成业务错误契约。
+- **去重键保持执行语义隔离** — `NtkDeduplicationKey` 使用 `ObjectIdentifier(ResponseData.self)` 区分响应类型，并以结构化字段纳入已解析的 effective timeout 与 namespace，避免字符串拼接和不同执行流水线误共享。
 
 ## 目录与模块归属原则
 

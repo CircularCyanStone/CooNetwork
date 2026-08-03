@@ -2,15 +2,15 @@ import Foundation
 import Testing
 @testable import CooNetwork
 
-struct NtkCanonicalIdentityEncoderTests {
+struct NtkRequestIdentityEncoderTests {
 
     @Test
     func dictionariesEncodeIdenticallyRegardlessOfInsertionOrder() throws {
         let first: [String: any Sendable] = ["b": 2, "a": 1]
         let second: [String: any Sendable] = ["a": 1, "b": 2]
 
-        let firstEncoding = try NtkCanonicalIdentityEncoder.encodeValue(first, path: "parameters")
-        let secondEncoding = try NtkCanonicalIdentityEncoder.encodeValue(second, path: "parameters")
+        let firstEncoding = try NtkRequestIdentityEncoder.encodeValue(first, path: "parameters")
+        let secondEncoding = try NtkRequestIdentityEncoder.encodeValue(second, path: "parameters")
 
         #expect(firstEncoding == secondEncoding)
     }
@@ -21,15 +21,15 @@ struct NtkCanonicalIdentityEncoderTests {
         let changedKey: [String: any Sendable] = ["b": 1]
         let changedValue: [String: any Sendable] = ["a": 2]
 
-        let baselineEncoding = try NtkCanonicalIdentityEncoder.encodeValue(
+        let baselineEncoding = try NtkRequestIdentityEncoder.encodeValue(
             baseline,
             path: "parameters"
         )
-        let changedKeyEncoding = try NtkCanonicalIdentityEncoder.encodeValue(
+        let changedKeyEncoding = try NtkRequestIdentityEncoder.encodeValue(
             changedKey,
             path: "parameters"
         )
-        let changedValueEncoding = try NtkCanonicalIdentityEncoder.encodeValue(
+        let changedValueEncoding = try NtkRequestIdentityEncoder.encodeValue(
             changedValue,
             path: "parameters"
         )
@@ -49,8 +49,8 @@ struct NtkCanonicalIdentityEncoderTests {
             "array": [1 as any Sendable, 2 as any Sendable, 3 as any Sendable] as [any Sendable]
         ] as [String: any Sendable]
 
-        let typedEncoding = try NtkCanonicalIdentityEncoder.encodeValue(typed, path: "parameters")
-        let existentialEncoding = try NtkCanonicalIdentityEncoder.encodeValue(existential, path: "parameters")
+        let typedEncoding = try NtkRequestIdentityEncoder.encodeValue(typed, path: "parameters")
+        let existentialEncoding = try NtkRequestIdentityEncoder.encodeValue(existential, path: "parameters")
 
         #expect(typedEncoding == existentialEncoding)
     }
@@ -63,8 +63,8 @@ struct NtkCanonicalIdentityEncoderTests {
             "b": "two" as any Sendable
         ] as [String: any Sendable]
 
-        let typedEncoding = try NtkCanonicalIdentityEncoder.encodeValue(typed, path: "parameters")
-        let existentialEncoding = try NtkCanonicalIdentityEncoder.encodeValue(
+        let typedEncoding = try NtkRequestIdentityEncoder.encodeValue(typed, path: "parameters")
+        let existentialEncoding = try NtkRequestIdentityEncoder.encodeValue(
             existential,
             path: "parameters"
         )
@@ -81,8 +81,8 @@ struct NtkCanonicalIdentityEncoderTests {
             true as any Sendable
         ] as [any Sendable]
 
-        let typedEncoding = try NtkCanonicalIdentityEncoder.encodeValue(typed, path: "parameters")
-        let existentialEncoding = try NtkCanonicalIdentityEncoder.encodeValue(
+        let typedEncoding = try NtkRequestIdentityEncoder.encodeValue(typed, path: "parameters")
+        let existentialEncoding = try NtkRequestIdentityEncoder.encodeValue(
             existential,
             path: "parameters"
         )
@@ -107,8 +107,8 @@ struct NtkCanonicalIdentityEncoderTests {
             ] as [any Sendable]
         ] as [String: any Sendable]
 
-        let typedEncoding = try NtkCanonicalIdentityEncoder.encodeValue(typed, path: "parameters")
-        let existentialEncoding = try NtkCanonicalIdentityEncoder.encodeValue(
+        let typedEncoding = try NtkRequestIdentityEncoder.encodeValue(typed, path: "parameters")
+        let existentialEncoding = try NtkRequestIdentityEncoder.encodeValue(
             existential,
             path: "parameters"
         )
@@ -118,11 +118,11 @@ struct NtkCanonicalIdentityEncoderTests {
 
     @Test
     func arrayOrderAndScalarTypesRemainDistinct() throws {
-        let forward = try NtkCanonicalIdentityEncoder.encodeValue([1, 2] as [Int], path: "parameters")
-        let reversed = try NtkCanonicalIdentityEncoder.encodeValue([2, 1] as [Int], path: "parameters")
-        let string = try NtkCanonicalIdentityEncoder.encodeValue("1", path: "value")
-        let integer = try NtkCanonicalIdentityEncoder.encodeValue(1, path: "value")
-        let boolean = try NtkCanonicalIdentityEncoder.encodeValue(true, path: "value")
+        let forward = try NtkRequestIdentityEncoder.encodeValue([1, 2] as [Int], path: "parameters")
+        let reversed = try NtkRequestIdentityEncoder.encodeValue([2, 1] as [Int], path: "parameters")
+        let string = try NtkRequestIdentityEncoder.encodeValue("1", path: "value")
+        let integer = try NtkRequestIdentityEncoder.encodeValue(1, path: "value")
+        let boolean = try NtkRequestIdentityEncoder.encodeValue(true, path: "value")
 
         #expect(forward != reversed)
         #expect(string != integer)
@@ -133,12 +133,12 @@ struct NtkCanonicalIdentityEncoderTests {
     @Test
     func supportedScalarCategoriesNeverCollide() throws {
         let encodings = try [
-            NtkCanonicalIdentityEncoder.encodeValue("1", path: "value"),
-            NtkCanonicalIdentityEncoder.encodeValue(true, path: "value"),
-            NtkCanonicalIdentityEncoder.encodeValue(Int(1), path: "value"),
-            NtkCanonicalIdentityEncoder.encodeValue(UInt(1), path: "value"),
-            NtkCanonicalIdentityEncoder.encodeValue(Float(1), path: "value"),
-            NtkCanonicalIdentityEncoder.encodeValue(Double(1), path: "value")
+            NtkRequestIdentityEncoder.encodeValue("1", path: "value"),
+            NtkRequestIdentityEncoder.encodeValue(true, path: "value"),
+            NtkRequestIdentityEncoder.encodeValue(Int(1), path: "value"),
+            NtkRequestIdentityEncoder.encodeValue(UInt(1), path: "value"),
+            NtkRequestIdentityEncoder.encodeValue(Float(1), path: "value"),
+            NtkRequestIdentityEncoder.encodeValue(Double(1), path: "value")
         ]
 
         for index in encodings.indices {
@@ -149,24 +149,24 @@ struct NtkCanonicalIdentityEncoderTests {
     }
 
     @Test
-    func foundationValuesUseSpecifiedCanonicalFrames() throws {
+    func foundationValuesUseSpecifiedStableFrames() throws {
         let uuid = try #require(UUID(uuidString: "00112233-4455-6677-8899-AABBCCDDEEFF"))
-        let url = try #require(URL(string: "https://example.com/items?q=identity"))
+        let url = try #require(URL(string: "https://example.com/items?q=request-identity"))
         var dateBits = Date(timeIntervalSinceReferenceDate: 123.5)
             .timeIntervalSinceReferenceDate.bitPattern.bigEndian
         let datePayload = withUnsafeBytes(of: &dateBits) { Data($0) }
 
         #expect(
-            try NtkCanonicalIdentityEncoder.encodeValue(Data([0, 1, 2]), path: "value")
-                == identityTestFrame(tag: 8, payload: Data([0, 1, 2]))
+            try NtkRequestIdentityEncoder.encodeValue(Data([0, 1, 2]), path: "value")
+                == requestIdentityTestFrame(tag: 8, payload: Data([0, 1, 2]))
         )
         #expect(
-            try NtkCanonicalIdentityEncoder.encodeValue(url, path: "value")
-                == identityTestFrame(tag: 9, payload: Data(url.absoluteString.utf8))
+            try NtkRequestIdentityEncoder.encodeValue(url, path: "value")
+                == requestIdentityTestFrame(tag: 9, payload: Data(url.absoluteString.utf8))
         )
         #expect(
-            try NtkCanonicalIdentityEncoder.encodeValue(uuid, path: "value")
-                == identityTestFrame(
+            try NtkRequestIdentityEncoder.encodeValue(uuid, path: "value")
+                == requestIdentityTestFrame(
                     tag: 10,
                     payload: Data([
                         0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
@@ -175,21 +175,21 @@ struct NtkCanonicalIdentityEncoderTests {
                 )
         )
         #expect(
-            try NtkCanonicalIdentityEncoder.encodeValue(
+            try NtkRequestIdentityEncoder.encodeValue(
                 Date(timeIntervalSinceReferenceDate: 123.5),
                 path: "value"
-            ) == identityTestFrame(tag: 11, payload: datePayload)
+            ) == requestIdentityTestFrame(tag: 11, payload: datePayload)
         )
         #expect(
-            try NtkCanonicalIdentityEncoder.encodeValue(NSNull(), path: "value")
-                == identityTestFrame(tag: 12, payload: Data())
+            try NtkRequestIdentityEncoder.encodeValue(NSNull(), path: "value")
+                == requestIdentityTestFrame(tag: 12, payload: Data())
         )
     }
 
     @Test
-    func separateDynamicValuesEncodeLikeTheirCanonicalDictionary() throws {
+    func dynamicValuesEncodeLikeEquivalentDictionary() throws {
         let uuid = try #require(UUID(uuidString: "00112233-4455-6677-8899-AABBCCDDEEFF"))
-        let url = try #require(URL(string: "https://example.com/items?q=identity"))
+        let url = try #require(URL(string: "https://example.com/items?q=request-identity"))
         let dictionary: [String: any Sendable] = [
             "uuid": uuid,
             "date": Date(timeIntervalSinceReferenceDate: 123.5),
@@ -206,9 +206,9 @@ struct NtkCanonicalIdentityEncoderTests {
             "uuid": uuid
         ])
 
-        let firstEncoding = try NtkCanonicalIdentityEncoder.encodeValue(first, path: "parameters")
-        let secondEncoding = try NtkCanonicalIdentityEncoder.encodeValue(second, path: "parameters")
-        let dictionaryEncoding = try NtkCanonicalIdentityEncoder.encodeValue(dictionary, path: "parameters")
+        let firstEncoding = try NtkRequestIdentityEncoder.encodeValue(first, path: "parameters")
+        let secondEncoding = try NtkRequestIdentityEncoder.encodeValue(second, path: "parameters")
+        let dictionaryEncoding = try NtkRequestIdentityEncoder.encodeValue(dictionary, path: "parameters")
 
         #expect(firstEncoding == secondEncoding)
         #expect(firstEncoding == dictionaryEncoding)
@@ -226,11 +226,11 @@ struct NtkCanonicalIdentityEncoderTests {
         for value in values {
             let expectedType = String(reflecting: type(of: value))
             do {
-                _ = try NtkCanonicalIdentityEncoder.encodeValue(value, path: path)
+                _ = try NtkRequestIdentityEncoder.encodeValue(value, path: path)
                 Issue.record("期望拒绝白名单外的 Foundation 数值类型")
-            } catch let failure as NtkRequestIdentityBuilder.Failure {
+            } catch let failure as NtkRequestIdentityBuilder.BuildError {
                 #expect(failure == .unsupportedValue(path: path, type: expectedType))
-                #expect(!failure.diagnosticDescription.contains("314159.265"))
+                #expect(!failure.logMessage.contains("314159.265"))
             } catch {
                 Issue.record("错误类型不符: \(String(reflecting: type(of: error)))")
             }
@@ -240,46 +240,46 @@ struct NtkCanonicalIdentityEncoderTests {
     @Test
     func nonFiniteAndUnsupportedValuesExposeSanitizedExactFailures() {
         do {
-            _ = try NtkCanonicalIdentityEncoder.encodeValue(Double.nan, path: "parameters.value")
+            _ = try NtkRequestIdentityEncoder.encodeValue(Double.nan, path: "parameters.value")
             Issue.record("期望拒绝非有限数值")
-        } catch let failure as NtkRequestIdentityBuilder.Failure {
+        } catch let failure as NtkRequestIdentityBuilder.BuildError {
             #expect(
                 failure == .nonFiniteValue(
                     path: "parameters.value",
                     type: String(reflecting: Double.self)
                 )
             )
-            #expect(!failure.diagnosticDescription.contains("nan"))
+            #expect(!failure.logMessage.contains("nan"))
         } catch {
             Issue.record("错误类型不符: \(String(reflecting: type(of: error)))")
         }
 
-        let secret = "secret-identity-value-8721"
+        let secret = "secret-request-identity-value-8721"
         do {
-            _ = try NtkCanonicalIdentityEncoder.encodeValue(
-                SensitiveUnsupportedIdentityValue(secret: secret),
+            _ = try NtkRequestIdentityEncoder.encodeValue(
+                SensitiveUnsupportedRequestIdentityValue(secret: secret),
                 path: "parameters.value"
             )
             Issue.record("期望拒绝不支持的值")
-        } catch let failure as NtkRequestIdentityBuilder.Failure {
+        } catch let failure as NtkRequestIdentityBuilder.BuildError {
             #expect(
                 failure == .unsupportedValue(
                     path: "parameters.value",
-                    type: String(reflecting: SensitiveUnsupportedIdentityValue.self)
+                    type: String(reflecting: SensitiveUnsupportedRequestIdentityValue.self)
                 )
             )
-            #expect(!failure.diagnosticDescription.contains(secret))
+            #expect(!failure.logMessage.contains(secret))
         } catch {
             Issue.record("错误类型不符: \(String(reflecting: type(of: error)))")
         }
     }
 }
 
-private struct SensitiveUnsupportedIdentityValue: Sendable {
+private struct SensitiveUnsupportedRequestIdentityValue: Sendable {
     let secret: String
 }
 
-private func identityTestFrame(tag: UInt8, payload: Data) -> Data {
+private func requestIdentityTestFrame(tag: UInt8, payload: Data) -> Data {
     var result = Data([tag])
     var length = UInt64(payload.count).bigEndian
     withUnsafeBytes(of: &length) { result.append(contentsOf: $0) }

@@ -65,15 +65,15 @@ public protocol iNtkRequest: Sendable, CustomStringConvertible, CustomDebugStrin
     /// 请求级响应缓存配置。
     ///
     /// `nil` 表示不读取也不写入缓存。该配置只控制缓存有效期和响应写入资格，不负责过滤
-    /// 请求身份；`cacheTime` 与 `shouldCache` 都不会改变资源 key。无效有效期只关闭缓存，
+    /// 请求 key；`cacheTime` 与 `shouldCache` 都不会改变资源 key。无效有效期只关闭缓存，
     /// 网络请求仍继续执行。
     var cacheConfiguration: NtkCacheConfiguration? { get }
 
-    /// 请求级身份策略。
+    /// 请求级请求 key 策略。
     ///
     /// `nil` 继承 executor 创建时冻结的全局策略；非 `nil` 完整替换全局策略而不合并。
     /// 策略只影响缓存键与去重键，不改变真实请求。排除鉴权字段时必须通过稳定字段或
-    /// identity component 保留业务主体隔离，避免跨 user/tenant 共享结果。
+    /// `setRequestIdentityValue` 添加的稳定业务值保留主体隔离，避免跨 user/tenant 共享结果。
     var requestIdentityPolicy: NtkRequestIdentityPolicy? { get }
     
 }
@@ -107,16 +107,16 @@ public extension iNtkRequest {
     
     /// 默认不启用响应缓存，因此不会读取或写入缓存。
     ///
-    /// 身份字段过滤由 `requestIdentityPolicy` 或字段参与标记负责；缓存时长和写入资格不会
+    /// 请求 key 字段过滤由 `requestIdentityPolicy` 或字段级 `requestIdentityRule` 负责；缓存时长和写入资格不会
     /// 改变资源 key。网络请求不受该默认值影响。
     var cacheConfiguration: NtkCacheConfiguration? {
         nil
     }
 
-    /// 默认继承 executor 创建时冻结的全局身份策略。
+    /// 默认继承 executor 创建时冻结的全局请求 key 策略。
     ///
     /// 请求返回非 `nil` 时会完整替换全局策略。排除鉴权字段前必须确保稳定的 user/tenant
-    /// 隔离仍参与身份；策略处理失败只应关闭本次缓存和去重，网络继续。
+    /// 隔离仍写入请求 key；策略处理失败只应关闭本次缓存和去重，网络继续。
     var requestIdentityPolicy: NtkRequestIdentityPolicy? {
         nil
     }

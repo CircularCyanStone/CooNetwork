@@ -1,10 +1,12 @@
 # Stable Request Identity Implementation Plan
 
+> 历史执行记录：本文描述重命名前的方案和当时使用的命令，旧的 Identity、Participation、Canonical 等符号不代表当前 API，也不是现在要继续执行的步骤。当前代码请以 [Request Key 代码阅读路线](../../request-key-code-walkthrough.md) 和 [Request Key 命名设计](../specs/2026-08-03-request-key-naming-design.md) 为准。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 将缓存配置与请求身份彻底分离，以确定性请求身份统一缓存键和去重键，并让动态 token、timestamp 等字段可以低成本地显式退出身份计算。
 
-**Architecture:** `NtkRequestIdentityBuilder` 在请求修改完成后，对策略投影执行确定性编码并生成 SHA-256 身份；executor 把同一次身份解析、有效 timeout 和精确响应类型冻结到只读 context。缓存直接消费请求身份，`NtkTaskManager` 只消费结构化去重身份并通过 instance ID 反向索引处理取消，不再读取请求配置或自行计算 key。
+**Architecture:** `NtkRequestKeyBuilder` 在请求修改完成后，对策略投影执行确定性编码并生成 SHA-256 身份；executor 把同一次身份解析、有效 timeout 和精确响应类型冻结到只读 context。缓存直接消费请求身份，`NtkTaskManager` 只消费结构化去重身份并通过 instance ID 反向索引处理取消，不再读取请求配置或自行计算 key。
 
 **Tech Stack:** Swift 6.1、Foundation、CryptoKit、Swift Package Manager、Swift Testing、actor 隔离、`os_unfair_lock`
 
@@ -14,15 +16,15 @@
 
 ## File Map
 
-- Create `Sources/CooNetwork/NtkNetwork/identity/NtkIdentityParticipation.swift`: 字段参与身份计算的三态模型。
-- Create `Sources/CooNetwork/NtkNetwork/identity/NtkRequestIdentityPolicy.swift`: 全局/请求级身份投影策略。
-- Create `Sources/CooNetwork/NtkNetwork/identity/NtkRequestIdentity.swift`: 可持久化但不透明的公开请求身份。
-- Create `Sources/CooNetwork/NtkNetwork/identity/NtkRequestIdentityBuilder.swift`: Header、参数、身份组成的投影与摘要生成。
-- Create `Sources/CooNetwork/NtkNetwork/identity/NtkRequestIdentityBuilder+Failure.swift`: 仅供框架内部降级和诊断的失败模型。
-- Create `Sources/CooNetwork/NtkNetwork/identity/NtkCanonicalIdentityEncoder.swift`: 带类型标签和长度前缀的确定性字节编码器。
-- Create `Sources/CooNetwork/NtkNetwork/identity/NtkEffectiveTimeoutResolver.swift`: key 与实际超时共用的规范化入口。
+- Create `Sources/CooNetwork/NtkNetwork/identity/NtkRequestKeyRule.swift`: 字段参与身份计算的三态模型。
+- Create `Sources/CooNetwork/NtkNetwork/identity/NtkRequestKeyPolicy.swift`: 全局/请求级身份投影策略。
+- Create `Sources/CooNetwork/NtkNetwork/identity/NtkRequestKey.swift`: 可持久化但不透明的公开请求身份。
+- Create `Sources/CooNetwork/NtkNetwork/identity/NtkRequestKeyBuilder.swift`: Header、参数、身份组成的投影与摘要生成。
+- Create `Sources/CooNetwork/NtkNetwork/identity/NtkRequestKeyBuilder+Failure.swift`: 仅供框架内部降级和诊断的失败模型。
+- Create `Sources/CooNetwork/NtkNetwork/identity/NtkRequestKeyEncoder.swift`: 带类型标签和长度前缀的确定性字节编码器。
+- Create `Sources/CooNetwork/NtkNetwork/identity/NtkRequestTimeoutResolver.swift`: key 与实际超时共用的规范化入口。
 - Create `Sources/CooNetwork/NtkNetwork/cache/NtkCacheConfiguration.swift`: 只负责缓存时长和写入判断。
-- Create `Sources/CooNetwork/NtkNetwork/deduplication/NtkDeduplicationIdentity.swift`: 当前进程内的结构化执行身份。
+- Create `Sources/CooNetwork/NtkNetwork/deduplication/NtkDeduplicationKey.swift`: 当前进程内的结构化执行身份。
 - Modify `Sources/CooNetwork/NtkNetwork/model/NtkMutableRequest.swift`: 保存字段参与元数据、稳定身份组成和冻结 timeout。
 - Modify `Sources/CooNetwork/NtkNetwork/model/NtkDynamicData.swift`: 为身份编码器提供不发生标量类型转换的内部投影。
 - Modify `Sources/CooNetwork/NtkNetwork/iNtk/iNtkRequest.swift`: 暴露独立的缓存配置和身份策略。
@@ -39,10 +41,10 @@
 - Delete `Sources/CooNetwork/NtkNetwork/cache/NtkRequestConfiguration.swift`: 删除缓存与身份耦合的旧配置。
 - Delete `Sources/CooNetwork/NtkNetwork/cache/NtkRequestIdentifierManager.swift`: 删除旧 MD5/Hasher/LRU 双轨 key 实现。
 - Create `Tests/CooNetworkTests/NtkMutableRequestIdentityTests.swift`: 字段状态和身份组成测试。
-- Create `Tests/CooNetworkTests/NtkCanonicalIdentityEncoderTests.swift`: 标量、容器和 Foundation 值编码测试。
-- Create `Tests/CooNetworkTests/NtkRequestIdentityBuilderTests.swift`: 策略优先级、确定性和失败测试。
-- Create `Tests/CooNetworkTests/NtkEffectiveTimeoutResolverTests.swift`: timeout 规范化测试。
-- Create `Tests/CooNetworkTests/NtkRequestIdentityBuilderPerformanceTests.swift`: 新规范化器性能基线。
+- Create `Tests/CooNetworkTests/NtkRequestKeyEncoderTests.swift`: 标量、容器和 Foundation 值编码测试。
+- Create `Tests/CooNetworkTests/NtkRequestKeyBuilderTests.swift`: 策略优先级、确定性和失败测试。
+- Create `Tests/CooNetworkTests/NtkRequestTimeoutResolverTests.swift`: timeout 规范化测试。
+- Create `Tests/CooNetworkTests/NtkRequestKeyBuilderPerformanceTests.swift`: 新规范化器性能基线。
 - Delete `Tests/CooNetworkTests/NtkRequestIdentifierManagerTests.swift`: 旧 LRU 和双轨 key 测试已失去对象。
 - Delete `Tests/CooNetworkTests/NtkRequestIdentifierManagerPerformanceTests.swift`: 删除针对旧 LRU 的对比测试。
 - Modify `Tests/CooNetworkTests/NtkTaskManagerTests.swift`: 结构化 key、反向索引和取消测试。
@@ -62,8 +64,8 @@ Tasks 1-6 可以暂时保留旧 `NtkRequestConfiguration`，仅用于保持每�
 
 **Files:**
 - Create: `Sources/CooNetwork/NtkNetwork/cache/NtkCacheConfiguration.swift`
-- Create: `Sources/CooNetwork/NtkNetwork/identity/NtkIdentityParticipation.swift`
-- Create: `Sources/CooNetwork/NtkNetwork/identity/NtkRequestIdentityPolicy.swift`
+- Create: `Sources/CooNetwork/NtkNetwork/identity/NtkRequestKeyRule.swift`
+- Create: `Sources/CooNetwork/NtkNetwork/identity/NtkRequestKeyPolicy.swift`
 - Modify: `Sources/CooNetwork/NtkNetwork/NtkConfiguration.swift`
 - Modify: `Sources/CooNetwork/NtkNetwork/iNtk/iNtkRequest.swift`
 - Modify: `Sources/CooNetwork/NtkNetwork/model/NtkMutableRequest.swift`
@@ -83,27 +85,27 @@ struct NtkMutableRequestIdentityTests {
     func headerHelpersUseCaseInsensitiveLogicalKeys() {
         var request = NtkMutableRequest(IdentityMetadataRequest())
 
-        request.addHeader(key: "Authorization", value: "first", identity: .excluded)
-        request.addHeader(key: "authorization", value: "second", identity: .included)
+        request.addHeader(key: "Authorization", value: "first", identity: .exclude)
+        request.addHeader(key: "authorization", value: "second", identity: .include)
 
         #expect(request.headers == ["authorization": "second"])
-        #expect(request.identityParticipation(forHeader: "AUTHORIZATION") == .included)
+        #expect(request.requestKeyRule(forHeader: "AUTHORIZATION") == .include)
 
         request.removeHeader(key: "AUTHORIZATION")
         #expect(request.headers?.isEmpty == true)
-        #expect(request.identityParticipation(forHeader: "authorization") == .automatic)
+        #expect(request.requestKeyRule(forHeader: "authorization") == .automatic)
     }
 
     @Test
     func parameterStateAndIdentityComponentsNeverEnterPayload() {
         var request = NtkMutableRequest(IdentityMetadataRequest())
 
-        request.addParameter(key: "timestamp", value: 123, identity: .excluded)
-        request.addIdentityComponent(key: "user", value: "42")
+        request.addParameter(key: "timestamp", value: 123, identity: .exclude)
+        request.addRequestKeyValue(key: "user", value: "42")
 
         #expect(request.parameters?["timestamp"] as? Int == 123)
-        #expect(request.identityParticipation(forParameter: "timestamp") == .excluded)
-        #expect(request.identityComponents == ["user": "42"])
+        #expect(request.requestKeyRule(forParameter: "timestamp") == .exclude)
+        #expect(request.requestKeyValues == ["user": "42"])
         #expect(request.extraData.isEmpty)
         #expect(request.headers == nil)
     }
@@ -111,25 +113,25 @@ struct NtkMutableRequestIdentityTests {
     @Test
     func automaticClearsAnExplicitOverrideAndSetParameterReplacesMetadata() {
         var request = NtkMutableRequest(IdentityMetadataRequest())
-        request.addParameter(key: "token", value: "a", identity: .excluded)
+        request.addParameter(key: "token", value: "a", identity: .exclude)
         request.addParameter(key: "token", value: "b", identity: .automatic)
-        #expect(request.identityParticipation(forParameter: "token") == .automatic)
+        #expect(request.requestKeyRule(forParameter: "token") == .automatic)
 
-        request.addParameter(key: "tenant", value: "coo", identity: .included)
-        request.setParameter(["next": 1], identity: .excluded)
-        #expect(request.identityParticipation(forParameter: "tenant") == .automatic)
-        #expect(request.identityParticipation(forParameter: "next") == .excluded)
+        request.addParameter(key: "tenant", value: "coo", identity: .include)
+        request.setParameter(["next": 1], identity: .exclude)
+        #expect(request.requestKeyRule(forParameter: "tenant") == .automatic)
+        #expect(request.requestKeyRule(forParameter: "next") == .exclude)
     }
 
     @Test
     func policyCanonicalizesOnlyHeaderNames() {
-        let policy = NtkRequestIdentityPolicy(
+        let policy = NtkRequestKeyPolicy(
             excludedHeaderNames: ["Authorization"],
             excludedParameterNames: ["Token"]
         )
-        #expect(policy.excludedHeaderNames == ["authorization"])
-        #expect(policy.excludedParameterNames == ["Token"])
-        #expect(NtkRequestIdentityPolicy.strict.excludedHeaderNames.isEmpty)
+        #expect(policy.excludeHeaderNames == ["authorization"])
+        #expect(policy.excludeParameterNames == ["Token"])
+        #expect(NtkRequestKeyPolicy.strict.excludeHeaderNames.isEmpty)
     }
 
     @Test(arguments: [
@@ -160,19 +162,19 @@ Run:
 swift test --filter NtkMutableRequestIdentityTests
 ```
 
-Expected: 编译失败，缺少 `NtkIdentityParticipation`、`NtkRequestIdentityPolicy`、`NtkCacheConfiguration` 和带 `identity` 参数的写入方法。
+Expected: 编译失败，缺少 `NtkRequestKeyRule`、`NtkRequestKeyPolicy`、`NtkCacheConfiguration` 和带 `identity` 参数的写入方法。
 
 - [ ] **Step 3: 创建三个职责单一的公开模型**
 
 按以下签名和注释语义创建三个文件。每个公开成员都要沿用这里的“适用场景 + 默认行为 + 安全影响”层次，不能缩成符号名称的翻译：
 
 ```swift
-// NtkIdentityParticipation.swift
+// NtkRequestKeyRule.swift
 /// 控制单个请求字段是否参与缓存与去重共用的请求身份。
 ///
 /// 该标记只改变本地身份投影，不会删除字段，也不会改变发送到服务端的请求。
-/// `.automatic` 继承请求级或全局策略；`.included` 和 `.excluded` 用于显式覆盖策略。
-public enum NtkIdentityParticipation: Sendable {
+/// `.automatic` 继承请求级或全局策略；`.include` 和 `.exclude` 用于显式覆盖策略。
+public enum NtkRequestKeyRule: Sendable {
     /// 由有效的请求身份策略判断，适合没有特殊身份语义的普通字段。
     case automatic
     /// 强制参与身份，用于覆盖全局排除但实际区分资源或用户的字段。
@@ -181,35 +183,35 @@ public enum NtkIdentityParticipation: Sendable {
     case excluded
 }
 
-// NtkRequestIdentityPolicy.swift
+// NtkRequestKeyPolicy.swift
 /// 定义 `.automatic` 字段如何投影为稳定请求身份。
 ///
 /// 策略只作用于缓存键和去重键，不修改真实 Header 或参数。排除 Authorization 等
 /// 凭证后，调用方必须通过未排除的稳定字段或 identity component 隔离 user/tenant，
 /// 否则不同业务主体可能共享缓存或正在执行的请求。
-public struct NtkRequestIdentityPolicy: Sendable {
+public struct NtkRequestKeyPolicy: Sendable {
     /// 不参与身份的 Header 逻辑名称；构造时统一小写并按精确名称匹配。
     public let excludedHeaderNames: Set<String>
     /// 不参与身份的顶层参数 key；保持大小写并按精确 key 匹配。
     public let excludedParameterNames: Set<String>
     /// 对 `.automatic` Header 的高级纯函数投影；不会接触 included/excluded 字段。
-    public let normalizeHeaders:
+    public let transformHeaders:
         (@Sendable ([String: String]) throws -> [String: String])?
     /// 对 `.automatic` 参数的高级纯函数投影；抛错会关闭本次缓存与去重。
-    public let normalizeParameters:
+    public let transformParameters:
         (@Sendable ([String: Sendable]) throws -> [String: Sendable])?
 
     /// 创建身份策略。闭包必须对相同输入返回相同输出，且不能读取时间、随机数或可变全局状态。
     public init(
         excludedHeaderNames: Set<String> = [],
         excludedParameterNames: Set<String> = [],
-        normalizeHeaders: (@Sendable ([String: String]) throws -> [String: String])? = nil,
-        normalizeParameters: (@Sendable ([String: Sendable]) throws -> [String: Sendable])? = nil
+        transformHeaders: (@Sendable ([String: String]) throws -> [String: String])? = nil,
+        transformParameters: (@Sendable ([String: Sendable]) throws -> [String: Sendable])? = nil
     ) {
-        self.excludedHeaderNames = Set(excludedHeaderNames.map { $0.lowercased() })
-        self.excludedParameterNames = excludedParameterNames
-        self.normalizeHeaders = normalizeHeaders
-        self.normalizeParameters = normalizeParameters
+        self.excludeHeaderNames = Set(excludedHeaderNames.map { $0.lowercased() })
+        self.excludeParameterNames = excludedParameterNames
+        self.transformHeaders = transformHeaders
+        self.transformParameters = transformParameters
     }
 
     /// 不排除、不转换任何字段的安全默认策略。
@@ -220,7 +222,7 @@ public struct NtkRequestIdentityPolicy: Sendable {
 /// 只描述响应缓存的有效期和写入资格，不参与请求身份计算。
 ///
 /// `cacheTime` 只有在有限且大于零时才启用缓存读写；无效值安全地关闭缓存，
-/// 但不会阻止网络请求。动态字段过滤必须使用 `NtkRequestIdentityPolicy` 或字段标记。
+/// 但不会阻止网络请求。动态字段过滤必须使用 `NtkRequestKeyPolicy` 或字段标记。
 public struct NtkCacheConfiguration: Sendable {
     /// 本次写入的缓存有效期；只有有限正数才启用缓存读写。
     public let cacheTime: TimeInterval
@@ -265,11 +267,11 @@ var cacheConfiguration: NtkCacheConfiguration? { get }
 /// 覆盖本请求使用的身份投影策略；nil 表示继承 executor 创建时冻结的全局策略。
 ///
 /// 非 nil 值完整替换全局策略而非合并。排除鉴权字段时必须保留稳定的业务主体隔离。
-var requestIdentityPolicy: NtkRequestIdentityPolicy? { get }
+var requestKeyPolicy: NtkRequestKeyPolicy? { get }
 
 public extension iNtkRequest {
     var cacheConfiguration: NtkCacheConfiguration? { nil }
-    var requestIdentityPolicy: NtkRequestIdentityPolicy? { nil }
+    var requestKeyPolicy: NtkRequestKeyPolicy? { nil }
 }
 ```
 
@@ -280,8 +282,8 @@ public var cacheConfiguration: NtkCacheConfiguration? {
     originalRequest.cacheConfiguration
 }
 
-public var requestIdentityPolicy: NtkRequestIdentityPolicy? {
-    originalRequest.requestIdentityPolicy
+public var requestKeyPolicy: NtkRequestKeyPolicy? {
+    originalRequest.requestKeyPolicy
 }
 ```
 
@@ -292,7 +294,7 @@ public var requestIdentityPolicy: NtkRequestIdentityPolicy? {
 ///
 /// 默认 `.strict` 不排除任何字段，防止框架在不知道用户和 tenant 语义时
 /// 把不同业务主体的请求错误合并。应用应在启动阶段声明公共动态字段。
-public var requestIdentityPolicy: NtkRequestIdentityPolicy = .strict
+public var requestKeyPolicy: NtkRequestKeyPolicy = .strict
 ```
 
 - [ ] **Step 5: 在 NtkMutableRequest 中实现元数据不变量**
@@ -300,40 +302,40 @@ public var requestIdentityPolicy: NtkRequestIdentityPolicy = .strict
 增加私有存储和内部只读入口：
 
 ```swift
-private var headerIdentityParticipation: [String: NtkIdentityParticipation] = [:]
-private var parameterIdentityParticipation: [String: NtkIdentityParticipation] = [:]
-private var storedIdentityComponents: [String: String] = [:]
+private var headerRequestKeyRules: [String: NtkRequestKeyRule] = [:]
+private var parameterRequestKeyRules: [String: NtkRequestKeyRule] = [:]
+private var storedRequestKeyValues: [String: String] = [:]
 
-var identityComponents: [String: String] { storedIdentityComponents }
+var requestKeyValues: [String: String] { storedRequestKeyValues }
 
-func identityParticipation(forHeader key: String) -> NtkIdentityParticipation {
-    headerIdentityParticipation[key.lowercased()] ?? .automatic
+func requestKeyRule(forHeader key: String) -> NtkRequestKeyRule {
+    headerRequestKeyRules[key.lowercased()] ?? .automatic
 }
 
-func identityParticipation(forParameter key: String) -> NtkIdentityParticipation {
-    parameterIdentityParticipation[key] ?? .automatic
+func requestKeyRule(forParameter key: String) -> NtkRequestKeyRule {
+    parameterRequestKeyRules[key] ?? .automatic
 }
 
-private mutating func setHeaderParticipation(
-    _ participation: NtkIdentityParticipation,
+private mutating func setHeaderRequestKeyRule(
+    _ participation: NtkRequestKeyRule,
     for key: String
 ) {
     let key = key.lowercased()
     if participation == .automatic {
-        headerIdentityParticipation.removeValue(forKey: key)
+        headerRequestKeyRules.removeValue(forKey: key)
     } else {
-        headerIdentityParticipation[key] = participation
+        headerRequestKeyRules[key] = participation
     }
 }
 
-private mutating func setParameterParticipation(
-    _ participation: NtkIdentityParticipation,
+private mutating func setParameterRequestKeyRule(
+    _ participation: NtkRequestKeyRule,
     for key: String
 ) {
     if participation == .automatic {
-        parameterIdentityParticipation.removeValue(forKey: key)
+        parameterRequestKeyRules.removeValue(forKey: key)
     } else {
-        parameterIdentityParticipation[key] = participation
+        parameterRequestKeyRules[key] = participation
     }
 }
 ```
@@ -349,7 +351,7 @@ private mutating func setParameterParticipation(
 public mutating func addHeader(
     key: String,
     value: String,
-    identity: NtkIdentityParticipation = .automatic
+    identity: NtkRequestKeyRule = .automatic
 ) {
     if headers == nil { headers = [:] }
     let matchingKeys = headers?.keys.filter {
@@ -359,7 +361,7 @@ public mutating func addHeader(
         headers?.removeValue(forKey: existingKey)
     }
     headers?[key] = value
-    setHeaderParticipation(identity, for: key)
+    setHeaderRequestKeyRule(identity, for: key)
 }
 
 /// 按稳定 key 顺序批量写入 Header，并为每个字段应用同一身份状态。
@@ -368,7 +370,7 @@ public mutating func addHeader(
 /// 每个字段仍会发送到服务端，`identity` 只控制本地身份投影。
 public mutating func addHeaders(
     _ newHeaders: [String: String],
-    identity: NtkIdentityParticipation = .automatic
+    identity: NtkRequestKeyRule = .automatic
 ) {
     for key in newHeaders.keys.sorted() {
         addHeader(key: key, value: newHeaders[key]!, identity: identity)
@@ -377,16 +379,16 @@ public mutating func addHeaders(
 
 /// 写入请求参数，并声明该精确 key 如何参与缓存与去重共用的请求身份。
 ///
-/// 参数 key 区分大小写。`.excluded` 适用于 timestamp、nonce 等不改变业务资源的
+/// 参数 key 区分大小写。`.exclude` 适用于 timestamp、nonce 等不改变业务资源的
 /// 动态值；排除 token 等凭证时必须另有稳定 user/tenant 身份，避免跨主体共享。
 public mutating func addParameter(
     key: String,
     value: Sendable,
-    identity: NtkIdentityParticipation = .automatic
+    identity: NtkRequestKeyRule = .automatic
 ) {
     if parameters == nil { parameters = [:] }
     parameters?[key] = value
-    setParameterParticipation(identity, for: key)
+    setParameterRequestKeyRule(identity, for: key)
 }
 
 /// 按稳定 key 顺序批量写入参数，并为每个精确 key 应用同一身份状态。
@@ -394,7 +396,7 @@ public mutating func addParameter(
 /// 参数和值仍会完整发送到服务端；该状态不会写入 parameters 或 extraData。
 public mutating func addParameters(
     _ newParameters: [String: Sendable],
-    identity: NtkIdentityParticipation = .automatic
+    identity: NtkRequestKeyRule = .automatic
 ) {
     for key in newParameters.keys.sorted() {
         addParameter(key: key, value: newParameters[key]!, identity: identity)
@@ -407,12 +409,12 @@ public mutating func addParameters(
 /// 旧参数合并进 `newParameters`。该操作不会改变 Header 或稳定 identity component。
 public mutating func setParameter(
     _ newParameters: [String: Sendable],
-    identity: NtkIdentityParticipation = .automatic
+    identity: NtkRequestKeyRule = .automatic
 ) {
     parameters = newParameters
-    parameterIdentityParticipation.removeAll()
+    parameterRequestKeyRules.removeAll()
     for key in newParameters.keys {
-        setParameterParticipation(identity, for: key)
+        setParameterRequestKeyRule(identity, for: key)
     }
 }
 
@@ -420,16 +422,16 @@ public mutating func setParameter(
 ///
 /// 适合在排除 Authorization 等动态凭证后加入 userID 或 tenantID。相同 key 再次写入
 /// 时最后一个值生效；key 区分大小写，值不会进入 Header、parameters 或 extraData。
-public mutating func addIdentityComponent(key: String, value: String) {
-    storedIdentityComponents[key] = value
+public mutating func addRequestKeyValue(key: String, value: String) {
+    storedRequestKeyValues[key] = value
 }
 
 /// 删除指定的稳定身份组成，不改变任何真实请求字段。
 ///
 /// 删除后，请求可能与其他 user/tenant 产生相同身份；调用方必须确认剩余字段仍能
 /// 表达正确的缓存和去重隔离边界。
-public mutating func removeIdentityComponent(key: String) {
-    storedIdentityComponents.removeValue(forKey: key)
+public mutating func removeRequestKeyValue(key: String) {
+    storedRequestKeyValues.removeValue(forKey: key)
 }
 ```
 
@@ -446,34 +448,34 @@ public mutating func removeHeader(key: String) {
     for existingKey in matchingKeys {
         headers?.removeValue(forKey: existingKey)
     }
-    headerIdentityParticipation.removeValue(forKey: key.lowercased())
+    headerRequestKeyRules.removeValue(forKey: key.lowercased())
 }
 
 /// 删除精确参数 key，并同步删除其显式身份状态。
 public mutating func removeParameter(key: String) {
     parameters?.removeValue(forKey: key)
-    parameterIdentityParticipation.removeValue(forKey: key)
+    parameterRequestKeyRules.removeValue(forKey: key)
 }
 
 /// 清空全部 Header 及其身份元数据，避免后续同名字段继承陈旧覆盖状态。
 public mutating func clearHeaders() {
     headers = nil
-    headerIdentityParticipation.removeAll()
+    headerRequestKeyRules.removeAll()
 }
 
 /// 清空全部参数及其身份元数据，稳定 identity component 不受影响。
 public mutating func clearParameters() {
     parameters = nil
-    parameterIdentityParticipation.removeAll()
+    parameterRequestKeyRules.removeAll()
 }
 
 mutating func pruneIdentityMetadata() {
     let headerKeys = Set((headers ?? [:]).keys.map { $0.lowercased() })
-    headerIdentityParticipation = headerIdentityParticipation.filter {
+    headerRequestKeyRules = headerRequestKeyRules.filter {
         headerKeys.contains($0.key)
     }
     let parameterKeys = Set((parameters ?? [:]).keys)
-    parameterIdentityParticipation = parameterIdentityParticipation.filter {
+    parameterRequestKeyRules = parameterRequestKeyRules.filter {
         parameterKeys.contains($0.key)
     }
 }
@@ -499,39 +501,39 @@ git commit -m "feat: add request identity policy metadata"
 ### Task 2: 实现无歧义的确定性值编码器
 
 **Files:**
-- Create: `Sources/CooNetwork/NtkNetwork/identity/NtkRequestIdentityBuilder.swift`
-- Create: `Sources/CooNetwork/NtkNetwork/identity/NtkRequestIdentityBuilder+Failure.swift`
-- Create: `Sources/CooNetwork/NtkNetwork/identity/NtkCanonicalIdentityEncoder.swift`
+- Create: `Sources/CooNetwork/NtkNetwork/identity/NtkRequestKeyBuilder.swift`
+- Create: `Sources/CooNetwork/NtkNetwork/identity/NtkRequestKeyBuilder+Failure.swift`
+- Create: `Sources/CooNetwork/NtkNetwork/identity/NtkRequestKeyEncoder.swift`
 - Modify: `Sources/CooNetwork/NtkNetwork/model/NtkDynamicData.swift`
-- Test: `Tests/CooNetworkTests/NtkCanonicalIdentityEncoderTests.swift`
+- Test: `Tests/CooNetworkTests/NtkRequestKeyEncoderTests.swift`
 
 - [ ] **Step 1: 写入标量、容器和失败测试**
 
-创建 `Tests/CooNetworkTests/NtkCanonicalIdentityEncoderTests.swift`：
+创建 `Tests/CooNetworkTests/NtkRequestKeyEncoderTests.swift`：
 
 ```swift
 import Foundation
 import Testing
 @testable import CooNetwork
 
-struct NtkCanonicalIdentityEncoderTests {
+struct NtkRequestKeyEncoderTests {
     @Test
     func dictionaryOrderDoesNotChangeBytes() throws {
         let lhs: [String: Sendable] = ["b": 2, "a": 1]
         let rhs: [String: Sendable] = ["a": 1, "b": 2]
-        #expect(try NtkCanonicalIdentityEncoder.encodeValue(lhs, path: "parameters") ==
-                NtkCanonicalIdentityEncoder.encodeValue(rhs, path: "parameters"))
+        #expect(try NtkRequestKeyEncoder.encodeValue(lhs, path: "parameters") ==
+                NtkRequestKeyEncoder.encodeValue(rhs, path: "parameters"))
     }
 
     @Test
     func typedSwiftContainersUseTheSameRecursiveEncoding() throws {
         let dictionary: any Sendable = ["a": 1, "b": 2]
         let array: any Sendable = [1, 2, 3]
-        #expect(try !NtkCanonicalIdentityEncoder.encodeValue(
+        #expect(try !NtkRequestKeyEncoder.encodeValue(
             dictionary,
             path: "dictionary"
         ).isEmpty)
-        #expect(try !NtkCanonicalIdentityEncoder.encodeValue(
+        #expect(try !NtkRequestKeyEncoder.encodeValue(
             array,
             path: "array"
         ).isEmpty)
@@ -539,12 +541,12 @@ struct NtkCanonicalIdentityEncoderTests {
 
     @Test
     func arrayOrderAndScalarTypesRemainDistinct() throws {
-        #expect(try NtkCanonicalIdentityEncoder.encodeValue([1, 2], path: "array") !=
-                NtkCanonicalIdentityEncoder.encodeValue([2, 1], path: "array"))
-        #expect(try NtkCanonicalIdentityEncoder.encodeValue("1", path: "value") !=
-                NtkCanonicalIdentityEncoder.encodeValue(1, path: "value"))
-        #expect(try NtkCanonicalIdentityEncoder.encodeValue(1, path: "value") !=
-                NtkCanonicalIdentityEncoder.encodeValue(true, path: "value"))
+        #expect(try NtkRequestKeyEncoder.encodeValue([1, 2], path: "array") !=
+                NtkRequestKeyEncoder.encodeValue([2, 1], path: "array"))
+        #expect(try NtkRequestKeyEncoder.encodeValue("1", path: "value") !=
+                NtkRequestKeyEncoder.encodeValue(1, path: "value"))
+        #expect(try NtkRequestKeyEncoder.encodeValue(1, path: "value") !=
+                NtkRequestKeyEncoder.encodeValue(true, path: "value"))
     }
 
     @Test
@@ -558,17 +560,17 @@ struct NtkCanonicalIdentityEncoderTests {
             "url": URL(string: "https://example.com/a?b=1")!,
             "null": NSNull()
         ])
-        #expect(try NtkCanonicalIdentityEncoder.encodeValue(value, path: "dynamic") ==
-                NtkCanonicalIdentityEncoder.encodeValue(value, path: "dynamic"))
+        #expect(try NtkRequestKeyEncoder.encodeValue(value, path: "dynamic") ==
+                NtkRequestKeyEncoder.encodeValue(value, path: "dynamic"))
     }
 
     @Test
     func nonFiniteAndUnsupportedValuesFailWithoutStringFallback() {
-        #expect(throws: NtkRequestIdentityBuilder.Failure.self) {
-            try NtkCanonicalIdentityEncoder.encodeValue(Double.nan, path: "parameters.score")
+        #expect(throws: NtkRequestKeyBuilder.Failure.self) {
+            try NtkRequestKeyEncoder.encodeValue(Double.nan, path: "parameters.score")
         }
-        #expect(throws: NtkRequestIdentityBuilder.Failure.self) {
-            try NtkCanonicalIdentityEncoder.encodeValue(
+        #expect(throws: NtkRequestKeyBuilder.Failure.self) {
+            try NtkRequestKeyEncoder.encodeValue(
                 UnsupportedIdentityValue(),
                 path: "parameters.custom"
             )
@@ -584,21 +586,21 @@ private struct UnsupportedIdentityValue: Sendable {}
 Run:
 
 ```bash
-swift test --filter NtkCanonicalIdentityEncoderTests
+swift test --filter NtkRequestKeyEncoderTests
 ```
 
 Expected: 编译失败，缺少编码器和内部失败类型。
 
 - [ ] **Step 3: 创建内部失败模型**
 
-创建 `NtkRequestIdentityBuilder+Failure.swift`：
+创建 `NtkRequestKeyBuilder+Failure.swift`：
 
 ```swift
-extension NtkRequestIdentityBuilder {
+extension NtkRequestKeyBuilder {
     enum Section: String, Sendable {
         case headers
         case parameters
-        case identityComponents
+        case requestKeyValues
     }
 
     enum Failure: Error, Sendable, Equatable {
@@ -609,7 +611,7 @@ extension NtkRequestIdentityBuilder {
         case duplicateNormalizedHeader(String)
         case projectionCollision(section: Section, key: String)
 
-        var diagnosticDescription: String {
+        var logMessage: String {
             switch self {
             case .unsupportedValue(let path, let type):
                 return "unsupported value at \(path), type=\(type)"
@@ -629,14 +631,14 @@ extension NtkRequestIdentityBuilder {
 }
 ```
 
-在 `NtkRequestIdentityBuilder.swift` 先放置空声明 `struct NtkRequestIdentityBuilder {}`，Task 3 再补完整构建逻辑。
+在 `NtkRequestKeyBuilder.swift` 先放置空声明 `struct NtkRequestKeyBuilder {}`，Task 3 再补完整构建逻辑。
 
 - [ ] **Step 4: 为 NtkDynamicData 暴露不转换类型的内部视图**
 
 在同文件新增内部枚举和只读属性，必须直接 switch 私有 `storage`，不能调用会把整数转换成字符串的公开 getter：
 
 ```swift
-enum NtkDynamicIdentityValue: Sendable {
+enum NtkDynamicRequestKeyValue: Sendable {
     case dictionary([String: any Sendable])
     case array([any Sendable])
     case string(String)
@@ -647,7 +649,7 @@ enum NtkDynamicIdentityValue: Sendable {
 }
 
 extension NtkDynamicData {
-    var identityValue: NtkDynamicIdentityValue {
+    var requestKeyValue: NtkDynamicRequestKeyValue {
         switch storage {
         case .dictionary(let value): .dictionary(value)
         case .array(let value): .array(value)
@@ -663,12 +665,12 @@ extension NtkDynamicData {
 
 - [ ] **Step 5: 实现带标签和长度前缀的编码器**
 
-创建 `NtkCanonicalIdentityEncoder.swift`。实现必须使用固定 UInt8 tag、UInt64 big-endian 长度和排序后的 UTF-8 key；核心递归分派如下：
+创建 `NtkRequestKeyEncoder.swift`。实现必须使用固定 UInt8 tag、UInt64 big-endian 长度和排序后的 UTF-8 key；核心递归分派如下：
 
 ```swift
 import Foundation
 
-struct NtkCanonicalIdentityEncoder {
+struct NtkRequestKeyEncoder {
     private enum Tag: UInt8 {
         case string = 1, boolFalse, boolTrue, signedInteger, unsignedInteger
         case float32, float64, data, url, uuid, date, null, dictionary, array
@@ -756,9 +758,9 @@ struct NtkCanonicalIdentityEncoder {
         case let value as [any Sendable]:
             appendFrame(tag: Tag.array.rawValue, payload: try Self.encodeArray(value, path: path))
         case let value as NtkDynamicData:
-            try appendDynamic(value.identityValue, path: path)
+            try appendDynamic(value.requestKeyValue, path: path)
         default:
-            throw NtkRequestIdentityBuilder.Failure.unsupportedValue(
+            throw NtkRequestKeyBuilder.Failure.unsupportedValue(
                 path: path,
                 type: String(reflecting: type(of: value))
             )
@@ -770,7 +772,7 @@ struct NtkCanonicalIdentityEncoder {
 同文件加入以下辅助实现；所有整数先转 big-endian，数组保留顺序，字典按 key 排序：
 
 ```swift
-private extension NtkCanonicalIdentityEncoder {
+private extension NtkRequestKeyEncoder {
     mutating func appendFrame(tag: UInt8, payload: Data) {
         bytes.append(tag)
         bytes.appendLengthPrefixed(payload)
@@ -822,7 +824,7 @@ private extension NtkCanonicalIdentityEncoder {
     }
 
     mutating func appendDynamic(
-        _ value: NtkDynamicIdentityValue,
+        _ value: NtkDynamicRequestKeyValue,
         path: String
     ) throws {
         switch value {
@@ -843,7 +845,7 @@ private extension NtkCanonicalIdentityEncoder {
         }
     }
 
-    func nonFinite<T>(_ path: String, _ value: T) -> NtkRequestIdentityBuilder.Failure {
+    func nonFinite<T>(_ path: String, _ value: T) -> NtkRequestKeyBuilder.Failure {
         .nonFiniteValue(path: path, type: String(reflecting: type(of: value)))
     }
 }
@@ -872,7 +874,7 @@ private extension Data {
 Run:
 
 ```bash
-swift test --filter NtkCanonicalIdentityEncoderTests
+swift test --filter NtkRequestKeyEncoderTests
 ```
 
 Expected: PASS。
@@ -880,56 +882,56 @@ Expected: PASS。
 Commit:
 
 ```bash
-git add Sources/CooNetwork/NtkNetwork/identity Sources/CooNetwork/NtkNetwork/model/NtkDynamicData.swift Tests/CooNetworkTests/NtkCanonicalIdentityEncoderTests.swift
+git add Sources/CooNetwork/NtkNetwork/identity Sources/CooNetwork/NtkNetwork/model/NtkDynamicData.swift Tests/CooNetworkTests/NtkRequestKeyEncoderTests.swift
 git commit -m "feat: add deterministic identity encoding"
 ```
 
 ### Task 3: 构建统一请求身份投影
 
 **Files:**
-- Create: `Sources/CooNetwork/NtkNetwork/identity/NtkRequestIdentity.swift`
-- Modify: `Sources/CooNetwork/NtkNetwork/identity/NtkRequestIdentityBuilder.swift`
-- Modify: `Sources/CooNetwork/NtkNetwork/identity/NtkRequestIdentityBuilder+Failure.swift`
-- Test: `Tests/CooNetworkTests/NtkRequestIdentityBuilderTests.swift`
+- Create: `Sources/CooNetwork/NtkNetwork/identity/NtkRequestKey.swift`
+- Modify: `Sources/CooNetwork/NtkNetwork/identity/NtkRequestKeyBuilder.swift`
+- Modify: `Sources/CooNetwork/NtkNetwork/identity/NtkRequestKeyBuilder+Failure.swift`
+- Test: `Tests/CooNetworkTests/NtkRequestKeyBuilderTests.swift`
 
 - [ ] **Step 1: 写入策略优先级和确定性失败测试**
 
-创建 `Tests/CooNetworkTests/NtkRequestIdentityBuilderTests.swift`，先写入以下主路径测试：
+创建 `Tests/CooNetworkTests/NtkRequestKeyBuilderTests.swift`，先写入以下主路径测试：
 
 ```swift
 import Foundation
 import Testing
 @testable import CooNetwork
 
-struct NtkRequestIdentityBuilderTests {
+struct NtkRequestKeyBuilderTests {
     @Test
     func excludedDynamicFieldsProduceOneIdentity() throws {
         var first = makeRequest(token: "token-a", timestamp: 1)
-        first.addHeader(key: "Authorization", value: "token-a", identity: .excluded)
-        first.addParameter(key: "timestamp", value: 1, identity: .excluded)
-        first.addIdentityComponent(key: "user", value: "42")
+        first.addHeader(key: "Authorization", value: "token-a", identity: .exclude)
+        first.addParameter(key: "timestamp", value: 1, identity: .exclude)
+        first.addRequestKeyValue(key: "user", value: "42")
 
         var second = makeRequest(token: "token-b", timestamp: 2)
-        second.addHeader(key: "authorization", value: "token-b", identity: .excluded)
-        second.addParameter(key: "timestamp", value: 2, identity: .excluded)
-        second.addIdentityComponent(key: "user", value: "42")
+        second.addHeader(key: "authorization", value: "token-b", identity: .exclude)
+        second.addParameter(key: "timestamp", value: 2, identity: .exclude)
+        second.addRequestKeyValue(key: "user", value: "42")
 
-        #expect(try NtkRequestIdentityBuilder.build(request: first, policy: .strict) ==
-                NtkRequestIdentityBuilder.build(request: second, policy: .strict))
+        #expect(try NtkRequestKeyBuilder.build(request: first, policy: .strict) ==
+                NtkRequestKeyBuilder.build(request: second, policy: .strict))
     }
 
     @Test
     func includedOverridesGlobalExclusionAndUserComponentSeparatesUsers() throws {
-        let policy = NtkRequestIdentityPolicy(excludedParameterNames: ["tenant"])
+        let policy = NtkRequestKeyPolicy(excludedParameterNames: ["tenant"])
         var first = makeRequest()
-        first.addParameter(key: "tenant", value: "a", identity: .included)
-        first.addIdentityComponent(key: "user", value: "1")
+        first.addParameter(key: "tenant", value: "a", identity: .include)
+        first.addRequestKeyValue(key: "user", value: "1")
         var second = makeRequest()
-        second.addParameter(key: "tenant", value: "b", identity: .included)
-        second.addIdentityComponent(key: "user", value: "2")
+        second.addParameter(key: "tenant", value: "b", identity: .include)
+        second.addRequestKeyValue(key: "user", value: "2")
 
-        #expect(try NtkRequestIdentityBuilder.build(request: first, policy: policy) !=
-                NtkRequestIdentityBuilder.build(request: second, policy: policy))
+        #expect(try NtkRequestKeyBuilder.build(request: first, policy: policy) !=
+                NtkRequestKeyBuilder.build(request: second, policy: policy))
     }
 
     @Test
@@ -941,22 +943,22 @@ struct NtkRequestIdentityBuilderTests {
         second.addHeader(key: "x-client", value: "ios")
         second.setParameter(["outer": ["a": 1, "b": 2] as [String: Sendable]])
 
-        #expect(try NtkRequestIdentityBuilder.build(request: first, policy: .strict) ==
-                NtkRequestIdentityBuilder.build(request: second, policy: .strict))
+        #expect(try NtkRequestKeyBuilder.build(request: first, policy: .strict) ==
+                NtkRequestKeyBuilder.build(request: second, policy: .strict))
     }
 
     @Test
     func normalizerCannotSeeExplicitFieldsAndCollisionFails() throws {
-        let policy = NtkRequestIdentityPolicy(normalizeParameters: { parameters in
+        let policy = NtkRequestKeyPolicy(transformParameters: { parameters in
             #expect(parameters["secret"] == nil)
             return ["stable": "from-normalizer"]
         })
         var request = makeRequest()
-        request.addParameter(key: "secret", value: "value", identity: .excluded)
-        request.addParameter(key: "stable", value: "included", identity: .included)
+        request.addParameter(key: "secret", value: "value", identity: .exclude)
+        request.addParameter(key: "stable", value: "included", identity: .include)
 
-        #expect(throws: NtkRequestIdentityBuilder.Failure.self) {
-            try NtkRequestIdentityBuilder.build(request: request, policy: policy)
+        #expect(throws: NtkRequestKeyBuilder.Failure.self) {
+            try NtkRequestKeyBuilder.build(request: request, policy: policy)
         }
     }
 
@@ -964,8 +966,8 @@ struct NtkRequestIdentityBuilderTests {
     func unsupportedValueReturnsInternalFailure() {
         var request = makeRequest()
         request.addParameter(key: "custom", value: UnsupportedIdentityParameter())
-        #expect(throws: NtkRequestIdentityBuilder.Failure.self) {
-            try NtkRequestIdentityBuilder.build(request: request, policy: .strict)
+        #expect(throws: NtkRequestKeyBuilder.Failure.self) {
+            try NtkRequestKeyBuilder.build(request: request, policy: .strict)
         }
     }
 
@@ -992,17 +994,17 @@ private struct UnsupportedIdentityParameter: Sendable {}
 ```swift
 @Test
 func excludedParameterNamesAreCaseSensitiveExactMatches() throws {
-    let policy = NtkRequestIdentityPolicy(excludedParameterNames: ["token"])
+    let policy = NtkRequestKeyPolicy(excludedParameterNames: ["token"])
     var first = NtkMutableRequest(IdentityBuilderRequest())
     first.setParameter(["token": "a", "Token": "A", "tokenValue": "one"])
     var second = NtkMutableRequest(IdentityBuilderRequest())
     second.setParameter(["token": "b", "Token": "A", "tokenValue": "one"])
-    #expect(try NtkRequestIdentityBuilder.build(request: first, policy: policy) ==
-            NtkRequestIdentityBuilder.build(request: second, policy: policy))
+    #expect(try NtkRequestKeyBuilder.build(request: first, policy: policy) ==
+            NtkRequestKeyBuilder.build(request: second, policy: policy))
 
     second.addParameter(key: "tokenValue", value: "two")
-    #expect(try NtkRequestIdentityBuilder.build(request: first, policy: policy) !=
-            NtkRequestIdentityBuilder.build(request: second, policy: policy))
+    #expect(try NtkRequestKeyBuilder.build(request: first, policy: policy) !=
+            NtkRequestKeyBuilder.build(request: second, policy: policy))
 }
 
 @Test
@@ -1011,8 +1013,8 @@ func nilAndEmptyCollectionsHaveOneIdentity() throws {
     var emptyCollections = NtkMutableRequest(IdentityBuilderRequest())
     emptyCollections.headers = [:]
     emptyCollections.parameters = [:]
-    #expect(try NtkRequestIdentityBuilder.build(request: nilCollections, policy: .strict) ==
-            NtkRequestIdentityBuilder.build(request: emptyCollections, policy: .strict))
+    #expect(try NtkRequestKeyBuilder.build(request: nilCollections, policy: .strict) ==
+            NtkRequestKeyBuilder.build(request: emptyCollections, policy: .strict))
 }
 
 @Test
@@ -1026,10 +1028,10 @@ func arrayOrderAndScalarTypesChangeIdentity() throws {
     var booleanValue = NtkMutableRequest(IdentityBuilderRequest())
     booleanValue.setParameter(["value": true])
 
-    let integerIdentity = try NtkRequestIdentityBuilder.build(request: first, policy: .strict)
-    #expect(integerIdentity != NtkRequestIdentityBuilder.build(request: reordered, policy: .strict))
-    #expect(integerIdentity != NtkRequestIdentityBuilder.build(request: stringValue, policy: .strict))
-    #expect(integerIdentity != NtkRequestIdentityBuilder.build(request: booleanValue, policy: .strict))
+    let integerIdentity = try NtkRequestKeyBuilder.build(request: first, policy: .strict)
+    #expect(integerIdentity != NtkRequestKeyBuilder.build(request: reordered, policy: .strict))
+    #expect(integerIdentity != NtkRequestKeyBuilder.build(request: stringValue, policy: .strict))
+    #expect(integerIdentity != NtkRequestKeyBuilder.build(request: booleanValue, policy: .strict))
 }
 
 @Test
@@ -1043,21 +1045,21 @@ func supportedFoundationAndDynamicValuesRepeatExactly() throws {
         "null": NSNull(),
         "dynamic": NtkDynamicData(array: [1, "two", NSNull()])
     ])
-    let first = try NtkRequestIdentityBuilder.build(request: request, policy: .strict)
-    let second = try NtkRequestIdentityBuilder.build(request: request, policy: .strict)
+    let first = try NtkRequestKeyBuilder.build(request: request, policy: .strict)
+    let second = try NtkRequestKeyBuilder.build(request: request, policy: .strict)
     #expect(first == second)
 }
 
 @Test
 func normalizationFailureStoresOnlyErrorType() {
-    let policy = NtkRequestIdentityPolicy(normalizeParameters: { _ in
+    let policy = NtkRequestKeyPolicy(transformParameters: { _ in
         throw IdentityNormalizerError.containsSensitiveDescription
     })
     let request = NtkMutableRequest(IdentityBuilderRequest())
     do {
-        _ = try NtkRequestIdentityBuilder.build(request: request, policy: policy)
+        _ = try NtkRequestKeyBuilder.build(request: request, policy: policy)
         Issue.record("期望规范化失败")
-    } catch let failure as NtkRequestIdentityBuilder.Failure {
+    } catch let failure as NtkRequestKeyBuilder.Failure {
         guard case .normalizationFailed(.parameters, let errorType) = failure else {
             Issue.record("错误类型不符: \(failure)")
             return
@@ -1073,24 +1075,24 @@ func normalizationFailureStoresOnlyErrorType() {
 func duplicateCaseInsensitiveHeadersFailIdentityOnly() {
     var request = NtkMutableRequest(IdentityBuilderRequest())
     request.headers = ["Authorization": "a", "authorization": "b"]
-    #expect(throws: NtkRequestIdentityBuilder.Failure.self) {
-        try NtkRequestIdentityBuilder.build(request: request, policy: .strict)
+    #expect(throws: NtkRequestKeyBuilder.Failure.self) {
+        try NtkRequestKeyBuilder.build(request: request, policy: .strict)
     }
 }
 
 @Test
 func headerExclusionIsCaseInsensitiveAndExact() throws {
-    let policy = NtkRequestIdentityPolicy(excludedHeaderNames: ["Authorization"])
+    let policy = NtkRequestKeyPolicy(excludedHeaderNames: ["Authorization"])
     var first = NtkMutableRequest(IdentityBuilderRequest())
     first.headers = ["authorization": "a", "Authorization-Mode": "stable"]
     var second = NtkMutableRequest(IdentityBuilderRequest())
     second.headers = ["AUTHORIZATION": "b", "Authorization-Mode": "stable"]
-    #expect(try NtkRequestIdentityBuilder.build(request: first, policy: policy) ==
-            NtkRequestIdentityBuilder.build(request: second, policy: policy))
+    #expect(try NtkRequestKeyBuilder.build(request: first, policy: policy) ==
+            NtkRequestKeyBuilder.build(request: second, policy: policy))
 
     second.headers?["Authorization-Mode"] = "changed"
-    #expect(try NtkRequestIdentityBuilder.build(request: first, policy: policy) !=
-            NtkRequestIdentityBuilder.build(request: second, policy: policy))
+    #expect(try NtkRequestKeyBuilder.build(request: first, policy: policy) !=
+            NtkRequestKeyBuilder.build(request: second, policy: policy))
 }
 
 @Test
@@ -1103,8 +1105,8 @@ func cacheTimeAndTimeoutDoNotChangeResourceIdentity() throws {
         timeout: 20,
         cacheTime: 3_600
     ))
-    #expect(try NtkRequestIdentityBuilder.build(request: first, policy: .strict) ==
-            NtkRequestIdentityBuilder.build(request: second, policy: .strict))
+    #expect(try NtkRequestKeyBuilder.build(request: first, policy: .strict) ==
+            NtkRequestKeyBuilder.build(request: second, policy: .strict))
 }
 ```
 
@@ -1133,21 +1135,21 @@ private struct IdentityBuilderConfiguredRequest: iNtkRequest {
 Run:
 
 ```bash
-swift test --filter NtkRequestIdentityBuilderTests
+swift test --filter NtkRequestKeyBuilderTests
 ```
 
-Expected: 编译失败，缺少 `NtkRequestIdentity` 和 `build(request:policy:)`。
+Expected: 编译失败，缺少 `NtkRequestKey` 和 `build(request:policy:)`。
 
 - [ ] **Step 3: 创建公开但不可自行构造的身份值**
 
-创建 `NtkRequestIdentity.swift`，完整文档必须声明 digest 可存储、不可解析、算法版本可能升级：
+创建 `NtkRequestKey.swift`，完整文档必须声明 digest 可存储、不可解析、算法版本可能升级：
 
 ```swift
 /// 框架根据最终请求投影生成的稳定身份。
 ///
 /// 自定义缓存 provider 可以存储和比较该值，但不能自行构造或解析 digest。
 /// 算法升级会改变前缀和内容，旧缓存由现有淘汰策略自然清理。
-public struct NtkRequestIdentity: Hashable, Sendable {
+public struct NtkRequestKey: Hashable, Sendable {
     /// 包含算法版本的持久化缓存键；它不是业务字段，也不应作为鉴权凭证。
     public let digest: String
 
@@ -1159,32 +1161,32 @@ public struct NtkRequestIdentity: Hashable, Sendable {
 
 - [ ] **Step 4: 实现字段投影和 SHA-256 摘要**
 
-在 `NtkRequestIdentityBuilder.swift` 使用 `CryptoKit` 实现：
+在 `NtkRequestKeyBuilder.swift` 使用 `CryptoKit` 实现：
 
 ```swift
 import CryptoKit
 import Foundation
 
-struct NtkRequestIdentityBuilder {
+struct NtkRequestKeyBuilder {
     static func build(
         request: NtkMutableRequest,
-        policy: NtkRequestIdentityPolicy
-    ) throws -> NtkRequestIdentity {
+        policy: NtkRequestKeyPolicy
+    ) throws -> NtkRequestKey {
         let headers = try projectHeaders(request: request, policy: policy)
         let parameters = try projectParameters(request: request, policy: policy)
 
-        var encoder = NtkCanonicalIdentityEncoder()
+        var encoder = NtkRequestKeyEncoder()
         encoder.appendStringField(tag: 1, value: request.method.rawValue)
         encoder.appendOptionalStringField(tag: 2, value: request.baseURL?.absoluteString)
         encoder.appendStringField(tag: 3, value: request.path)
         encoder.appendStringDictionaryField(tag: 4, value: headers)
         try encoder.appendValueDictionaryField(tag: 5, value: parameters, path: "parameters")
-        encoder.appendStringDictionaryField(tag: 6, value: request.identityComponents)
+        encoder.appendStringDictionaryField(tag: 6, value: request.requestKeyValues)
 
         let digest = SHA256.hash(data: encoder.data)
             .map { String(format: "%02x", $0) }
             .joined()
-        return NtkRequestIdentity(digest: "ntk-identity-v2-\(digest)")
+        return NtkRequestKey(digest: "ntk-identity-v2-\(digest)")
     }
 }
 ```
@@ -1192,22 +1194,22 @@ struct NtkRequestIdentityBuilder {
 同文件使用以下投影实现，固定“字段状态拆分 -> 名称排除 -> normalizer -> included 合并”的顺序：
 
 ```swift
-private extension NtkRequestIdentityBuilder {
+private extension NtkRequestKeyBuilder {
     static func projectHeaders(
         request: NtkMutableRequest,
-        policy: NtkRequestIdentityPolicy
+        policy: NtkRequestKeyPolicy
     ) throws -> [String: String] {
         var included: [String: String] = [:]
         var automatic: [String: String] = [:]
 
         for (key, value) in request.headers ?? [:] {
-            switch request.identityParticipation(forHeader: key) {
-            case .excluded:
+            switch request.requestKeyRule(forHeader: key) {
+            case .exclude:
                 continue
-            case .included:
+            case .include:
                 included[key] = value
             case .automatic:
-                if !policy.excludedHeaderNames.contains(key.lowercased()) {
+                if !policy.excludeHeaderNames.contains(key.lowercased()) {
                     automatic[key] = value
                 }
             }
@@ -1215,7 +1217,7 @@ private extension NtkRequestIdentityBuilder {
 
         let normalized: [String: String]
         do {
-            normalized = try policy.normalizeHeaders?(automatic) ?? automatic
+            normalized = try policy.transformHeaders?(automatic) ?? automatic
         } catch {
             throw Failure.normalizationFailed(
                 section: .headers,
@@ -1248,19 +1250,19 @@ private extension NtkRequestIdentityBuilder {
 
     static func projectParameters(
         request: NtkMutableRequest,
-        policy: NtkRequestIdentityPolicy
+        policy: NtkRequestKeyPolicy
     ) throws -> [String: any Sendable] {
         var included: [String: any Sendable] = [:]
         var automatic: [String: any Sendable] = [:]
 
         for (key, value) in request.parameters ?? [:] {
-            switch request.identityParticipation(forParameter: key) {
-            case .excluded:
+            switch request.requestKeyRule(forParameter: key) {
+            case .exclude:
                 continue
-            case .included:
+            case .include:
                 included[key] = value
             case .automatic:
-                if !policy.excludedParameterNames.contains(key) {
+                if !policy.excludeParameterNames.contains(key) {
                     automatic[key] = value
                 }
             }
@@ -1268,7 +1270,7 @@ private extension NtkRequestIdentityBuilder {
 
         let normalized: [String: any Sendable]
         do {
-            normalized = try policy.normalizeParameters?(automatic) ?? automatic
+            normalized = try policy.transformParameters?(automatic) ?? automatic
         } catch {
             throw Failure.normalizationFailed(
                 section: .parameters,
@@ -1308,7 +1310,7 @@ private extension NtkRequestIdentityBuilder {
 Run:
 
 ```bash
-swift test --filter 'NtkRequestIdentityBuilderTests|NtkCanonicalIdentityEncoderTests|NtkMutableRequestIdentityTests'
+swift test --filter 'NtkRequestKeyBuilderTests|NtkRequestKeyEncoderTests|NtkMutableRequestIdentityTests'
 ```
 
 Expected: PASS，digest 以 `ntk-identity-v2-` 开头。
@@ -1316,16 +1318,16 @@ Expected: PASS，digest 以 `ntk-identity-v2-` 开头。
 Commit:
 
 ```bash
-git add Sources/CooNetwork/NtkNetwork/identity Tests/CooNetworkTests/NtkRequestIdentityBuilderTests.swift
+git add Sources/CooNetwork/NtkNetwork/identity Tests/CooNetworkTests/NtkRequestKeyBuilderTests.swift
 git commit -m "feat: build stable request identities"
 ```
 
 ### Task 4: 统一有效 timeout 与结构化去重身份
 
 **Files:**
-- Create: `Sources/CooNetwork/NtkNetwork/identity/NtkEffectiveTimeoutResolver.swift`
-- Create: `Sources/CooNetwork/NtkNetwork/deduplication/NtkDeduplicationIdentity.swift`
-- Test: `Tests/CooNetworkTests/NtkEffectiveTimeoutResolverTests.swift`
+- Create: `Sources/CooNetwork/NtkNetwork/identity/NtkRequestTimeoutResolver.swift`
+- Create: `Sources/CooNetwork/NtkNetwork/deduplication/NtkDeduplicationKey.swift`
+- Test: `Tests/CooNetworkTests/NtkRequestTimeoutResolverTests.swift`
 
 - [ ] **Step 1: 写入 timeout 规范化测试**
 
@@ -1336,21 +1338,21 @@ import Foundation
 import Testing
 @testable import CooNetwork
 
-struct NtkEffectiveTimeoutResolverTests {
+struct NtkRequestTimeoutResolverTests {
     @Test(arguments: [1.0, 20.0, 100.5])
     func finitePositiveRequestTimeoutWins(_ value: TimeInterval) {
-        #expect(NtkEffectiveTimeoutResolver.resolve(requested: value, configuredDefault: 30) == value)
+        #expect(NtkRequestTimeoutResolver.resolve(requested: value, configuredDefault: 30) == value)
     }
 
     @Test(arguments: [0.0, -1.0, Double.nan, Double.infinity])
     func invalidRequestTimeoutUsesConfiguredDefault(_ value: TimeInterval) {
-        #expect(NtkEffectiveTimeoutResolver.resolve(requested: value, configuredDefault: 30) == 30)
+        #expect(NtkRequestTimeoutResolver.resolve(requested: value, configuredDefault: 30) == 30)
     }
 
     @Test
     func invalidDefaultUsesBuiltInValueAndAllValuesAreClamped() {
-        #expect(NtkEffectiveTimeoutResolver.resolve(requested: .nan, configuredDefault: -1) == 20)
-        #expect(NtkEffectiveTimeoutResolver.resolve(
+        #expect(NtkRequestTimeoutResolver.resolve(requested: .nan, configuredDefault: -1) == 20)
+        #expect(NtkRequestTimeoutResolver.resolve(
             requested: 4_000_000_000,
             configuredDefault: 20
         ) == 3_153_600_000)
@@ -1360,14 +1362,14 @@ struct NtkEffectiveTimeoutResolverTests {
 
 - [ ] **Step 2: 运行测试确认 resolver 缺失**
 
-Run `swift test --filter NtkEffectiveTimeoutResolverTests`。
+Run `swift test --filter NtkRequestTimeoutResolverTests`。
 
 Expected: 编译失败。
 
 - [ ] **Step 3: 实现 resolver 和去重身份**
 
 ```swift
-enum NtkEffectiveTimeoutResolver {
+enum NtkRequestTimeoutResolver {
     static let builtInDefault: TimeInterval = 20
     static let maximum: TimeInterval = 3_153_600_000
 
@@ -1387,8 +1389,8 @@ enum NtkEffectiveTimeoutResolver {
     }
 }
 
-struct NtkDeduplicationIdentity: Hashable, Sendable {
-    let requestIdentity: NtkRequestIdentity
+struct NtkDeduplicationKey: Hashable, Sendable {
+    let requestKey: NtkRequestKey
     let responseType: ObjectIdentifier
     let effectiveTimeout: TimeInterval
     let namespace: String
@@ -1397,14 +1399,14 @@ struct NtkDeduplicationIdentity: Hashable, Sendable {
 
 - [ ] **Step 4: 运行测试并提交**
 
-Run `swift test --filter NtkEffectiveTimeoutResolverTests`。
+Run `swift test --filter NtkRequestTimeoutResolverTests`。
 
 Expected: PASS。
 
 Commit:
 
 ```bash
-git add Sources/CooNetwork/NtkNetwork/identity/NtkEffectiveTimeoutResolver.swift Sources/CooNetwork/NtkNetwork/deduplication/NtkDeduplicationIdentity.swift Tests/CooNetworkTests/NtkEffectiveTimeoutResolverTests.swift
+git add Sources/CooNetwork/NtkNetwork/identity/NtkRequestTimeoutResolver.swift Sources/CooNetwork/NtkNetwork/deduplication/NtkDeduplicationKey.swift Tests/CooNetworkTests/NtkRequestTimeoutResolverTests.swift
 git commit -m "feat: normalize request execution identity"
 ```
 
@@ -1427,14 +1429,14 @@ git commit -m "feat: normalize request execution identity"
 func executorFreezesPolicyTimeoutAndNamespace() async throws {
     var builder = NtkConfiguration.Builder()
     builder.defaultTimeout = 45
-    builder.requestIdentityPolicy = .init(excludedParameterNames: ["timestamp"])
+    builder.requestKeyPolicy = .init(excludedParameterNames: ["timestamp"])
     let global = NtkConfiguration(builder: builder)
     let capture = ExecPreparedContextCapture()
     var request = NtkMutableRequest(ExecSnapshotRequest(timeout: .nan))
     request.addParameter(key: "timestamp", value: 123)
-    let expectedIdentity = try NtkRequestIdentityBuilder.build(
+    let expectedIdentity = try NtkRequestKeyBuilder.build(
         request: request,
-        policy: builder.requestIdentityPolicy
+        policy: builder.requestKeyPolicy
     )
     let config = NtkNetworkExecutor<Bool>.Configuration(
         client: ExecMockClient(result: .success(())),
@@ -1452,7 +1454,7 @@ func executorFreezesPolicyTimeoutAndNamespace() async throws {
     #expect(await capture.effectiveTimeout() == 45)
     #expect(await capture.namespace() == "account-a")
     #expect(await capture.responseType() == ObjectIdentifier(Bool.self))
-    #expect(await capture.requestIdentity() == expectedIdentity)
+    #expect(await capture.requestKey() == expectedIdentity)
 }
 
 @Test
@@ -1465,22 +1467,22 @@ func unsupportedIdentityValueKeepsNetworkAvailableAndDisablesSharing() async thr
     let response = try await executor.execute()
 
     #expect(response.data == true)
-    #expect(await capture.requestIdentity() == nil)
-    #expect(await capture.deduplicationIdentity() == nil)
+    #expect(await capture.requestKey() == nil)
+    #expect(await capture.deduplicationKey() == nil)
 }
 
 @Test
 func requestLevelPolicyCompletelyReplacesGlobalPolicy() async throws {
     var builder = NtkConfiguration.Builder()
-    builder.requestIdentityPolicy = .init(excludedParameterNames: ["tenant"])
+    builder.requestKeyPolicy = .init(excludedParameterNames: ["tenant"])
     let global = NtkConfiguration(builder: builder)
     let capture = ExecPreparedContextCapture()
     var request = NtkMutableRequest(ExecSnapshotRequest(
         timeout: 30,
-        requestIdentityPolicy: .strict
+        requestKeyPolicy: .strict
     ))
     request.addParameter(key: "tenant", value: "a")
-    let expected = try NtkRequestIdentityBuilder.build(request: request, policy: .strict)
+    let expected = try NtkRequestKeyBuilder.build(request: request, policy: .strict)
     let executor = NtkNetworkExecutor<Bool>(config: .init(
         client: ExecMockClient(result: .success(())),
         request: request,
@@ -1493,7 +1495,7 @@ func requestLevelPolicyCompletelyReplacesGlobalPolicy() async throws {
 
     _ = try await executor.execute()
 
-    #expect(await capture.requestIdentity() == expected)
+    #expect(await capture.requestKey() == expected)
 }
 ```
 
@@ -1507,11 +1509,11 @@ private actor ExecPreparedContextCapture {
 
     func record(_ context: NtkInterceptorContext) { self.context = context }
     func effectiveTimeout() -> TimeInterval? { context?.effectiveTimeout }
-    func namespace() -> String? { context?.deduplicationIdentity?.namespace }
-    func responseType() -> ObjectIdentifier? { context?.deduplicationIdentity?.responseType }
-    func requestIdentity() -> NtkRequestIdentity? { context?.requestIdentity }
-    func deduplicationIdentity() -> NtkDeduplicationIdentity? {
-        context?.deduplicationIdentity
+    func namespace() -> String? { context?.deduplicationKey?.namespace }
+    func responseType() -> ObjectIdentifier? { context?.deduplicationKey?.responseType }
+    func requestKey() -> NtkRequestKey? { context?.requestKey }
+    func deduplicationKey() -> NtkDeduplicationKey? {
+        context?.deduplicationKey
     }
 }
 
@@ -1529,15 +1531,15 @@ private struct ExecPreparedContextInterceptor: iNtkInterceptor {
 
 private struct ExecSnapshotRequest: iNtkRequest {
     let timeout: TimeInterval
-    let requestIdentityPolicy: NtkRequestIdentityPolicy?
+    let requestKeyPolicy: NtkRequestKeyPolicy?
     var path: String { "/executor/snapshot" }
 
     init(
         timeout: TimeInterval,
-        requestIdentityPolicy: NtkRequestIdentityPolicy? = nil
+        requestKeyPolicy: NtkRequestKeyPolicy? = nil
     ) {
         self.timeout = timeout
-        self.requestIdentityPolicy = requestIdentityPolicy
+        self.requestKeyPolicy = requestKeyPolicy
     }
 }
 
@@ -1587,20 +1589,20 @@ public struct NtkInterceptorContext: Sendable {
     public let request: NtkMutableRequest
     public var extraData: [String: any Sendable]
 
-    let requestIdentity: NtkRequestIdentity?
-    let deduplicationIdentity: NtkDeduplicationIdentity?
+    let requestKey: NtkRequestKey?
+    let deduplicationKey: NtkDeduplicationKey?
     let effectiveTimeout: TimeInterval
 
     init(
         request: NtkMutableRequest,
-        requestIdentity: NtkRequestIdentity? = nil,
-        deduplicationIdentity: NtkDeduplicationIdentity? = nil,
-        effectiveTimeout: TimeInterval = NtkEffectiveTimeoutResolver.builtInDefault,
+        requestKey: NtkRequestKey? = nil,
+        deduplicationKey: NtkDeduplicationKey? = nil,
+        effectiveTimeout: TimeInterval = NtkRequestTimeoutResolver.builtInDefault,
         extraData: [String: any Sendable] = [:]
     ) {
         self.request = request
-        self.requestIdentity = requestIdentity
-        self.deduplicationIdentity = deduplicationIdentity
+        self.requestKey = requestKey
+        self.deduplicationKey = deduplicationKey
         self.effectiveTimeout = effectiveTimeout
         self.extraData = extraData
     }
@@ -1614,7 +1616,7 @@ struct Configuration: Sendable {
     let client: any iNtkClient
     let request: NtkMutableRequest
     let interceptors: [any iNtkInterceptor]
-    let requestIdentityPolicy: NtkRequestIdentityPolicy
+    let requestKeyPolicy: NtkRequestKeyPolicy
     let isDeduplicationEnabled: Bool
     let defaultTimeout: TimeInterval
     let deduplicationNamespace: String
@@ -1632,7 +1634,7 @@ struct Configuration: Sendable {
         self.client = client
         self.request = request
         self.interceptors = interceptors
-        self.requestIdentityPolicy = request.requestIdentityPolicy ?? builder.requestIdentityPolicy
+        self.requestKeyPolicy = request.requestKeyPolicy ?? builder.requestKeyPolicy
         self.isDeduplicationEnabled = builder.isDeduplicationEnabled
         self.defaultTimeout = builder.defaultTimeout
         self.deduplicationNamespace = deduplicationNamespace
@@ -1651,7 +1653,7 @@ private func makeContext(
 ) async throws -> NtkInterceptorContext {
     var request = try await makeRequest()
     request.pruneIdentityMetadata()
-    let effectiveTimeout = NtkEffectiveTimeoutResolver.resolve(
+    let effectiveTimeout = NtkRequestTimeoutResolver.resolve(
         requested: request.timeout,
         configuredDefault: config.defaultTimeout
     )
@@ -1660,16 +1662,16 @@ private func makeContext(
     let deduplicationEnabled = includeDeduplication &&
         config.isDeduplicationEnabled && request.isDeduplicationEnabled
     let cacheEnabled = includeCache && request.cacheConfiguration?.isEnabled == true
-    let identity: NtkRequestIdentity?
+    let identity: NtkRequestKey?
     if deduplicationEnabled || cacheEnabled {
         do {
-            identity = try NtkRequestIdentityBuilder.build(
+            identity = try NtkRequestKeyBuilder.build(
                 request: request,
-                policy: config.requestIdentityPolicy
+                policy: config.requestKeyPolicy
             )
-        } catch let failure as NtkRequestIdentityBuilder.Failure {
+        } catch let failure as NtkRequestKeyBuilder.Failure {
             logger.warning(
-                "Request identity unavailable: \(failure.diagnosticDescription)",
+                "Request identity unavailable: \(failure.logMessage)",
                 category: .identity
             )
             identity = nil
@@ -1678,9 +1680,9 @@ private func makeContext(
         identity = nil
     }
 
-    let deduplicationIdentity = deduplicationEnabled ? identity.map {
-        NtkDeduplicationIdentity(
-            requestIdentity: $0,
+    let deduplicationKey = deduplicationEnabled ? identity.map {
+        NtkDeduplicationKey(
+            requestKey: $0,
             responseType: ObjectIdentifier(ResponseData.self),
             effectiveTimeout: effectiveTimeout,
             namespace: config.deduplicationNamespace
@@ -1689,8 +1691,8 @@ private func makeContext(
 
     return NtkInterceptorContext(
         request: request,
-        requestIdentity: identity,
-        deduplicationIdentity: deduplicationIdentity,
+        requestKey: identity,
+        deduplicationKey: deduplicationKey,
         effectiveTimeout: effectiveTimeout
     )
 }
@@ -1705,7 +1707,7 @@ let context = try await makeContext(
 )
 ```
 
-Task 7 再把缓存 provider 调用改为显式接收 `context.requestIdentity`；在此之前旧缓存读取签名继续编译，但不能新增任何旧 key 计算。
+Task 7 再把缓存 provider 调用改为显式接收 `context.requestKey`；在此之前旧缓存读取签名继续编译，但不能新增任何旧 key 计算。
 
 为 logger 增加 `.identity` category。用户输入导致的 Failure 只能 warning 并返回 nil，不得 assertion、throw 或记录参数值。
 
@@ -1751,7 +1753,7 @@ let configuration = NtkNetworkExecutor<ResponseData>.Configuration(
 Run:
 
 ```bash
-swift test --filter 'NtkNetworkExecutorTests|NtkEffectiveTimeoutResolverTests|NtkRequestIdentityBuilderTests'
+swift test --filter 'NtkNetworkExecutorTests|NtkRequestTimeoutResolverTests|NtkRequestKeyBuilderTests'
 ```
 
 Expected: PASS；原有请求修改时序测试继续通过。
@@ -1778,14 +1780,14 @@ git commit -m "feat: prepare immutable request execution identity"
 删除所有 `request.responseType = ...`，增加统一 helper：
 
 ```swift
-private func deduplicationIdentity<Response: Sendable>(
+private func deduplicationKey<Response: Sendable>(
     _ type: Response.Type,
     digest: String = "ntk-identity-v2-test",
     timeout: TimeInterval = 30,
     namespace: String = "default"
-) -> NtkDeduplicationIdentity {
-    NtkDeduplicationIdentity(
-        requestIdentity: NtkRequestIdentity(digest: digest),
+) -> NtkDeduplicationKey {
+    NtkDeduplicationKey(
+        requestKey: NtkRequestKey(digest: digest),
         responseType: ObjectIdentifier(type),
         effectiveTimeout: timeout,
         namespace: namespace
@@ -1798,7 +1800,7 @@ private func deduplicationIdentity<Response: Sendable>(
 ```swift
 try await NtkTaskManager.shared.executeWithDeduplication(
     request: request,
-    identity: deduplicationIdentity(String.self),
+    identity: deduplicationKey(String.self),
     effectiveTimeout: 30
 ) {
     "result"
@@ -1821,14 +1823,14 @@ let isActive = await NtkTaskManager.shared.isRequestActive(
 ```swift
 @Test
 func timeoutNamespaceAndMissingIdentityKeepExecutionsIsolated() async throws {
-    let base = deduplicationIdentity(String.self)
+    let base = deduplicationKey(String.self)
     try await expectTwoExecutions(
         first: base,
-        second: deduplicationIdentity(String.self, timeout: 31)
+        second: deduplicationKey(String.self, timeout: 31)
     )
     try await expectTwoExecutions(
         first: base,
-        second: deduplicationIdentity(String.self, namespace: "secondary")
+        second: deduplicationKey(String.self, namespace: "secondary")
     )
     try await expectTwoExecutions(first: nil, second: nil)
 }
@@ -1844,7 +1846,7 @@ func cancellationUsesInstanceIdentifierAfterRequestContentChanges() async {
     let task = Task {
         try await NtkTaskManager.shared.executeWithDeduplication(
             request: snapshot,
-            identity: deduplicationIdentity(String.self),
+            identity: deduplicationKey(String.self),
             effectiveTimeout: 30
         ) {
             await gate.signalFirstStarted()
@@ -1873,8 +1875,8 @@ func cancellationUsesInstanceIdentifierAfterRequestContentChanges() async {
 }
 
 private func expectTwoExecutions(
-    first: NtkDeduplicationIdentity?,
-    second: NtkDeduplicationIdentity?
+    first: NtkDeduplicationKey?,
+    second: NtkDeduplicationKey?
 ) async throws {
     let counter = ExecutionCounter()
     let firstRequest = NtkMutableRequest(
@@ -1929,7 +1931,7 @@ Expected: 编译失败，TaskManager 仍要求从 request 计算 key。
 
 ```swift
 private enum RuntimeKey: Hashable, Sendable {
-    case shared(NtkDeduplicationIdentity)
+    case shared(NtkDeduplicationKey)
     case isolated(UUID)
 }
 
@@ -1950,7 +1952,7 @@ private var runtimeKeyByInstanceID: [UUID: RuntimeKey] = [:]
 ```swift
 func executeWithDeduplication<T: Sendable>(
     request: NtkMutableRequest,
-    identity: NtkDeduplicationIdentity?,
+    identity: NtkDeduplicationKey?,
     effectiveTimeout: TimeInterval,
     execution: @escaping @Sendable () async throws -> T
 ) async throws -> T
@@ -1966,7 +1968,7 @@ runtime key 只由 `identity.map(RuntimeKey.shared) ?? .isolated(request.instanc
 ```swift
 func executeWithDeduplication<T: Sendable>(
     request: NtkMutableRequest,
-    identity: NtkDeduplicationIdentity?,
+    identity: NtkDeduplicationKey?,
     effectiveTimeout: TimeInterval,
     execution: @escaping @Sendable () async throws -> T
 ) async throws -> T {
@@ -2140,7 +2142,7 @@ func intercept(
 ) async throws -> any iNtkResponse {
     try await NtkTaskManager.shared.executeWithDeduplication(
         request: context.request,
-        identity: context.deduplicationIdentity,
+        identity: context.deduplicationKey,
         effectiveTimeout: context.effectiveTimeout
     ) {
         try await next.handle(context: context)
@@ -2206,7 +2208,7 @@ func cacheUsesProvidedOpaqueIdentityWithoutRecalculation() async {
     let capture = NetworkCacheKeyCapture()
     let cache = NtkNetworkCache(storage: NetworkCacheTestStorage(capture: capture))
     let request = NtkMutableRequest(NetworkCacheTestRequest())
-    let identity = NtkRequestIdentity(digest: "ntk-identity-v2-explicit")
+    let identity = NtkRequestKey(digest: "ntk-identity-v2-explicit")
 
     _ = await cache.hasData(for: request, identity: identity)
 
@@ -2368,7 +2370,7 @@ Run:
 swift test --filter 'NtkNetworkCacheTests|NtkNetworkExecutorTests'
 ```
 
-Expected: 编译失败，缓存 API 尚未接受 `NtkRequestIdentity`。
+Expected: 编译失败，缓存 API 尚未接受 `NtkRequestKey`。
 
 - [ ] **Step 3: 修改缓存 provider 和缓存管理器签名**
 
@@ -2380,13 +2382,13 @@ public protocol iNtkCacheProvider: Sendable {
     /// 按框架生成的稳定身份读取缓存；存储错误可以抛出，身份失败不会调用此方法。
     func loadCacheData(
         for request: NtkMutableRequest,
-        identity: NtkRequestIdentity
+        identity: NtkRequestKey
     ) async throws -> (any Sendable)?
 
     /// 按框架生成的稳定身份查询缓存；身份或缓存配置不可用时 executor 直接返回 false。
     func hasCacheData(
         for request: NtkMutableRequest,
-        identity: NtkRequestIdentity
+        identity: NtkRequestKey
     ) async -> Bool
 }
 ```
@@ -2397,18 +2399,18 @@ public protocol iNtkCacheProvider: Sendable {
 /// 使用调用方已解析的身份查询缓存，避免缓存层形成第二套 key 算法。
 public func hasData(
     for request: NtkMutableRequest,
-    identity: NtkRequestIdentity
+    identity: NtkRequestKey
 ) async -> Bool
 
 public func loadData(
     for request: NtkMutableRequest,
-    identity: NtkRequestIdentity
+    identity: NtkRequestKey
 ) async throws -> (any Sendable)?
 
 public func save(
     data: Sendable,
     for request: NtkMutableRequest,
-    identity: NtkRequestIdentity
+    identity: NtkRequestKey
 ) async -> Bool
 ```
 
@@ -2419,7 +2421,7 @@ public func save(
 ```swift
 public func hasData(
     for request: NtkMutableRequest,
-    identity: NtkRequestIdentity
+    identity: NtkRequestKey
 ) async -> Bool {
     await storage.hasData(key: identity.digest, for: request)
 }
@@ -2427,7 +2429,7 @@ public func hasData(
 /// 使用调用方已解析的身份读取未过期数据；身份本身不从 request 重新生成。
 public func loadData(
     for request: NtkMutableRequest,
-    identity: NtkRequestIdentity
+    identity: NtkRequestKey
 ) async throws -> (any Sendable)? {
     guard let metadata = await storage.getData(
         key: identity.digest,
@@ -2442,7 +2444,7 @@ public func loadData(
 public func save(
     data: Sendable,
     for request: NtkMutableRequest,
-    identity: NtkRequestIdentity
+    identity: NtkRequestKey
 ) async -> Bool {
     guard let configuration = request.cacheConfiguration,
           configuration.isEnabled
@@ -2471,7 +2473,7 @@ public func save(
 let response = try await next.handle(context: context)
 guard let configuration = context.request.cacheConfiguration,
       configuration.isEnabled,
-      let identity = context.requestIdentity,
+      let identity = context.requestKey,
       configuration.shouldCache(response),
       let data = responseExtractor(response)
 else { return response }
@@ -2481,14 +2483,14 @@ _ = await cache.save(data: data, for: context.request, identity: identity)
 return response
 ```
 
-`loadCacheData` 和 `hasCacheData` 转发显式 identity。executor 的缓存路径先 `makeContext(includeDeduplication:false, includeCache:true)`，再 guard `context.requestIdentity`，身份不可用时不调用 provider。
+`loadCacheData` 和 `hasCacheData` 转发显式 identity。executor 的缓存路径先 `makeContext(includeDeduplication:false, includeCache:true)`，再 guard `context.requestKey`，身份不可用时不调用 provider。
 
 provider 转发和 executor guard 使用以下代码：
 
 ```swift
 public func loadCacheData(
     for request: NtkMutableRequest,
-    identity: NtkRequestIdentity
+    identity: NtkRequestKey
 ) async throws -> (any Sendable)? {
     try await NtkNetworkCache(storage: storage).loadData(
         for: request,
@@ -2498,7 +2500,7 @@ public func loadCacheData(
 
 public func hasCacheData(
     for request: NtkMutableRequest,
-    identity: NtkRequestIdentity
+    identity: NtkRequestKey
 ) async -> Bool {
     await NtkNetworkCache(storage: storage).hasData(
         for: request,
@@ -2513,7 +2515,7 @@ let context = try await makeContext(
     includeDeduplication: false,
     includeCache: true
 )
-guard let identity = context.requestIdentity else { return nil }
+guard let identity = context.requestKey else { return nil }
 // final handler 内：
 guard let data = try await cacheProvider.loadCacheData(
     for: context.request,
@@ -2526,7 +2528,7 @@ guard let data = try await cacheProvider.loadCacheData(
 guard let context = try? await makeContext(
     includeDeduplication: false,
     includeCache: true
-), let identity = context.requestIdentity else { return false }
+), let identity = context.requestKey else { return false }
 return await cacheProvider.hasCacheData(
     for: context.request,
     identity: identity
@@ -2542,7 +2544,7 @@ request.addParameter(key: "tenant", value: "coo")
 request.addParameter(
     key: "token",
     value: await source.nextToken(),
-    identity: .excluded
+    identity: .exclude
 )
 ```
 
@@ -2629,7 +2631,7 @@ git commit -m "refactor: unify cache and dedup request identity"
 **Files:**
 - Modify: `Tests/CooNetworkTests/NtkNetworkIntegrationTests.swift`
 - Modify: `Tests/CooNetworkTests/NtkNetworkExecutorTests.swift`
-- Create: `Tests/CooNetworkTests/NtkRequestIdentityBuilderPerformanceTests.swift`
+- Create: `Tests/CooNetworkTests/NtkRequestKeyBuilderPerformanceTests.swift`
 
 - [ ] **Step 1: 写入动态字段和稳定业务身份端到端测试**
 
@@ -2693,9 +2695,9 @@ private struct IntegDynamicIdentityModifier: iNtkRequestModifyingInterceptor {
 
     func modifyRequest(_ request: NtkMutableRequest) async throws -> NtkMutableRequest {
         var request = request
-        request.addHeader(key: "Authorization", value: token, identity: .excluded)
-        request.addParameter(key: "timestamp", value: timestamp, identity: .excluded)
-        request.addIdentityComponent(key: "user", value: userID)
+        request.addHeader(key: "Authorization", value: token, identity: .exclude)
+        request.addParameter(key: "timestamp", value: timestamp, identity: .exclude)
+        request.addRequestKeyValue(key: "user", value: userID)
         return request
     }
 }
@@ -2836,17 +2838,17 @@ Expected: PASS；同一 user 的动态字段变化执行一次，不同 user、t
 
 - [ ] **Step 4: 创建新规范化器性能基线**
 
-创建 `NtkRequestIdentityBuilderPerformanceTests.swift`，删除旧 LRU 对比，只保留真实新路径：
+创建 `NtkRequestKeyBuilderPerformanceTests.swift`，删除旧 LRU 对比，只保留真实新路径：
 
 ```swift
 @Suite
-struct NtkRequestIdentityBuilderPerformanceTests {
+struct NtkRequestKeyBuilderPerformanceTests {
     @Test
     func commonRequestBuildsWithinBudget() throws {
         let request = makePerformanceRequest(parameterCount: 12)
         let start = CFAbsoluteTimeGetCurrent()
         for _ in 0..<1_000 {
-            _ = try NtkRequestIdentityBuilder.build(request: request, policy: .strict)
+            _ = try NtkRequestKeyBuilder.build(request: request, policy: .strict)
         }
         let milliseconds = (CFAbsoluteTimeGetCurrent() - start) * 1_000
         #expect(milliseconds < 1_000)
@@ -2858,7 +2860,7 @@ struct NtkRequestIdentityBuilderPerformanceTests {
         let digests = await withTaskGroup(of: String?.self, returning: [String?].self) { group in
             for _ in 0..<100 {
                 group.addTask {
-                    try? NtkRequestIdentityBuilder.build(
+                    try? NtkRequestKeyBuilder.build(
                         request: request,
                         policy: .strict
                     ).digest
@@ -2903,7 +2905,7 @@ private func makePerformanceRequest(parameterCount: Int) -> NtkMutableRequest {
 Run:
 
 ```bash
-swift test --filter 'NtkNetworkIntegrationTests|NtkNetworkExecutorTests|NtkRequestIdentityBuilderPerformanceTests'
+swift test --filter 'NtkNetworkIntegrationTests|NtkNetworkExecutorTests|NtkRequestKeyBuilderPerformanceTests'
 ```
 
 Expected: PASS；动态字段被排除时执行一次，user/type/timeout/namespace 任一不同均执行两次。
@@ -2911,7 +2913,7 @@ Expected: PASS；动态字段被排除时执行一次，user/type/timeout/namesp
 Commit:
 
 ```bash
-git add Tests/CooNetworkTests/NtkNetworkIntegrationTests.swift Tests/CooNetworkTests/NtkNetworkExecutorTests.swift Tests/CooNetworkTests/NtkRequestIdentityBuilderPerformanceTests.swift
+git add Tests/CooNetworkTests/NtkNetworkIntegrationTests.swift Tests/CooNetworkTests/NtkNetworkExecutorTests.swift Tests/CooNetworkTests/NtkRequestKeyBuilderPerformanceTests.swift
 git commit -m "test: cover stable request identity integration"
 ```
 
@@ -2949,7 +2951,7 @@ struct ProfileRequest: iAFRequest {
 
 ```swift
 NtkConfiguration.configure {
-    $0.requestIdentityPolicy = .init(
+    $0.requestKeyPolicy = .init(
         excludedHeaderNames: ["X-Request-ID"],
         excludedParameterNames: ["nonce", "sign"]
     )
@@ -2962,9 +2964,9 @@ struct AuthenticationModifier: iNtkRequestModifyingInterceptor {
 
     func modifyRequest(_ request: NtkMutableRequest) async throws -> NtkMutableRequest {
         var request = request
-        request.addHeader(key: "Authorization", value: token, identity: .excluded)
-        request.addParameter(key: "timestamp", value: timestamp, identity: .excluded)
-        request.addIdentityComponent(key: "user", value: userID)
+        request.addHeader(key: "Authorization", value: token, identity: .exclude)
+        request.addParameter(key: "timestamp", value: timestamp, identity: .exclude)
+        request.addRequestKeyValue(key: "user", value: userID)
         return request
     }
 }
@@ -3042,10 +3044,10 @@ git commit -m "docs: document stable request identity"
 ## Final Verification Checklist
 
 - [ ] `NtkCacheConfiguration` 中只有 cacheTime 和 shouldCache。
-- [ ] `requestIdentityPolicy == nil` 继承 executor 冻结的全局策略。
-- [ ] `.included` 和 `.excluded` 均绕过自定义 normalizer。
+- [ ] `requestKeyPolicy == nil` 继承 executor 冻结的全局策略。
+- [ ] `.include` 和 `.exclude` 均绕过自定义 normalizer。
 - [ ] Header 匹配不区分大小写，参数名精确且区分大小写。
-- [ ] 缓存和去重使用同一个 `NtkRequestIdentity` 实例，不重新计算。
+- [ ] 缓存和去重使用同一个 `NtkRequestKey` 实例，不重新计算。
 - [ ] key 编码不使用值描述字符串、分隔符拼接、MD5 或 Swift Hasher。
 - [ ] identity Failure 不进入 `NtkError`，所有构建模式均继续网络请求。
 - [ ] response type、effective timeout 和 namespace 都进入去重身份。

@@ -687,8 +687,8 @@ private func makeConfiguredAFContext() -> NtkInterceptorContext {
 
 private func makeSnapshotAFContext() -> NtkInterceptorContext {
     var request = NtkMutableRequest(AFTestRequest())
-    request.headers = ["X-Snapshot": "captured-header"]
-    request.parameters = ["stage": "captured-parameter"]
+    request.setHeaders(["X-Snapshot": "captured-header"])
+    request.setParameters(["stage": "captured-parameter"])
     request.extraData["request"] = "captured-request-extra"
     return NtkInterceptorContext(
         request: request,

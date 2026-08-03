@@ -38,7 +38,7 @@ public struct NtkLogger: Sendable {
     /// 日志类别
     public enum Category: String, Sendable {
         case deduplication = "Deduplication"
-        case identity = "Identity"
+        case requestIdentity = "RequestIdentity"
         case retry = "Retry"
         case cache = "Cache"
         case network = "Network"

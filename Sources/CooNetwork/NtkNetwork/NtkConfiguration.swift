@@ -27,12 +27,12 @@ public struct NtkConfiguration: Sendable {
         /// - Note: 所有请求的超时配置都以此值为基准
         public var defaultTimeout: TimeInterval = 20
 
-        /// executor 创建时冻结的全局请求身份策略。
+        /// executor 创建时冻结的全局请求 key 策略。
         ///
         /// 默认 `.strict` 不排除任何字段，优先防止跨 user/tenant 的错误缓存或去重合并。
         /// 应用应在启动配置阶段集中声明确认不区分资源的公共动态字段；请求级非 `nil` 策略会
-        /// 完整替换此值而不是合并。排除鉴权字段时必须用稳定字段或 identity component 保留
-        /// 主体隔离；normalizer 失败时仅关闭本次缓存和去重，网络请求继续。
+        /// 完整替换此值而不是合并。排除鉴权字段时必须用稳定字段或 `setRequestIdentityValue`
+        /// 保留主体隔离；字段转换闭包失败时仅关闭本次缓存和去重，网络请求继续。
         public var requestIdentityPolicy: NtkRequestIdentityPolicy = .strict
     }
 
