@@ -8,7 +8,7 @@ struct NtkEffectiveTimeoutResolverTests {
         #expect(NtkEffectiveTimeoutResolver.resolve(requested: value, configuredDefault: 30) == value)
     }
 
-    @Test(arguments: [0.0, -1.0, Double.nan, Double.infinity])
+    @Test(arguments: [0.0, -1.0, Double.nan, Double.infinity, -Double.infinity])
     func invalidRequestTimeoutUsesConfiguredDefault(_ value: TimeInterval) {
         #expect(NtkEffectiveTimeoutResolver.resolve(requested: value, configuredDefault: 30) == 30)
     }
