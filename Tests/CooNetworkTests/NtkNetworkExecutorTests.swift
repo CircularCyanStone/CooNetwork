@@ -559,6 +559,27 @@ struct NtkNetworkExecutorTests {
     }
 
     @Test
+    func unsupportedIdentityValueStillUsesFrameworkTimeout() async {
+        var request = NtkMutableRequest(ExecSnapshotRequest(timeout: 0.01))
+        request.addParameter(key: "custom", value: UnsupportedExecIdentityValue())
+        let executor = NtkNetworkExecutor<Bool>(config: .init(
+            client: ExecDelayedClient(delayNanoseconds: 100_000_000),
+            request: request,
+            interceptors: [NtkResponseParserBox(ExecMockParsingInterceptor())]
+        ))
+
+        do {
+            _ = try await executor.execute()
+            Issue.record("身份构建失败后仍应触发 framework timeout")
+        } catch let NtkError.requestTimeout(reason) {
+            #expect(reason.source == "Framework")
+            #expect(reason.detail == "0.01s")
+        } catch {
+            Issue.record("错误类型不符: \(error)")
+        }
+    }
+
+    @Test
     func requestLevelPolicyCompletelyReplacesGlobalPolicy() async throws {
         var builder = NtkConfiguration.Builder()
         builder.requestIdentityPolicy = .init(excludedParameterNames: ["tenant"])
@@ -740,6 +761,21 @@ private struct ExecMockClient: iNtkClient {
         case .failure(let error):
             throw error
         }
+    }
+}
+
+private struct ExecDelayedClient: iNtkClient {
+    let delayNanoseconds: UInt64
+
+    func execute(_ request: NtkMutableRequest) async throws -> NtkClientResponse {
+        try await Task.sleep(nanoseconds: delayNanoseconds)
+        return NtkClientResponse(
+            data: true,
+            msg: nil,
+            response: true,
+            request: request,
+            isCache: false
+        )
     }
 }
 

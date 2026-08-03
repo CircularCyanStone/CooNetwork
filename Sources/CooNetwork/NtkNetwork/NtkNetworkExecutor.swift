@@ -135,9 +135,7 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
 
         // 动态添加核心拦截器（Tier 保证正确排序）
         var interceptorsToRun = config.interceptors
-        if context.deduplicationIdentity != nil {
-            interceptorsToRun.append(NtkDeduplicationInterceptor())
-        }
+        interceptorsToRun.append(NtkDeduplicationInterceptor())
         let allInterceptors = NtkInterceptorOrdering.sorted(interceptorsToRun)
         
         let realChainManager = NtkInterceptorChainManager(interceptors: allInterceptors) { [client = config.client] context in

@@ -64,8 +64,6 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
     ) {
         self.client = client
         self.mutableRequest = NtkMutableRequest(request)
-        // 注入响应类型信息，用于去重键生成
-        self.mutableRequest.responseType = String(describing: ResponseData.self)
         // 创建取消状态引用
         self.mutableRequest.isCancelledRef = NtkCancellableState()
         self._interceptors = [NtkResponseParserBox(responseParser)] + interceptors
