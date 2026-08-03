@@ -92,6 +92,8 @@ actor NtkTaskManager {
 extension NtkTaskManager {
 
     /// 仅接收执行器解析并冻结的超时值；任务管理器不读取全局配置或请求原始超时。
+    /// 前置不变量：`NtkEffectiveTimeoutResolver` 已保证该值有限、为正且不超过最大值，
+    /// 因此可安全转换为 `UInt64` 纳秒；这里不重新回退或夹取。
     private static func executeWithTimeout<T: Sendable>(
         effectiveTimeout: TimeInterval,
         execution: @escaping @Sendable () async throws -> T
