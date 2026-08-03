@@ -27,6 +27,8 @@ public final class NtkNetwork<ResponseData: Sendable>: @unchecked Sendable {
     /// 存储所有注册的自定义拦截器
     private var _interceptors: [iNtkInterceptor] = []
 
+    private var _deduplicationNamespace = "default"
+
     // 注意：由于是 Sendable 类且有可变属性，理论上需要锁保护。
     // 但作为 Builder，通常在单线程构建。
     // 这里为了严格符合 Swift 6，我们使用 @unchecked Sendable 并添加内部锁，
@@ -119,10 +121,13 @@ extension NtkNetwork {
             if let existing = _executor {
                 return existing
             }
+            let globalConfiguration = NtkConfiguration.current
             let config = NtkNetworkExecutor<ResponseData>.Configuration(
                 client: client,
                 request: mutableRequest,
-                interceptors: _interceptors
+                interceptors: _interceptors,
+                globalConfiguration: globalConfiguration,
+                deduplicationNamespace: _deduplicationNamespace
             )
             let executor = NtkNetworkExecutor<ResponseData>(config: config)
             _executor = executor
@@ -138,6 +143,20 @@ extension NtkNetwork {
         lock.withLock {
             _interceptors.append(i)
         }
+        return self
+    }
+
+    /// 设置当前执行流水线的去重命名空间。
+    ///
+    /// 相同 namespace 表示调用方承诺 client、parser、validation、retry 和响应处理语义
+    /// 可以共享最终结果。默认 `"default"` 保持普通调用零配置；不同流水线必须显式隔离。
+    /// 该值按原字符串精确比较，只影响 executor 创建前的配置快照。
+    ///
+    /// - Parameter namespace: 不做大小写或空白归一化的执行隔离名称。
+    /// - Returns: 当前 network，便于同步链式配置。
+    @discardableResult
+    public func setDeduplicationNamespace(_ namespace: String) -> Self {
+        lock.withLock { _deduplicationNamespace = namespace }
         return self
     }
 

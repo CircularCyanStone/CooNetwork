@@ -30,6 +30,9 @@ public struct NtkMutableRequest: iNtkRequest {
     /// 请求头，可直接修改
     public var headers: [String: String]?
 
+    /// 当前执行快照使用的请求超时。
+    public internal(set) var timeout: TimeInterval
+
     /// 请求级附加元数据。
     ///
     /// 调用方可以在请求执行前写入；请求修改拦截器可以在
@@ -64,6 +67,7 @@ public struct NtkMutableRequest: iNtkRequest {
         // 复制原始请求的参数和头部到可变属性中
         self.parameters = request.parameters
         self.headers = request.headers
+        self.timeout = request.timeout
     }
 
     // MARK: - iNtkRequest 协议实现
@@ -78,10 +82,6 @@ public struct NtkMutableRequest: iNtkRequest {
 
     public var method: NtkHTTPMethod {
         return originalRequest.method
-    }
-
-    public var timeout: TimeInterval {
-        return originalRequest.timeout
     }
 
     public var requestConfiguration: NtkRequestConfiguration? {
@@ -328,6 +328,16 @@ public struct NtkMutableRequest: iNtkRequest {
         parameterIdentityParticipation = parameterIdentityParticipation.filter {
             existingParameterNames.contains($0.key)
         }
+    }
+
+    /// 刷新 executor 创建时需要冻结的请求级计算属性。
+    internal mutating func refreshConfigurationSnapshot() {
+        timeout = originalRequest.timeout
+    }
+
+    /// 写入与任务超时和去重身份共同使用的规范化超时。
+    internal mutating func applyEffectiveTimeout(_ value: TimeInterval) {
+        timeout = value
     }
 }
 

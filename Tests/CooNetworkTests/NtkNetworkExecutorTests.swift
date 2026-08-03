@@ -511,6 +511,79 @@ struct NtkNetworkExecutorTests {
         #expect(savedKey == loadedKey)
         #expect(savedKey != baselineKey)
     }
+
+    @Test
+    func executorFreezesPolicyTimeoutAndNamespace() async throws {
+        var builder = NtkConfiguration.Builder()
+        builder.defaultTimeout = 45
+        builder.requestIdentityPolicy = .init(excludedParameterNames: ["timestamp"])
+        let global = NtkConfiguration(builder: builder)
+        let capture = ExecPreparedContextCapture()
+        var request = NtkMutableRequest(ExecSnapshotRequest(timeout: .nan))
+        request.addParameter(key: "timestamp", value: 123)
+        let expectedIdentity = try NtkRequestIdentityBuilder.build(
+            request: request,
+            policy: builder.requestIdentityPolicy
+        )
+        let config = NtkNetworkExecutor<Bool>.Configuration(
+            client: ExecMockClient(result: .success(())),
+            request: request,
+            interceptors: [
+                NtkResponseParserBox(ExecMockParsingInterceptor()),
+                ExecPreparedContextInterceptor(capture: capture)
+            ],
+            globalConfiguration: global,
+            deduplicationNamespace: "account-a"
+        )
+
+        _ = try await NtkNetworkExecutor<Bool>(config: config).execute()
+
+        #expect(await capture.effectiveTimeout() == 45)
+        #expect(await capture.namespace() == "account-a")
+        #expect(await capture.responseType() == ObjectIdentifier(Bool.self))
+        #expect(await capture.requestIdentity() == expectedIdentity)
+    }
+
+    @Test
+    func unsupportedIdentityValueKeepsNetworkAvailableAndDisablesSharing() async throws {
+        let capture = ExecPreparedContextCapture()
+        var request = NtkMutableRequest(ExecDummyRequest(path: "/executor/identity-failure"))
+        request.addParameter(key: "custom", value: UnsupportedExecIdentityValue())
+        let executor = makeExecutorCapturingPreparedContext(request: request, capture: capture)
+
+        let response = try await executor.execute()
+
+        #expect(response.data == true)
+        #expect(await capture.requestIdentity() == nil)
+        #expect(await capture.deduplicationIdentity() == nil)
+    }
+
+    @Test
+    func requestLevelPolicyCompletelyReplacesGlobalPolicy() async throws {
+        var builder = NtkConfiguration.Builder()
+        builder.requestIdentityPolicy = .init(excludedParameterNames: ["tenant"])
+        let global = NtkConfiguration(builder: builder)
+        let capture = ExecPreparedContextCapture()
+        var request = NtkMutableRequest(ExecSnapshotRequest(
+            timeout: 30,
+            requestIdentityPolicy: .strict
+        ))
+        request.addParameter(key: "tenant", value: "a")
+        let expected = try NtkRequestIdentityBuilder.build(request: request, policy: .strict)
+        let executor = NtkNetworkExecutor<Bool>(config: .init(
+            client: ExecMockClient(result: .success(())),
+            request: request,
+            interceptors: [
+                NtkResponseParserBox(ExecMockParsingInterceptor()),
+                ExecPreparedContextInterceptor(capture: capture)
+            ],
+            globalConfiguration: global
+        ))
+
+        _ = try await executor.execute()
+
+        #expect(await capture.requestIdentity() == expected)
+    }
 }
 
 // MARK: - Factory Helpers
@@ -571,6 +644,20 @@ private func makeExecutorWithModifier(
     return NtkNetworkExecutor<Bool>(config: config)
 }
 
+private func makeExecutorCapturingPreparedContext(
+    request: NtkMutableRequest,
+    capture: ExecPreparedContextCapture
+) -> NtkNetworkExecutor<Bool> {
+    NtkNetworkExecutor(config: .init(
+        client: ExecMockClient(result: .success(())),
+        request: request,
+        interceptors: [
+            NtkResponseParserBox(ExecMockParsingInterceptor()),
+            ExecPreparedContextInterceptor(capture: capture)
+        ]
+    ))
+}
+
 private func makeCacheClientResponse() -> NtkClientResponse {
     var request = NtkMutableRequest(ExecDummyRequest())
     request.responseType = String(describing: Bool.self)
@@ -589,6 +676,47 @@ private struct ExecDummyRequest: iNtkRequest {
     ) {
         self.path = path
         self.requestConfiguration = requestConfiguration
+    }
+}
+
+private struct ExecSnapshotRequest: iNtkRequest {
+    let timeout: TimeInterval
+    let requestIdentityPolicy: NtkRequestIdentityPolicy?
+    var path: String { "/executor/snapshot" }
+
+    init(
+        timeout: TimeInterval,
+        requestIdentityPolicy: NtkRequestIdentityPolicy? = nil
+    ) {
+        self.timeout = timeout
+        self.requestIdentityPolicy = requestIdentityPolicy
+    }
+}
+
+private struct UnsupportedExecIdentityValue: Sendable {}
+
+private actor ExecPreparedContextCapture {
+    private var context: NtkInterceptorContext?
+
+    func record(_ context: NtkInterceptorContext) { self.context = context }
+    func effectiveTimeout() -> TimeInterval? { context?.effectiveTimeout }
+    func namespace() -> String? { context?.deduplicationIdentity?.namespace }
+    func responseType() -> ObjectIdentifier? { context?.deduplicationIdentity?.responseType }
+    func requestIdentity() -> NtkRequestIdentity? { context?.requestIdentity }
+    func deduplicationIdentity() -> NtkDeduplicationIdentity? {
+        context?.deduplicationIdentity
+    }
+}
+
+private struct ExecPreparedContextInterceptor: iNtkInterceptor {
+    let capture: ExecPreparedContextCapture
+
+    func intercept(
+        context: NtkInterceptorContext,
+        next: any iNtkRequestHandler
+    ) async throws -> any iNtkResponse {
+        await capture.record(context)
+        return try await next.handle(context: context)
     }
 }
 
