@@ -380,6 +380,11 @@ struct NtkTaskManagerTests {
                 return .failure(error)
             }
         }
+        let ownerCompletion = TaskCompletionSignal()
+        Task {
+            _ = await ownerTask.value
+            await ownerCompletion.signal()
+        }
         #expect(await waitUntil("owner 开始") { await gate.firstStarted() })
 
         let followerTask = Task {
@@ -396,6 +401,13 @@ struct NtkTaskManagerTests {
 
         owner.isCancelledRef?.cancel()
         await NtkTaskManager.shared.cancelRequest(instanceIdentifier: owner.instanceIdentifier)
+
+        #expect(await waitUntil("owner 在底层任务未释放前已取消返回") {
+            await ownerCompletion.completed()
+        })
+        #expect(await isActive(follower))
+        #expect(await counter.value() == 1)
+
         await gate.releaseFirst()
         if case .failure(let error) = await ownerTask.value {
             #expect(isCancellationError(error))
@@ -1004,6 +1016,18 @@ private actor ExecutionCounter {
 
     func value() -> Int {
         count
+    }
+}
+
+private actor TaskCompletionSignal {
+    private var didComplete = false
+
+    func signal() {
+        didComplete = true
+    }
+
+    func completed() -> Bool {
+        didComplete
     }
 }
 

@@ -18,6 +18,7 @@ actor NtkTaskManager {
     private struct RequestTaskEntry {
         let token: UUID
         let task: Task<Sendable, Error>
+        let ownerWaiterTask: Task<Sendable, Error>
         let ownerInstanceId: UUID
         var ownerActive = true
         var followerTasks: [UUID: Task<Sendable, Error>] = [:]
@@ -69,6 +70,7 @@ actor NtkTaskManager {
 
     func cancelAllRequests() {
         for (runtimeKey, entry) in ongoingRequests {
+            entry.ownerWaiterTask.cancel()
             for waiterTask in entry.followerTasks.values {
                 waiterTask.cancel()
             }
@@ -119,20 +121,44 @@ extension NtkTaskManager {
         }
     }
 
+    private static func makeCancellableWaiterTask(
+        for underlyingTask: Task<Sendable, Error>
+    ) -> Task<Sendable, Error> {
+        Task {
+            let waiter = CancellableTaskValueWaiter()
+            Task {
+                do {
+                    await waiter.complete(.success(try await underlyingTask.value))
+                } catch {
+                    await waiter.complete(.failure(error))
+                }
+            }
+            return try await withTaskCancellationHandler {
+                try await waiter.value()
+            } onCancel: {
+                Task {
+                    await waiter.cancel()
+                }
+            }
+        }
+    }
+
     private func executeNewRequestWithTimeout<T: Sendable>(
         runtimeKey: RuntimeKey,
         request: NtkMutableRequest,
         effectiveTimeout: TimeInterval,
         execution: @escaping @Sendable () async throws -> T
     ) async throws -> T {
+        let underlyingTask = Task<Sendable, Error> {
+            try await Self.executeWithTimeout(
+                effectiveTimeout: effectiveTimeout,
+                execution: execution
+            )
+        }
         let entry = RequestTaskEntry(
             token: UUID(),
-            task: Task<Sendable, Error> {
-                try await Self.executeWithTimeout(
-                    effectiveTimeout: effectiveTimeout,
-                    execution: execution
-                )
-            },
+            task: underlyingTask,
+            ownerWaiterTask: Self.makeCancellableWaiterTask(for: underlyingTask),
             ownerInstanceId: request.instanceIdentifier
         )
 
@@ -145,7 +171,7 @@ extension NtkTaskManager {
         }
 
         do {
-            let result = try await entry.task.value
+            let result = try await entry.ownerWaiterTask.value
             if request.isCancelledRef?.isCancelled == true {
                 throw NtkError.requestCancelled
             }
@@ -169,12 +195,7 @@ extension NtkTaskManager {
 
         let instanceIdentifier = request.instanceIdentifier
         let underlyingTask = entry.task
-        let waiterTask = Task<Sendable, Error> {
-            if Task.isCancelled { throw NtkError.requestCancelled }
-            let result = try await underlyingTask.value
-            if Task.isCancelled { throw NtkError.requestCancelled }
-            return result
-        }
+        let waiterTask = Self.makeCancellableWaiterTask(for: underlyingTask)
 
         // follower 的 waiter、entry 和反向索引必须在首次 await 前一起写入。
         entry.followerTasks[instanceIdentifier] = waiterTask
@@ -202,6 +223,40 @@ extension NtkTaskManager {
             }
             throw error
         }
+    }
+}
+
+private actor CancellableTaskValueWaiter {
+    private var result: Result<Sendable, Error>?
+    private var continuation: CheckedContinuation<Sendable, Error>?
+
+    func value() async throws -> Sendable {
+        if let result {
+            return try result.get()
+        }
+
+        return try await withCheckedThrowingContinuation { continuation in
+            if let result {
+                continuation.resume(with: result)
+            } else {
+                self.continuation = continuation
+            }
+        }
+    }
+
+    func complete(_ result: Result<Sendable, Error>) {
+        finish(with: result)
+    }
+
+    func cancel() {
+        finish(with: .failure(NtkError.requestCancelled))
+    }
+
+    private func finish(with result: Result<Sendable, Error>) {
+        guard self.result == nil else { return }
+        self.result = result
+        continuation?.resume(with: result)
+        continuation = nil
     }
 }
 
@@ -258,6 +313,7 @@ extension NtkTaskManager {
 
         if entry.ownerInstanceId == instanceIdentifier {
             entry.ownerActive = false
+            entry.ownerWaiterTask.cancel()
             removeIndex(instanceIdentifier, for: runtimeKey)
         } else if let waiterTask = entry.followerTasks.removeValue(forKey: instanceIdentifier) {
             waiterTask.cancel()
