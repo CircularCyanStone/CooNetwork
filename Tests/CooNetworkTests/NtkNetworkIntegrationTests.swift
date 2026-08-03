@@ -2,7 +2,128 @@ import Testing
 import Foundation
 @testable import CooNetwork
 
+@Suite(.serialized)
 struct NtkNetworkIntegrationTests {
+
+    // MARK: - 稳定请求身份与去重隔离
+
+    @Test
+    func excludedDynamicFieldsDeduplicateForOneStableUser() async throws {
+        let client = IntegDedupCountingClient()
+        let first = makeIdentityNetwork(
+            client: client,
+            token: "token-one",
+            timestamp: 1_000,
+            userID: "user-42"
+        )
+        let second = makeIdentityNetwork(
+            client: client,
+            token: "token-two",
+            timestamp: 2_000,
+            userID: "user-42"
+        )
+
+        async let firstResponse = first.request()
+        async let secondResponse = second.request()
+        _ = try await (firstResponse, secondResponse)
+
+        #expect(await client.executionCount() == 1)
+    }
+
+    @Test
+    func stableUserComponentPreventsCrossUserDeduplication() async throws {
+        let client = IntegDedupCountingClient()
+        let first = makeIdentityNetwork(
+            client: client,
+            token: "token-one",
+            timestamp: 1_000,
+            userID: "user-a"
+        )
+        let second = makeIdentityNetwork(
+            client: client,
+            token: "token-two",
+            timestamp: 2_000,
+            userID: "user-b"
+        )
+
+        async let firstResponse = first.request()
+        async let secondResponse = second.request()
+        _ = try await (firstResponse, secondResponse)
+
+        #expect(await client.executionCount() == 2)
+    }
+
+    @Test
+    func timeoutAndNamespaceSeparateOtherwiseEqualExecutions() async throws {
+        let timeoutClient = IntegDedupCountingClient()
+        let shortTimeout = makeIdentityNetwork(
+            client: timeoutClient,
+            token: "token-one",
+            timestamp: 1_000,
+            userID: "user-42",
+            timeout: 10
+        )
+        let longTimeout = makeIdentityNetwork(
+            client: timeoutClient,
+            token: "token-two",
+            timestamp: 2_000,
+            userID: "user-42",
+            timeout: 20
+        )
+
+        async let shortTimeoutResponse = shortTimeout.request()
+        async let longTimeoutResponse = longTimeout.request()
+        _ = try await (shortTimeoutResponse, longTimeoutResponse)
+
+        #expect(await timeoutClient.executionCount() == 2)
+
+        let namespaceClient = IntegDedupCountingClient()
+        let primary = makeIdentityNetwork(
+            client: namespaceClient,
+            token: "token-one",
+            timestamp: 1_000,
+            userID: "user-42",
+            namespace: "primary"
+        )
+        let secondary = makeIdentityNetwork(
+            client: namespaceClient,
+            token: "token-two",
+            timestamp: 2_000,
+            userID: "user-42",
+            namespace: "secondary"
+        )
+
+        async let primaryResponse = primary.request()
+        async let secondaryResponse = secondary.request()
+        _ = try await (primaryResponse, secondaryResponse)
+
+        #expect(await namespaceClient.executionCount() == 2)
+    }
+
+    @Test
+    func namespaceSetterDoesNotMutateAnExistingExecutorSnapshot() async throws {
+        let client = IntegDedupCountingClient()
+        let frozen = makeIdentityNetwork(
+            client: client,
+            token: "token-one",
+            timestamp: 1_000,
+            userID: "user-42"
+        )
+        _ = frozen.getOrCreateExecutor()
+        frozen.setDeduplicationNamespace("changed-after-freeze")
+        let defaultNamespace = makeIdentityNetwork(
+            client: client,
+            token: "token-two",
+            timestamp: 2_000,
+            userID: "user-42"
+        )
+
+        async let frozenResponse = frozen.request()
+        async let defaultResponse = defaultNamespace.request()
+        _ = try await (frozenResponse, defaultResponse)
+
+        #expect(await client.executionCount() == 1)
+    }
 
     // MARK: - request() 完整成功流程
 
@@ -257,7 +378,65 @@ private func makeNetwork(
     )
 }
 
+private func makeIdentityNetwork(
+    client: IntegDedupCountingClient,
+    token: String,
+    timestamp: Int,
+    userID: String,
+    timeout: TimeInterval = 30,
+    namespace: String = "default"
+) -> NtkNetwork<Bool> {
+    let network = NtkNetwork<Bool>.with(
+        client,
+        request: IntegIdentityRequest(timeout: timeout),
+        responseParser: IntegMockParsingInterceptor()
+    )
+    network.addInterceptor(
+        IntegDynamicIdentityModifier(
+            token: token,
+            timestamp: timestamp,
+            userID: userID
+        )
+    )
+    network.setDeduplicationNamespace(namespace)
+    return network
+}
+
 // MARK: - Test Doubles
+
+private struct IntegDynamicIdentityModifier: iNtkRequestModifyingInterceptor {
+    let token: String
+    let timestamp: Int
+    let userID: String
+
+    func modifyRequest(_ request: NtkMutableRequest) async throws -> NtkMutableRequest {
+        var request = request
+        request.addHeader(key: "Authorization", value: token, identity: .excluded)
+        request.addParameter(key: "timestamp", value: timestamp, identity: .excluded)
+        request.addIdentityComponent(key: "user", value: userID)
+        return request
+    }
+}
+
+private struct IntegIdentityRequest: iNtkRequest {
+    let timeout: TimeInterval
+
+    var baseURL: URL? { URL(string: "https://api.example.com") }
+    var path: String { "/integration/request-identity" }
+    var method: NtkHTTPMethod { .get }
+}
+
+private actor IntegDedupCountingClient: iNtkClient {
+    private var count = 0
+
+    func execute(_ request: NtkMutableRequest) async throws -> NtkClientResponse {
+        count += 1
+        try await Task.sleep(nanoseconds: 30_000_000)
+        return NtkClientResponse(data: true, msg: nil, response: true, request: request, isCache: false)
+    }
+
+    func executionCount() -> Int { count }
+}
 
 private struct IntegDummyRequest: iNtkRequest {
     let path: String
