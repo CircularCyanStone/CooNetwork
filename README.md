@@ -3,7 +3,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Swift-6.0-orange.svg" />
   <img src="https://img.shields.io/badge/platform-iOS%2013%2B%20%7C%20macOS%2010.15%2B-lightgrey.svg" />
-  <img src="https://img.shields.io/badge/version-0.0.18-blue.svg" />
+  <img src="https://img.shields.io/badge/version-0.3.0-blue.svg" />
   <img src="https://img.shields.io/badge/license-MIT-green.svg" />
 </p>
 
