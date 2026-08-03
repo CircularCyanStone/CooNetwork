@@ -14,7 +14,11 @@ CooNetwork 核心模块。
 
 - `NtkNetwork` - 请求管理器（配置层，`@unchecked Sendable`）
 - `NtkNetworkExecutor` - 请求执行器（执行层，不可变 `Sendable` 执行快照）
+- `NtkRequestIdentityBuilder` - 无状态、确定性的身份投影器；修改器完成后由 executor 冻结一次结果，缓存与去重共同消费
+- `NtkTaskManager` - 独立 actor，仅管理运行任务、取消和实例反向索引
 - `Ntk` - 便捷入口点
+
+`NtkCacheConfiguration` 只控制缓存策略；`NtkRequestIdentityPolicy` 控制本地身份。请求级非空策略完整覆盖全局策略，`.included`/`.excluded` 覆盖 normalizer。身份失败只关闭缓存和去重，网络继续；排除凭证必须用不发送服务端的 user/tenant identity component 保持隔离。
 
 ## 子模块
 
