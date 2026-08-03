@@ -109,8 +109,16 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
         )
         request.applyEffectiveTimeout(effectiveTimeout)
 
-        let deduplicationEnabled = includeDeduplication &&
-            config.isDeduplicationEnabled && request.isDeduplicationEnabled
+        let requestDeduplicationEnabled: Bool
+        switch request.deduplicationPolicy {
+        case .inherit:
+            requestDeduplicationEnabled = config.isDeduplicationEnabled
+        case .enabled:
+            requestDeduplicationEnabled = true
+        case .disabled:
+            requestDeduplicationEnabled = false
+        }
+        let deduplicationEnabled = includeDeduplication && requestDeduplicationEnabled
         let cacheEnabled = includeCache && request.cacheConfiguration?.isEnabled == true
         let requestIdentity: NtkRequestIdentity?
         if deduplicationEnabled || cacheEnabled {

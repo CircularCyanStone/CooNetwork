@@ -631,6 +631,63 @@ struct NtkNetworkExecutorTests {
     }
 
     @Test
+    func requestCanEnableDeduplicationWhenGlobalDefaultIsDisabled() async throws {
+        var builder = NtkConfiguration.Builder()
+        builder.isDeduplicationEnabled = false
+        var request = NtkMutableRequest(
+            ExecDummyRequest(path: "/executor/deduplication-override-enabled")
+        )
+        request.enableDeduplication()
+        let capture = ExecPreparedContextCapture()
+        let executor = NtkNetworkExecutor<Bool>(config: .init(
+            client: ExecMockClient(result: .success(())),
+            request: request,
+            interceptors: [
+                NtkResponseParserBox(ExecMockParsingInterceptor()),
+                ExecPreparedContextInterceptor(capture: capture)
+            ],
+            globalConfiguration: NtkConfiguration(builder: builder)
+        ))
+
+        _ = try await executor.execute()
+
+        #expect(await capture.deduplicationKey() != nil)
+    }
+
+    @Test
+    func requestInheritsDisabledGlobalDeduplicationDefault() async throws {
+        var builder = NtkConfiguration.Builder()
+        builder.isDeduplicationEnabled = false
+        let request = NtkMutableRequest(
+            ExecDummyRequest(path: "/executor/deduplication-inherit-disabled")
+        )
+        let capture = ExecPreparedContextCapture()
+        let executor = makeExecutorCapturingPreparedContext(
+            request: request,
+            capture: capture,
+            globalConfiguration: NtkConfiguration(builder: builder)
+        )
+
+        _ = try await executor.execute()
+
+        #expect(await capture.deduplicationKey() == nil)
+    }
+
+    @Test
+    func requestCanDisableDeduplicationWhenGlobalDefaultIsEnabled() async throws {
+        var request = NtkMutableRequest(
+            ExecDummyRequest(path: "/executor/deduplication-override-disabled")
+        )
+        request.disableDeduplication()
+        let capture = ExecPreparedContextCapture()
+        let executor = makeExecutorCapturingPreparedContext(request: request, capture: capture)
+
+        _ = try await executor.execute()
+
+        #expect(await capture.deduplicationKey() == nil)
+    }
+
+    @Test
     func requestLevelPolicyCompletelyReplacesGlobalPolicy() async throws {
         var builder = NtkConfiguration.Builder()
         builder.requestIdentityPolicy = .init(excludedParameterNames: ["tenant"])
@@ -720,7 +777,8 @@ private func makeExecutorWithModifier(
 
 private func makeExecutorCapturingPreparedContext(
     request: NtkMutableRequest,
-    capture: ExecPreparedContextCapture
+    capture: ExecPreparedContextCapture,
+    globalConfiguration: NtkConfiguration = .current
 ) -> NtkNetworkExecutor<Bool> {
     NtkNetworkExecutor(config: .init(
         client: ExecMockClient(result: .success(())),
@@ -728,7 +786,8 @@ private func makeExecutorCapturingPreparedContext(
         interceptors: [
             NtkResponseParserBox(ExecMockParsingInterceptor()),
             ExecPreparedContextInterceptor(capture: capture)
-        ]
+        ],
+        globalConfiguration: globalConfiguration
     ))
 }
 
