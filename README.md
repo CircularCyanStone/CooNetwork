@@ -309,8 +309,10 @@ struct ProfileRequest: iAFRequest {
 }
 
 let storage = NtkMemoryCacheStorage()
-let user = try await NtkAF<User>.withAF(ProfileRequest(), storage: storage)
-    .requestWithCache()
+for try await response in NtkAF<User>.withAF(ProfileRequest(), storage: storage)
+    .requestWithCache() {
+    print(response.data)
+}
 ```
 
 为动态鉴权字段标记其身份参与方式；稳定的业务主体使用仅本地的 identity component：
