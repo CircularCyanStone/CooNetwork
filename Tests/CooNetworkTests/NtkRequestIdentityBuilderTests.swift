@@ -22,17 +22,26 @@ struct NtkRequestIdentityBuilderTests {
     }
 
     @Test
-    func includedOverridesGlobalExclusionAndUserComponentSeparatesUsers() throws {
+    func includedTenantOverridesGlobalExclusionAndSeparatesIdentity() throws {
         let policy = NtkRequestIdentityPolicy(excludedParameterNames: ["tenant"])
         var first = makeRequest()
         first.addParameter(key: "tenant", value: "a", identity: .included)
-        first.addIdentityComponent(key: "user", value: "1")
         var second = makeRequest()
         second.addParameter(key: "tenant", value: "b", identity: .included)
-        second.addIdentityComponent(key: "user", value: "2")
 
         #expect(try NtkRequestIdentityBuilder.build(request: first, policy: policy) !=
                 NtkRequestIdentityBuilder.build(request: second, policy: policy))
+    }
+
+    @Test
+    func userComponentChangeSeparatesIdentity() throws {
+        var first = makeRequest()
+        first.addIdentityComponent(key: "user", value: "1")
+        var second = makeRequest()
+        second.addIdentityComponent(key: "user", value: "2")
+
+        #expect(try NtkRequestIdentityBuilder.build(request: first, policy: .strict) !=
+                NtkRequestIdentityBuilder.build(request: second, policy: .strict))
     }
 
     @Test
@@ -61,6 +70,37 @@ struct NtkRequestIdentityBuilderTests {
         #expect(throws: NtkRequestIdentityBuilder.Failure.self) {
             try NtkRequestIdentityBuilder.build(request: request, policy: policy)
         }
+    }
+
+    @Test
+    func includedHeadersAndParametersBypassNormalizersAndParticipateInIdentity() throws {
+        let policy = NtkRequestIdentityPolicy(
+            normalizeHeaders: { headers in
+                #expect(headers["X-Stable"] == nil)
+                return headers
+            },
+            normalizeParameters: { parameters in
+                #expect(parameters["tenant"] == nil)
+                return parameters
+            }
+        )
+        var baseline = makeRequest()
+        baseline.addHeader(key: "X-Stable", value: "header-a", identity: .included)
+        baseline.addParameter(key: "tenant", value: "tenant-a", identity: .included)
+        var changedHeader = baseline
+        changedHeader.addHeader(key: "X-Stable", value: "header-b", identity: .included)
+        var changedParameter = baseline
+        changedParameter.addParameter(key: "tenant", value: "tenant-b", identity: .included)
+
+        let baselineIdentity = try NtkRequestIdentityBuilder.build(request: baseline, policy: policy)
+        #expect(baselineIdentity != (try NtkRequestIdentityBuilder.build(
+            request: changedHeader,
+            policy: policy
+        )))
+        #expect(baselineIdentity != (try NtkRequestIdentityBuilder.build(
+            request: changedParameter,
+            policy: policy
+        )))
     }
 
     @Test
@@ -128,6 +168,22 @@ struct NtkRequestIdentityBuilderTests {
         let first = try NtkRequestIdentityBuilder.build(request: request, policy: .strict)
         let second = try NtkRequestIdentityBuilder.build(request: request, policy: .strict)
         #expect(first == second)
+    }
+
+    @Test
+    func digestUsesVersionedLowercaseSHA256Format() throws {
+        let identity = try NtkRequestIdentityBuilder.build(
+            request: makeRequest(),
+            policy: .strict
+        )
+        let prefix = "ntk-identity-v2-"
+        let digestBytes = identity.digest.dropFirst(prefix.count).utf8
+
+        #expect(identity.digest.hasPrefix(prefix))
+        #expect(digestBytes.count == 64)
+        #expect(digestBytes.allSatisfy {
+            (48...57).contains($0) || (97...102).contains($0)
+        })
     }
 
     @Test
