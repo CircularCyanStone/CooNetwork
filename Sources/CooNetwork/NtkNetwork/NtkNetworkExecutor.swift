@@ -160,12 +160,18 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
             includeDeduplication: false,
             includeCache: true
         )
+        guard let identity = context.requestIdentity else {
+            return nil
+        }
 
         let parserInterceptors = NtkInterceptorOrdering.sorted(config.interceptors)
             .filter { $0 is NtkResponseParserBox }
 
         let realChainManager = NtkInterceptorChainManager(interceptors: parserInterceptors) { context in
-            guard let data = try await cacheProvider.loadCacheData(for: context.request) else {
+            guard let data = try await cacheProvider.loadCacheData(
+                for: context.request,
+                identity: identity
+            ) else {
                 throw NtkError.Cache.noCache
             }
             return NtkClientResponse(data: data, msg: nil, response: data, request: context.request, isCache: true)
@@ -189,6 +195,7 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
             includeDeduplication: false,
             includeCache: true
         ) else { return false }
-        return await cacheProvider.hasCacheData(for: context.request)
+        guard let identity = context.requestIdentity else { return false }
+        return await cacheProvider.hasCacheData(for: context.request, identity: identity)
     }
 }

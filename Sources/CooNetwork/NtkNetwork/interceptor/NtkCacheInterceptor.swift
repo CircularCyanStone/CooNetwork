@@ -12,9 +12,11 @@ import Foundation
 /// 响应提取器闭包类型，用于从不同类型的响应中提取数据
 public typealias ResponseExtractor = @Sendable (any iNtkResponse) -> Sendable?
 
-/// 默认缓存拦截器实现
-/// 提供基础的响应缓存功能，支持自定义缓存策略
-/// 同时遵循 iNtkCacheProvider，使 executor 可通过协议发现获取缓存读取能力
+/// 默认缓存拦截器实现。
+///
+/// 拦截器只消费 executor 在请求修改后确定的 identity，绝不根据 request 自行推导 key，因此缓存
+/// 与去重共享同一身份。缓存配置无效、身份失败、响应不符合写入资格或数据无法提取时都会跳过写入，
+/// 已成功的网络响应照常返回；排除凭证时调用方仍须保留 user、tenant 等稳定隔离字段。
 public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
     /// 拦截器优先级
     /// 使用最低优先级（0），确保在所有其他拦截器之后执行
@@ -26,13 +28,18 @@ public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
     /// 响应提取器，用于从响应中提取需要缓存的数据
     private let responseExtractor: ResponseExtractor
 
-    /// 默认初始化方法，使用默认的响应提取器
+    /// 使用默认响应提取器创建缓存拦截器。
+    ///
+    /// 默认提取 `response.response`。storage key 始终来自 context 中不透明的框架身份，不能由存储
+    /// 或拦截器重新计算；缓存失败不会改变网络响应。
     public init(storage: iNtkCacheStorage) {
         self.storage = storage
         self.responseExtractor = Self.defaultResponseExtractor
     }
 
-    /// 自定义初始化方法，允许传入自定义的响应提取器
+    /// 使用自定义响应提取器创建缓存拦截器。
+    ///
+    /// 提取器只决定是否存在可写入的数据，不能改变身份或真实请求；返回 nil 会安全跳过缓存写入。
     /// - Parameters:
     ///   - storage: 缓存存储器
     ///   - responseExtractor: 自定义的响应提取器闭包
@@ -41,41 +48,48 @@ public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
         self.responseExtractor = responseExtractor
     }
 
-    /// 默认的响应提取器实现，保持原有的response.response转换逻辑
-    /// 以闭包常量的形式声明，确保其为 @Sendable 类型，避免隐式转换产生的数据竞争警告
+    /// 默认提取器保留响应承载的数据，并保持闭包可跨并发边界安全传递。
     private static let defaultResponseExtractor: ResponseExtractor = { response in
         response.response
     }
-    /// 拦截并处理缓存
-    /// - Parameters:
-    ///   - context: 请求上下文
-    ///   - next: 下一个请求处理器
-    /// - Returns: 处理后的响应对象
-    /// - Throws: 处理过程中的错误
+    /// 先执行内层链并在成功响应后尝试写入缓存。
+    ///
+    /// 只有有效缓存配置、已确定 identity、写入资格和可提取数据同时具备才访问 storage。任何一个条件
+    /// 缺失都直接返回网络响应，保证身份构建失败不会转换成 NtkError 或阻塞网络。
     public func intercept(context: NtkInterceptorContext, next: iNtkRequestHandler) async throws -> any iNtkResponse {
         let response = try await next.handle(context: context)
-        // 能走到这里说明已经通过了NtkValidationInterceptor的校验
-        guard let requestPolicy = context.request.requestConfiguration else { return response }
-        if requestPolicy.cacheTime > 0 && requestPolicy.shouldCache(response) {
-            // 根据缓存时间和自定义策略保存响应到缓存
-            if let extractedResponse = responseExtractor(response) {
-                let cache = NtkNetworkCache(storage: storage)
-                let result = await cache.save(data: extractedResponse, for: context.request)
-                logger.debug("NTK请求缓存\(result ? "成功" : "失败")")
-            }
+        guard let cacheConfiguration = context.request.cacheConfiguration,
+              cacheConfiguration.isEnabled,
+              let identity = context.requestIdentity,
+              cacheConfiguration.shouldCache(response),
+              let extractedResponse = responseExtractor(response) else {
+            return response
         }
+        let cache = NtkNetworkCache(storage: storage)
+        let result = await cache.save(
+            data: extractedResponse,
+            for: context.request,
+            identity: identity
+        )
+        logger.debug("NTK请求缓存\(result ? "成功" : "失败")")
         return response
     }
 
     // MARK: - iNtkCacheProvider
 
-    public func loadCacheData(for request: NtkMutableRequest) async throws -> (any Sendable)? {
+    public func loadCacheData(
+        for request: NtkMutableRequest,
+        identity: NtkRequestIdentity
+    ) async throws -> (any Sendable)? {
         let cache = NtkNetworkCache(storage: storage)
-        return try await cache.loadData(for: request)
+        return try await cache.loadData(for: request, identity: identity)
     }
 
-    public func hasCacheData(for request: NtkMutableRequest) async -> Bool {
+    public func hasCacheData(
+        for request: NtkMutableRequest,
+        identity: NtkRequestIdentity
+    ) async -> Bool {
         let cache = NtkNetworkCache(storage: storage)
-        return await cache.hasData(for: request)
+        return await cache.hasData(for: request, identity: identity)
     }
 }

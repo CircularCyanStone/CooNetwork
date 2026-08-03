@@ -84,10 +84,6 @@ public struct NtkMutableRequest: iNtkRequest {
         return originalRequest.method
     }
 
-    public var requestConfiguration: NtkRequestConfiguration? {
-        return originalRequest.requestConfiguration
-    }
-
     /// 原始请求声明的响应缓存配置。
     ///
     /// 该值只读转发；`nil` 表示不读写缓存。配置不负责身份字段过滤，缓存时长与响应写入

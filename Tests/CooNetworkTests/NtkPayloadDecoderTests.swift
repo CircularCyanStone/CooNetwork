@@ -142,5 +142,5 @@ private struct AFConfiguredTestRequest: iAFRequest {
     var baseURL: URL? { URL(string: "https://test.example.com") }
     var path: String { "/af/test/configured" }
     var method: NtkHTTPMethod { .get }
-    var requestConfiguration: NtkRequestConfiguration? { .default() }
+    var cacheConfiguration: NtkCacheConfiguration? { .default() }
 }

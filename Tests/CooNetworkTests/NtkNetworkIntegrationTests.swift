@@ -248,7 +248,10 @@ private func makeNetwork(
     }
     return NtkNetwork<Bool>.with(
         client,
-        request: IntegDummyRequest(path: path),
+        request: IntegDummyRequest(
+            path: path,
+            cacheConfiguration: cacheStorage == nil ? nil : .default()
+        ),
         responseParser: IntegMockParsingInterceptor(),
         interceptors: interceptors
     )
@@ -257,9 +260,15 @@ private func makeNetwork(
 // MARK: - Test Doubles
 
 private struct IntegDummyRequest: iNtkRequest {
-    var path: String
-    init(path: String = "/integration/test") {
+    let path: String
+    let cacheConfiguration: NtkCacheConfiguration?
+
+    init(
+        path: String = "/integration/test",
+        cacheConfiguration: NtkCacheConfiguration? = nil
+    ) {
         self.path = path
+        self.cacheConfiguration = cacheConfiguration
     }
 }
 

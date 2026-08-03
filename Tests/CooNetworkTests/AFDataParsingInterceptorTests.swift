@@ -719,7 +719,7 @@ private struct AFConfiguredTestRequest: iAFRequest {
     var baseURL: URL? { URL(string: "https://test.example.com") }
     var path: String { "/af/test/configured" }
     var method: NtkHTTPMethod { .get }
-    var requestConfiguration: NtkRequestConfiguration? { .default() }
+    var cacheConfiguration: NtkCacheConfiguration? { .default() }
 }
 
 private struct AFTestPassValidation: iNtkResponseValidation {
@@ -949,7 +949,7 @@ private struct AFTestHeaderOnlyDecoder: iNtkResponsePayloadDecoding {
     }
 
     func extractHeader(_ payload: NtkPayload, request: iNtkRequest) throws -> NtkExtractedHeader? {
-        guard request.requestConfiguration != nil else { return nil }
+        guard request.cacheConfiguration != nil else { return nil }
         return NtkExtractedHeader(
             code: NtkReturnCode(999),
             msg: "fail",
