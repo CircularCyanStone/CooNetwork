@@ -115,7 +115,7 @@ final class CooNetworkPublicAPITests: XCTestCase {
         let storage = FixedCacheStorage(value: true)
         let network = NtkNetwork<Bool>.with(
             RecordingClient(recorder: RequestRecorder()),
-            request: FixtureRequest(path: "/cache", requestConfiguration: .default()),
+            request: FixtureRequest(path: "/cache", cacheConfiguration: .default()),
             responseParser: BoolResponseParser(),
             interceptors: [NtkCacheInterceptor(storage: storage)]
         )
@@ -175,18 +175,18 @@ private struct FixtureRequest: iNtkRequest {
     let path: String
     var headers: [String: String]?
     var parameters: [String: Sendable]?
-    var requestConfiguration: NtkRequestConfiguration?
+    var cacheConfiguration: NtkCacheConfiguration?
 
     init(
         path: String,
         headers: [String: String]? = nil,
         parameters: [String: Sendable]? = nil,
-        requestConfiguration: NtkRequestConfiguration? = nil
+        cacheConfiguration: NtkCacheConfiguration? = nil
     ) {
         self.path = path
         self.headers = headers
         self.parameters = parameters
-        self.requestConfiguration = requestConfiguration
+        self.cacheConfiguration = cacheConfiguration
     }
 }
 
