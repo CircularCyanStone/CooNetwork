@@ -76,6 +76,7 @@ actor NtkTaskManager {
             removeAllIndexes(for: entry, runtimeKey: runtimeKey)
         }
         ongoingRequests.removeAll()
+        runtimeKeyByInstanceID.removeAll()
     }
 
     func activeRequestCount() -> Int {
