@@ -422,6 +422,7 @@ struct NtkTaskManagerTests {
     @Test
     func testDedupAllWaitersCancelledCancelsUnderlyingTask() async throws {
         let gate = TaskExecutionGate()
+        let cancellationSignal = TaskCancellationSignal()
         let identity = deduplicationIdentity(String.self)
         var owner = NtkMutableRequest(
             TaskManagerDummyRequest(path: "/task-manager/test/dedup-all-cancel")
@@ -442,8 +443,15 @@ struct NtkTaskManagerTests {
                     effectiveTimeout: 30
                 ) {
                     await gate.signalFirstStarted()
-                    await gate.waitForFirstRelease()
-                    return "should-not-complete"
+                    return try await withTaskCancellationHandler {
+                        await gate.waitForFirstRelease()
+                        try Task.checkCancellation()
+                        return "should-not-complete"
+                    } onCancel: {
+                        Task {
+                            await cancellationSignal.signal()
+                        }
+                    }
                 }
                 return .success(result)
             } catch {
@@ -472,6 +480,10 @@ struct NtkTaskManagerTests {
         await NtkTaskManager.shared.cancelRequest(instanceIdentifier: follower.instanceIdentifier)
         owner.isCancelledRef?.cancel()
         await NtkTaskManager.shared.cancelRequest(instanceIdentifier: owner.instanceIdentifier)
+
+        #expect(await waitUntil("最后一个 waiter 取消后底层任务收到取消") {
+            await cancellationSignal.cancelled()
+        })
         #expect(await isActive(owner) == false)
         #expect(await isActive(follower) == false)
 
@@ -1028,6 +1040,18 @@ private actor TaskCompletionSignal {
 
     func completed() -> Bool {
         didComplete
+    }
+}
+
+private actor TaskCancellationSignal {
+    private var didCancel = false
+
+    func signal() {
+        didCancel = true
+    }
+
+    func cancelled() -> Bool {
+        didCancel
     }
 }
 
