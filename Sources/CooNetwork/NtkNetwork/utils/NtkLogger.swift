@@ -15,6 +15,12 @@ public let logger = NtkLogger.shared
 /// 基于OSLog实现
 public struct NtkLogger: Sendable {
 
+    internal struct LogRecord: Sendable, Equatable {
+        let level: Level
+        let category: Category
+        let message: String
+    }
+
     /// 全局共享实例
     public static let shared = NtkLogger()
 
@@ -26,13 +32,17 @@ public struct NtkLogger: Sendable {
         NtkConfiguration.current.builder.isLoggingEnabled
     }
 
-    /// 当前允许输出的最低日志等级
-    let currentLevel: Level
+    private var minimumLevel: Level {
+        isLoggingEnabled ? .debug : .warning
+    }
 
-    /// 初始化日志工具
-    /// - Parameter currentLevel: 当前日志等级，默认为 .info。小于此等级的日志将不会输出
-    init(currentLevel: Level = .info) {
-        self.currentLevel = currentLevel
+    @TaskLocal private static var testSink: (@Sendable (LogRecord) -> Void)?
+
+    internal static func withTestSink<Result: Sendable>(
+        _ sink: @escaping @Sendable (LogRecord) -> Void,
+        operation: @Sendable () async throws -> Result
+    ) async rethrows -> Result {
+        try await $testSink.withValue(sink, operation: operation)
     }
     
     /// 日志类别
@@ -92,13 +102,9 @@ public struct NtkLogger: Sendable {
         function: String = #function,
         line: Int = #line
     ) {
-        // 检查全局开关
-        guard isLoggingEnabled else { return }
-        
-        // 检查日志等级
-        if level < currentLevel {
-            return
-        }
+        guard level >= minimumLevel else { return }
+
+        NtkLogger.testSink?(LogRecord(level: level, category: category, message: message))
         
         // 提取文件名
         let fileName = (file as NSString).lastPathComponent

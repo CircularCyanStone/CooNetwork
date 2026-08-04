@@ -20,8 +20,10 @@ actor NtkTaskManager {
         let task: Task<Sendable, Error>
         let ownerWaiterTask: Task<Sendable, Error>
         let ownerInstanceId: UUID
+        let ownerLogContext: String
         var ownerActive = true
         var followerTasks: [UUID: Task<Sendable, Error>] = [:]
+        var followerLogContexts: [UUID: String] = [:]
     }
 
     private var ongoingRequests: [RuntimeKey: RequestTaskEntry] = [:]
@@ -47,12 +49,14 @@ actor NtkTaskManager {
         // 字典管理、取消与超时逻辑仍走同一条路径，但两个请求永远不会意外共享底层任务。
         let runtimeKey = deduplicationKey.map(RuntimeKey.shared) ?? .isolated(request.instanceIdentifier)
         let timeoutForExecution = deduplicationKey?.effectiveTimeout ?? effectiveTimeout
+        let logContext = Self.logContext(for: request, deduplicationKey: deduplicationKey)
 
         // 只有已经成功建立去重 key 的执行可以查找共享任务；key 缺失必须始终独立执行。
         if deduplicationKey != nil,
            let result: T = try await awaitOngoingResultIfAvailable(
                runtimeKey: runtimeKey,
-               request: request
+               request: request,
+               logContext: logContext
            ) {
             return result
         }
@@ -61,6 +65,7 @@ actor NtkTaskManager {
             runtimeKey: runtimeKey,
             request: request,
             effectiveTimeout: timeoutForExecution,
+            logContext: logContext,
             execution: execution
         )
     }
@@ -72,8 +77,20 @@ actor NtkTaskManager {
 
     func cancelAllRequests() {
         for (runtimeKey, entry) in ongoingRequests {
+            if entry.ownerActive {
+                logger.debug(
+                    "[Deduplication] owner-cancelled \(entry.ownerLogContext)",
+                    category: .deduplication
+                )
+            }
             entry.ownerWaiterTask.cancel()
-            for waiterTask in entry.followerTasks.values {
+            for (instanceIdentifier, waiterTask) in entry.followerTasks {
+                let logContext = entry.followerLogContexts[instanceIdentifier]
+                    ?? "requestID=\(instanceIdentifier.uuidString)"
+                logger.debug(
+                    "[Deduplication] follower-cancelled \(logContext)",
+                    category: .deduplication
+                )
                 waiterTask.cancel()
             }
             entry.task.cancel()
@@ -95,11 +112,21 @@ actor NtkTaskManager {
 // MARK: - 请求执行
 extension NtkTaskManager {
 
+    private static func logContext(
+        for request: NtkMutableRequest,
+        deduplicationKey: NtkDeduplicationKey?
+    ) -> String {
+        let requestID = "requestID=\(request.instanceIdentifier.uuidString)"
+        guard let deduplicationKey else { return requestID }
+        return "\(requestID) identity=\(deduplicationKey.requestIdentity.value)"
+    }
+
     /// 仅接收执行器解析并冻结的超时值；任务管理器不读取全局配置或请求原始超时。
     /// 前置不变量：`NtkRequestTimeoutResolver` 已保证该值有限、为正且不超过最大值，
     /// 因此可安全转换为 `UInt64` 纳秒；这里不重新回退或夹取。
     private static func executeWithTimeout<T: Sendable>(
         effectiveTimeout: TimeInterval,
+        logContext: String,
         execution: @escaping @Sendable () async throws -> T
     ) async throws -> T {
         try await withThrowingTaskGroup(of: T.self) { group in
@@ -113,6 +140,10 @@ extension NtkTaskManager {
             }
             group.addTask {
                 try await Task.sleep(nanoseconds: UInt64(effectiveTimeout * 1_000_000_000))
+                logger.error(
+                    "[Deduplication] execution-timeout \(logContext) timeout=\(effectiveTimeout)",
+                    category: .deduplication
+                )
                 throw NtkError.requestTimeout(.framework(timeout: effectiveTimeout))
             }
 
@@ -121,6 +152,32 @@ extension NtkTaskManager {
             }
             return result
         }
+    }
+
+    private static func logFinalExecutionFailure(
+        _ error: Error,
+        logContext: String
+    ) {
+        guard !isCancellation(error), !isFrameworkTimeout(error) else { return }
+        logger.error(
+            "[Deduplication] execution-failed \(logContext) errorType=\(String(reflecting: type(of: error)))",
+            category: .deduplication
+        )
+    }
+
+    private static func isCancellation(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        guard let ntkError = error as? NtkError else { return false }
+        if case .requestCancelled = ntkError { return true }
+        return false
+    }
+
+    private static func isFrameworkTimeout(_ error: Error) -> Bool {
+        guard let ntkError = error as? NtkError,
+              case let .requestTimeout(reason) = ntkError else {
+            return false
+        }
+        return reason.source == "Framework"
     }
 
     private static func makeCancellableWaiterTask(
@@ -149,11 +206,13 @@ extension NtkTaskManager {
         runtimeKey: RuntimeKey,
         request: NtkMutableRequest,
         effectiveTimeout: TimeInterval,
+        logContext: String,
         execution: @escaping @Sendable () async throws -> T
     ) async throws -> T {
         let underlyingTask = Task<Sendable, Error> {
             try await Self.executeWithTimeout(
                 effectiveTimeout: effectiveTimeout,
+                logContext: logContext,
                 execution: execution
             )
         }
@@ -161,12 +220,17 @@ extension NtkTaskManager {
             token: UUID(),
             task: underlyingTask,
             ownerWaiterTask: Self.makeCancellableWaiterTask(for: underlyingTask),
-            ownerInstanceId: request.instanceIdentifier
+            ownerInstanceId: request.instanceIdentifier,
+            ownerLogContext: logContext
         )
 
         // 先完整登记 owner，再第一次 await，保证 cancel 可立即通过实例反向索引定位。
         ongoingRequests[runtimeKey] = entry
         register(request.instanceIdentifier, for: runtimeKey)
+        logger.debug(
+            "[Deduplication] owner-created \(logContext) timeout=\(effectiveTimeout)",
+            category: .deduplication
+        )
 
         defer {
             ownerDidFinish(runtimeKey: runtimeKey, token: entry.token)
@@ -185,13 +249,15 @@ extension NtkTaskManager {
             if request.isCancelledRef?.isCancelled == true {
                 throw NtkError.requestCancelled
             }
+            Self.logFinalExecutionFailure(error, logContext: logContext)
             throw error
         }
     }
 
     private func awaitOngoingResultIfAvailable<T: Sendable>(
         runtimeKey: RuntimeKey,
-        request: NtkMutableRequest
+        request: NtkMutableRequest,
+        logContext: String
     ) async throws -> T? {
         guard var entry = ongoingRequests[runtimeKey] else { return nil }
 
@@ -201,8 +267,13 @@ extension NtkTaskManager {
 
         // follower 的 waiter、entry 和反向索引必须在首次 await 前一起写入。
         entry.followerTasks[instanceIdentifier] = waiterTask
+        entry.followerLogContexts[instanceIdentifier] = logContext
         ongoingRequests[runtimeKey] = entry
         register(instanceIdentifier, for: runtimeKey)
+        logger.debug(
+            "[Deduplication] follower-joined \(logContext)",
+            category: .deduplication
+        )
         let token = entry.token
 
         defer {
@@ -292,6 +363,7 @@ extension NtkTaskManager {
     private func followerDidFinish(runtimeKey: RuntimeKey, token: UUID, instanceIdentifier: UUID) {
         guard var entry = ongoingRequests[runtimeKey], entry.token == token else { return }
         entry.followerTasks.removeValue(forKey: instanceIdentifier)
+        entry.followerLogContexts.removeValue(forKey: instanceIdentifier)
         removeIndex(instanceIdentifier, for: runtimeKey)
         removeEntryIfNoWaiters(entry, runtimeKey: runtimeKey)
     }
@@ -304,6 +376,10 @@ extension NtkTaskManager {
         } else {
             entry.task.cancel()
             ongoingRequests.removeValue(forKey: runtimeKey)
+            logger.debug(
+                "[Deduplication] entry-removed \(entry.ownerLogContext) reason=no-waiters",
+                category: .deduplication
+            )
         }
     }
 
@@ -317,9 +393,19 @@ extension NtkTaskManager {
             entry.ownerActive = false
             entry.ownerWaiterTask.cancel()
             removeIndex(instanceIdentifier, for: runtimeKey)
+            logger.debug(
+                "[Deduplication] owner-cancelled \(entry.ownerLogContext)",
+                category: .deduplication
+            )
         } else if let waiterTask = entry.followerTasks.removeValue(forKey: instanceIdentifier) {
             waiterTask.cancel()
             removeIndex(instanceIdentifier, for: runtimeKey)
+            let logContext = entry.followerLogContexts.removeValue(forKey: instanceIdentifier)
+                ?? "requestID=\(instanceIdentifier.uuidString)"
+            logger.debug(
+                "[Deduplication] follower-cancelled \(logContext)",
+                category: .deduplication
+            )
         } else {
             removeIndex(instanceIdentifier, for: runtimeKey)
             return
@@ -331,6 +417,10 @@ extension NtkTaskManager {
             entry.task.cancel()
             removeAllIndexes(for: entry, runtimeKey: runtimeKey)
             ongoingRequests.removeValue(forKey: runtimeKey)
+            logger.debug(
+                "[Deduplication] entry-removed \(entry.ownerLogContext) reason=no-waiters",
+                category: .deduplication
+            )
         }
     }
 }

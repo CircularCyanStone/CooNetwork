@@ -17,7 +17,7 @@ public struct NtkConfiguration: Sendable {
 
     /// 配置构建器
     public struct Builder : Sendable{
-        /// 日志开关（默认关闭）
+        /// 日志开关：启用时输出 debug 及以上；关闭时仍输出 warning、error 和 fault（默认关闭）
         public var isLoggingEnabled: Bool = false
 
         /// 是否全局启用去重功能（默认启用）
@@ -41,6 +41,7 @@ public struct NtkConfiguration: Sendable {
     nonisolated(unsafe) private static var _current = NtkConfiguration()
 
     private static let lock = NtkUnfairLock()
+    @TaskLocal private static var testConfiguration: NtkConfiguration?
 
     /// 在锁保护下访问 _current 的唯一入口
     private static func withLock<R>(_ body: (inout NtkConfiguration) throws -> R) rethrows -> R {
@@ -52,7 +53,7 @@ public struct NtkConfiguration: Sendable {
     /// 当前配置的不可变快照（线程安全）
     /// 每次读取返回一份值拷贝，不会读到半更新状态
     public static var current: NtkConfiguration {
-        withLock { $0 }
+        testConfiguration ?? withLock { $0 }
     }
 
     /// 配置快照，创建后不可变
@@ -60,6 +61,13 @@ public struct NtkConfiguration: Sendable {
 
     init(builder: Builder = Builder()) {
         self.builder = builder
+    }
+
+    internal static func withTestConfiguration<Result: Sendable>(
+        _ configuration: NtkConfiguration,
+        operation: @Sendable () async throws -> Result
+    ) async rethrows -> Result {
+        try await $testConfiguration.withValue(configuration, operation: operation)
     }
 
     /// 更新全局配置（生成新快照，原子替换）
