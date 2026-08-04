@@ -32,6 +32,7 @@ extension NtkNetwork {
     public func requestWithProgress() -> AsyncThrowingStream<NtkTransferEvent<ResponseData>, Error> {
         // 同步阶段：单次使用保护
         markRequestConsumed()
+        let requestID = lock.withLock { mutableRequest.instanceIdentifier.uuidString }
 
         return AsyncThrowingStream { continuation in
             // 通过链式 API 通道注入进度闭包，桥接到 stream
@@ -48,6 +49,10 @@ extension NtkNetwork {
                     continuation.yield(.completed(result))
                     continuation.finish()
                 } catch {
+                    logger.error(
+                        "带进度请求执行失败：requestID=\(requestID)，原因=\(String(reflecting: type(of: error)))；影响=结果流以错误结束。",
+                        category: .network
+                    )
                     continuation.finish(throwing: error)
                 }
             }
@@ -55,6 +60,10 @@ extension NtkNetwork {
             continuation.onTermination = { @Sendable termination in
                 switch termination {
                 case .cancelled:
+                    logger.debug(
+                        "带进度请求流已取消：requestID=\(requestID)；影响=取消底层任务，不再产出进度或结果。",
+                        category: .network
+                    )
                     task.cancel()
                 case .finished:
                     break

@@ -162,6 +162,10 @@ extension NtkNetwork {
     public func cancel() async {
         let request = lock.withLock { mutableRequest }
         request.isCancelledRef?.cancel()
+        logger.debug(
+            "已请求取消网络任务：requestID=\(request.instanceIdentifier.uuidString)；影响=本次请求不再等待结果。",
+            category: .network
+        )
         await NtkTaskManager.shared.cancelRequest(instanceIdentifier: request.instanceIdentifier)
     }
 
@@ -204,6 +208,7 @@ extension NtkNetwork {
     public func requestWithCache() -> AsyncThrowingStream<NtkResponse<ResponseData>, Error> {
         // 单次使用保护（同步阶段检查）
         markRequestConsumed()
+        let requestID = lock.withLock { mutableRequest.instanceIdentifier.uuidString }
 
         return AsyncThrowingStream { continuation in
             let task = Task {
@@ -246,6 +251,10 @@ extension NtkNetwork {
                         continuation.finish()
                     }
                 } catch {
+                    logger.error(
+                        "缓存与网络请求执行失败：requestID=\(requestID)，原因=\(String(reflecting: type(of: error)))；影响=结果流以错误结束。",
+                        category: .network
+                    )
                     continuation.finish(throwing: error)
                 }
             }
@@ -255,12 +264,18 @@ extension NtkNetwork {
                 case .cancelled:
                     // 只有在流被取消时才取消底层任务
                     // 这通常发生在业务层主动取消或者上层作用域被取消
-                    logger.debug("AsyncStream 被取消，取消底层任务", category: .network)
+                    logger.debug(
+                        "缓存与网络请求流已取消：requestID=\(requestID)；影响=取消底层任务，不再产出结果。",
+                        category: .network
+                    )
                     task.cancel()
                 case .finished:
                     // 流正常结束或因错误结束，不需要取消任务
                     // 因为任务要么已经完成，要么已经在 catch 块中处理了错误
-                    logger.debug("AsyncStream 正常结束，无需取消任务", category: .network)
+                    logger.debug(
+                        "缓存与网络请求流已结束：requestID=\(requestID)，原因=请求已完成或结果流已结束；影响=不再取消底层任务。",
+                        category: .network
+                    )
                 @unknown default:
                     break
                 }

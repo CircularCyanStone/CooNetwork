@@ -192,10 +192,19 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
     // MARK: - Core Execution
 
     func execute() async throws -> NtkResponse<ResponseData> {
-        let context = try await makeContext(
-            includeDeduplication: true,
-            includeCache: cacheProvider != nil
-        )
+        let context: NtkInterceptorContext
+        do {
+            context = try await makeContext(
+                includeDeduplication: true,
+                includeCache: cacheProvider != nil
+            )
+        } catch {
+            logger.error(
+                "请求执行准备失败：requestID=\(initialRequest.instanceIdentifier.uuidString)，原因=\(String(reflecting: type(of: error)))；影响=请求未发送，调用方将收到失败结果。",
+                category: .network
+            )
+            throw error
+        }
 
         // 动态添加核心拦截器（Tier 保证正确排序）
         var interceptorsToRun = config.interceptors
@@ -214,11 +223,28 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
             } else {
                 throw NtkError.invalidTypedResponse
             }
+        } catch {
+            if case NtkError.requestCancelled = error {
+                logger.debug(
+                    "请求执行已取消：requestID=\(context.request.instanceIdentifier.uuidString)；影响=不再等待本次请求结果。",
+                    category: .network
+                )
+            } else {
+                logger.error(
+                    "请求执行失败：requestID=\(context.request.instanceIdentifier.uuidString)，原因=\(String(reflecting: type(of: error)))；影响=调用方将收到失败结果。",
+                    category: .network
+                )
+            }
+            throw error
         }
     }
     
     func loadCache() async throws -> NtkResponse<ResponseData>? {
         guard let cacheProvider else {
+            logger.debug(
+                "缓存读取已跳过：requestID=\(initialRequest.instanceIdentifier.uuidString)，原因=未配置缓存提供者；影响=本次没有缓存结果。",
+                category: .cache
+            )
             return nil
         }
         let context = try await makeContext(
@@ -226,6 +252,10 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
             includeCache: true
         )
         guard let requestIdentity = context.requestIdentity else {
+            logger.debug(
+                "缓存读取已跳过：requestID=\(context.request.instanceIdentifier.uuidString)，原因=请求身份不可用；影响=本次没有缓存结果。",
+                category: .cache
+            )
             return nil
         }
 
@@ -255,12 +285,33 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
     }
 
     func hasCacheData() async -> Bool where ResponseData == Bool {
-        guard let cacheProvider else { return false }
-        guard let context = try? await makeContext(
-            includeDeduplication: false,
-            includeCache: true
-        ) else { return false }
-        guard let requestIdentity = context.requestIdentity else { return false }
+        guard let cacheProvider else {
+            logger.debug(
+                "缓存可用性检查已跳过：requestID=\(initialRequest.instanceIdentifier.uuidString)，原因=未配置缓存提供者；影响=返回无缓存。",
+                category: .cache
+            )
+            return false
+        }
+        let context: NtkInterceptorContext
+        do {
+            context = try await makeContext(
+                includeDeduplication: false,
+                includeCache: true
+            )
+        } catch {
+            logger.warning(
+                "缓存可用性检查失败：requestID=\(initialRequest.instanceIdentifier.uuidString)，原因=\(String(reflecting: type(of: error)))；影响=返回无缓存。",
+                category: .cache
+            )
+            return false
+        }
+        guard let requestIdentity = context.requestIdentity else {
+            logger.debug(
+                "缓存可用性检查已跳过：requestID=\(context.request.instanceIdentifier.uuidString)，原因=请求身份不可用；影响=返回无缓存。",
+                category: .cache
+            )
+            return false
+        }
         return await cacheProvider.hasCacheData(for: context.request, requestIdentity: requestIdentity)
     }
 }
