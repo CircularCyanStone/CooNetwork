@@ -95,7 +95,7 @@ struct NtkParsingHookDispatcher: Sendable {
                 try await invocation(hook)
             } catch {
                 logger.warning(
-                    "[NtkParsingHookDispatcher] ignored event=\(event) errorType=\(String(reflecting: type(of: error)))",
+                    "解析 Hook 执行失败：事件=\(event)，原因=\(String(reflecting: type(of: error)))；影响=忽略该 Hook，继续后续解析流程。",
                     category: .network
                 )
             }

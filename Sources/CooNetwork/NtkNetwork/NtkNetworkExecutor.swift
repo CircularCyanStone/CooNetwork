@@ -122,7 +122,7 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
         let cacheEnabled = includeCache && request.cacheConfiguration?.isEnabled == true
         let logPath = URLComponents(string: request.path)?.path ?? "<redacted>"
         logger.debug(
-            "[RequestExecution] prepared requestID=\(request.instanceIdentifier.uuidString) method=\(request.method.rawValue) path=\(logPath) timeout=\(effectiveTimeout) cache=\(cacheEnabled) deduplication=\(deduplicationEnabled)",
+            "请求执行准备完成：method=\(request.method.rawValue) path=\(logPath) requestID=\(request.instanceIdentifier.uuidString)；有效超时=\(effectiveTimeout)s，缓存=\(cacheEnabled)，去重=\(deduplicationEnabled)。",
             category: .network
         )
 
@@ -137,14 +137,14 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
                 )
                 requestIdentity = builtRequestIdentity
                 logger.debug(
-                    "[RequestIdentity] built requestID=\(request.instanceIdentifier.uuidString) identity=\(builtRequestIdentity.value)",
+                    "请求身份生成成功：requestID=\(request.instanceIdentifier.uuidString) identity=\(builtRequestIdentity.value)；影响=缓存和去重将使用此身份关联同一资源。",
                     category: .requestIdentity
                 )
             } catch let error as NtkRequestIdentityBuilder.BuildError {
                 // 失败内容已经由 BuildError 脱敏。这里不抛 NtkError，因为缓存和去重是可选优化，
                 // 参数仍可能完全能够被具体 HTTP client 正常序列化和发送。
                 logger.warning(
-                    "[RequestIdentity] unavailable requestID=\(request.instanceIdentifier.uuidString) error=\(error.logMessage) cache=false deduplication=false",
+                    "请求身份生成失败：requestID=\(request.instanceIdentifier.uuidString)，原因=\(error.logMessage)；影响=本次跳过缓存和去重，网络请求继续执行。",
                     category: .requestIdentity
                 )
                 requestIdentity = nil
@@ -152,7 +152,7 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
         } else {
             requestIdentity = nil
             logger.debug(
-                "[RequestIdentity] skipped requestID=\(request.instanceIdentifier.uuidString) reason=no-consumer",
+                "请求身份未生成：requestID=\(request.instanceIdentifier.uuidString)，原因=未启用缓存和去重；影响=不影响网络请求。",
                 category: .requestIdentity
             )
         }
@@ -170,12 +170,13 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
 
         if let deduplicationKey {
             logger.debug(
-                "[Deduplication] key-ready requestID=\(request.instanceIdentifier.uuidString) identity=\(deduplicationKey.requestIdentity.value) timeout=\(deduplicationKey.effectiveTimeout)",
+                "去重条件已就绪：requestID=\(request.instanceIdentifier.uuidString) identity=\(deduplicationKey.requestIdentity.value) timeout=\(deduplicationKey.effectiveTimeout)s；影响=相同身份且超时一致的请求可复用进行中的任务。",
                 category: .deduplication
             )
         } else {
+            let reason = deduplicationEnabled ? "请求身份不可用" : "请求去重未启用"
             logger.debug(
-                "[Deduplication] disabled requestID=\(request.instanceIdentifier.uuidString)",
+                "去重未生效：requestID=\(request.instanceIdentifier.uuidString)，原因=\(reason)；影响=本次请求独立执行。",
                 category: .deduplication
             )
         }

@@ -236,7 +236,7 @@ public struct NtkDataParsingInterceptor<
         request: iNtkRequest
     ) {
         logger.debug(
-            "[Response] decoded method=\(request.method.rawValue) code=\(decoderResponse.code) isCache=\(request.cacheConfiguration?.isEnabled == true)",
+            "响应解析成功：method=\(request.method.rawValue) code=\(decoderResponse.code)；缓存策略=\(request.cacheConfiguration?.isEnabled == true)，影响=进入后续响应处理。",
             category: .network
         )
     }

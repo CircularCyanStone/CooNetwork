@@ -216,7 +216,7 @@ extension NtkNetwork {
                                 return .cache(try await self.loadCache())
                             } catch {
                                 logger.warning(
-                                    "[Cache] concurrent-load-failed errorType=\(String(reflecting: type(of: error)))",
+                                    "并发读取缓存失败：原因=\(String(reflecting: type(of: error)))；影响=忽略缓存结果，网络请求继续执行。",
                                     category: .cache
                                 )
                                 return .cache(nil)

@@ -60,7 +60,7 @@ public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
         let response = try await next.handle(context: context)
         if context.request.cacheConfiguration?.isEnabled == true, context.requestIdentity == nil {
             logger.debug(
-                "[Cache] write-skipped requestID=\(context.request.instanceIdentifier.uuidString) reason=identity-unavailable",
+                "缓存写入已跳过：requestID=\(context.request.instanceIdentifier.uuidString)，原因=请求身份不可用；影响=本次网络响应不会写入缓存。",
                 category: .cache
             )
         }
@@ -78,7 +78,7 @@ public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
             requestIdentity: requestIdentity
         )
         logger.debug(
-            "[Cache] write-\(result ? "succeeded" : "failed") requestID=\(context.request.instanceIdentifier.uuidString) identity=\(requestIdentity.value)",
+            "缓存写入\(result ? "成功" : "失败")：requestID=\(context.request.instanceIdentifier.uuidString) identity=\(requestIdentity.value)；影响=\(result ? "后续相同资源可读取缓存。" : "后续请求仍会走网络。")",
             category: .cache
         )
         return response
@@ -94,13 +94,13 @@ public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
         do {
             let data = try await cache.loadData(for: request, requestIdentity: requestIdentity)
             logger.debug(
-                "[Cache] load-\(data == nil ? "miss" : "hit") requestID=\(request.instanceIdentifier.uuidString) identity=\(requestIdentity.value)",
+                "缓存读取\(data == nil ? "未命中" : "命中")：requestID=\(request.instanceIdentifier.uuidString) identity=\(requestIdentity.value)；影响=\(data == nil ? "继续请求网络。" : "返回缓存数据。")",
                 category: .cache
             )
             return data
         } catch {
             logger.warning(
-                "[Cache] load-failed requestID=\(request.instanceIdentifier.uuidString) identity=\(requestIdentity.value) errorType=\(String(reflecting: type(of: error)))",
+                "缓存读取失败：requestID=\(request.instanceIdentifier.uuidString) identity=\(requestIdentity.value)，原因=\(String(reflecting: type(of: error)))；影响=缓存不可用，调用方将继续网络请求。",
                 category: .cache
             )
             throw error
@@ -114,7 +114,7 @@ public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
         let cache = NtkNetworkCache(storage: storage)
         let hasData = await cache.hasData(for: request, requestIdentity: requestIdentity)
         logger.debug(
-            "[Cache] availability=\(hasData ? "hit" : "miss") requestID=\(request.instanceIdentifier.uuidString) identity=\(requestIdentity.value)",
+            "缓存可用性检查\(hasData ? "命中" : "未命中")：requestID=\(request.instanceIdentifier.uuidString) identity=\(requestIdentity.value)；影响=\(hasData ? "存在可用缓存。" : "不存在可用缓存。")",
             category: .cache
         )
         return hasData

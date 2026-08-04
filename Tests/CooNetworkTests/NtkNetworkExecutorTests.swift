@@ -496,7 +496,7 @@ struct NtkNetworkExecutorTests {
         #expect(response.data == true)
         #expect(await capture.storageCalls() == 0)
         let unavailableRecords = logCapture.records.filter {
-            $0.message.hasPrefix("[RequestIdentity] unavailable")
+            $0.message.hasPrefix("请求身份生成失败：")
         }
         #expect(unavailableRecords.count == 3)
         #expect(unavailableRecords.allSatisfy {
@@ -776,27 +776,27 @@ struct NtkNetworkExecutorTests {
             .init(
                 level: .debug,
                 category: .network,
-                message: "[RequestExecution] prepared requestID=\(requestID) method=POST path=/oauth/callback timeout=20.0 cache=false deduplication=true"
+                message: "请求执行准备完成：method=POST path=/oauth/callback requestID=\(requestID)；有效超时=20.0s，缓存=false，去重=true。"
             ),
             .init(
                 level: .debug,
                 category: .requestIdentity,
-                message: "[RequestIdentity] built requestID=\(requestID) identity=\(expectedIdentity.value)"
+                message: "请求身份生成成功：requestID=\(requestID) identity=\(expectedIdentity.value)；影响=缓存和去重将使用此身份关联同一资源。"
             ),
             .init(
                 level: .debug,
                 category: .deduplication,
-                message: "[Deduplication] key-ready requestID=\(requestID) identity=\(expectedIdentity.value) timeout=20.0"
+                message: "去重条件已就绪：requestID=\(requestID) identity=\(expectedIdentity.value) timeout=20.0s；影响=相同身份且超时一致的请求可复用进行中的任务。"
             ),
             .init(
                 level: .debug,
                 category: .deduplication,
-                message: "[Deduplication] owner-created requestID=\(requestID) identity=\(expectedIdentity.value) timeout=20.0"
+                message: "去重新任务已创建：requestID=\(requestID) identity=\(expectedIdentity.value)，原因=没有可复用的进行中任务，超时=20.0s；影响=后续相同请求将等待此任务。"
             ),
             .init(
                 level: .debug,
                 category: .deduplication,
-                message: "[Deduplication] entry-removed requestID=\(requestID) identity=\(expectedIdentity.value) reason=no-waiters"
+                message: "去重任务已清理：requestID=\(requestID) identity=\(expectedIdentity.value)，原因=没有等待者；影响=底层任务已取消或已完成。"
             )
         ])
         #expect(capture.records.allSatisfy { !$0.message.contains(sensitiveNamespace) })
@@ -832,27 +832,27 @@ struct NtkNetworkExecutorTests {
             .init(
                 level: .debug,
                 category: .network,
-                message: "[RequestExecution] prepared requestID=\(requestID) method=POST path=/executor/logging/no-consumer timeout=20.0 cache=false deduplication=false"
+                message: "请求执行准备完成：method=POST path=/executor/logging/no-consumer requestID=\(requestID)；有效超时=20.0s，缓存=false，去重=false。"
             ),
             .init(
                 level: .debug,
                 category: .requestIdentity,
-                message: "[RequestIdentity] skipped requestID=\(requestID) reason=no-consumer"
+                message: "请求身份未生成：requestID=\(requestID)，原因=未启用缓存和去重；影响=不影响网络请求。"
             ),
             .init(
                 level: .debug,
                 category: .deduplication,
-                message: "[Deduplication] disabled requestID=\(requestID)"
+                message: "去重未生效：requestID=\(requestID)，原因=请求去重未启用；影响=本次请求独立执行。"
             ),
             .init(
                 level: .debug,
                 category: .deduplication,
-                message: "[Deduplication] owner-created requestID=\(requestID) timeout=20.0"
+                message: "去重新任务已创建：requestID=\(requestID)，原因=没有可复用的进行中任务，超时=20.0s；影响=后续相同请求将等待此任务。"
             ),
             .init(
                 level: .debug,
                 category: .deduplication,
-                message: "[Deduplication] entry-removed requestID=\(requestID) reason=no-waiters"
+                message: "去重任务已清理：requestID=\(requestID)，原因=没有等待者；影响=底层任务已取消或已完成。"
             )
         ])
     }
@@ -888,18 +888,18 @@ struct NtkNetworkExecutorTests {
 
         let requestID = request.instanceIdentifier.uuidString
         let unavailable = try #require(capture.records.first {
-            $0.message.hasPrefix("[RequestIdentity] unavailable")
+            $0.message.hasPrefix("请求身份生成失败：")
         })
         #expect(unavailable.level == .warning)
         #expect(unavailable.category == .requestIdentity)
         #expect(unavailable.message.contains("requestID=\(requestID)"))
-        #expect(unavailable.message.contains("cache=false deduplication=false"))
+        #expect(unavailable.message.contains("影响=本次跳过缓存和去重，网络请求继续执行。"))
         #expect(!unavailable.message.contains(sensitiveHeader))
         #expect(!unavailable.message.contains(sensitiveParameter))
         #expect(capture.records.contains(.init(
             level: .debug,
             category: .deduplication,
-            message: "[Deduplication] disabled requestID=\(requestID)"
+            message: "去重未生效：requestID=\(requestID)，原因=请求身份不可用；影响=本次请求独立执行。"
         )))
     }
 }

@@ -103,20 +103,20 @@ private extension NtkRetryInterceptor {
         error: Error
     ) {
         logger.debug(
-            "[Retry] scheduled count=\(retryCount) delay=\(delay) errorType=\(String(reflecting: type(of: error)))",
+            "请求准备重试：第 \(retryCount) 次，原因=\(String(reflecting: type(of: error)))，等待=\(delay)s；影响=将在等待后再次执行请求。",
             category: .retry
         )
     }
 
     /// 记录重试成功
     func recordRetrySuccess(retryCount: Int) {
-        logger.debug("[Retry] succeeded count=\(retryCount)", category: .retry)
+        logger.debug("请求重试成功：已重试 \(retryCount) 次；影响=返回本次成功响应。", category: .retry)
     }
 
     /// 记录重试失败
     func recordRetryFailure(retryCount: Int, finalError: Error) {
         logger.error(
-            "[Retry] exhausted count=\(retryCount) errorType=\(String(reflecting: type(of: finalError)))",
+            "请求重试结束：已重试 \(retryCount) 次，原因=\(String(reflecting: type(of: finalError)))；影响=向调用方返回失败。",
             category: .retry
         )
     }

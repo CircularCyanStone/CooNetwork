@@ -79,7 +79,7 @@ actor NtkTaskManager {
         for (runtimeKey, entry) in ongoingRequests {
             if entry.ownerActive {
                 logger.debug(
-                    "[Deduplication] owner-cancelled \(entry.ownerLogContext)",
+                    "去重主请求已取消：\(entry.ownerLogContext)；影响=其他等待者不受影响。",
                     category: .deduplication
                 )
             }
@@ -88,7 +88,7 @@ actor NtkTaskManager {
                 let logContext = entry.followerLogContexts[instanceIdentifier]
                     ?? "requestID=\(instanceIdentifier.uuidString)"
                 logger.debug(
-                    "[Deduplication] follower-cancelled \(logContext)",
+                    "去重等待请求已取消：\(logContext)；影响=仅取消当前等待，不取消共享网络任务。",
                     category: .deduplication
                 )
                 waiterTask.cancel()
@@ -141,7 +141,7 @@ extension NtkTaskManager {
             group.addTask {
                 try await Task.sleep(nanoseconds: UInt64(effectiveTimeout * 1_000_000_000))
                 logger.error(
-                    "[Deduplication] execution-timeout \(logContext) timeout=\(effectiveTimeout)",
+                    "去重任务执行超时：\(logContext)，原因=超过 \(effectiveTimeout)s 未完成；影响=本次及等待该任务的请求失败。",
                     category: .deduplication
                 )
                 throw NtkError.requestTimeout(.framework(timeout: effectiveTimeout))
@@ -160,7 +160,7 @@ extension NtkTaskManager {
     ) {
         guard !isCancellation(error), !isFrameworkTimeout(error) else { return }
         logger.error(
-            "[Deduplication] execution-failed \(logContext) errorType=\(String(reflecting: type(of: error)))",
+            "去重任务执行失败：\(logContext)，原因=\(String(reflecting: type(of: error)))；影响=本次及等待该任务的请求收到失败结果。",
             category: .deduplication
         )
     }
@@ -228,7 +228,7 @@ extension NtkTaskManager {
         ongoingRequests[runtimeKey] = entry
         register(request.instanceIdentifier, for: runtimeKey)
         logger.debug(
-            "[Deduplication] owner-created \(logContext) timeout=\(effectiveTimeout)",
+            "去重新任务已创建：\(logContext)，原因=没有可复用的进行中任务，超时=\(effectiveTimeout)s；影响=后续相同请求将等待此任务。",
             category: .deduplication
         )
 
@@ -271,7 +271,7 @@ extension NtkTaskManager {
         ongoingRequests[runtimeKey] = entry
         register(instanceIdentifier, for: runtimeKey)
         logger.debug(
-            "[Deduplication] follower-joined \(logContext)",
+            "去重命中进行中任务：\(logContext)；影响=当前请求复用已有网络任务，不再发起新的请求。",
             category: .deduplication
         )
         let token = entry.token
@@ -377,7 +377,7 @@ extension NtkTaskManager {
             entry.task.cancel()
             ongoingRequests.removeValue(forKey: runtimeKey)
             logger.debug(
-                "[Deduplication] entry-removed \(entry.ownerLogContext) reason=no-waiters",
+                "去重任务已清理：\(entry.ownerLogContext)，原因=没有等待者；影响=底层任务已取消或已完成。",
                 category: .deduplication
             )
         }
@@ -394,7 +394,7 @@ extension NtkTaskManager {
             entry.ownerWaiterTask.cancel()
             removeIndex(instanceIdentifier, for: runtimeKey)
             logger.debug(
-                "[Deduplication] owner-cancelled \(entry.ownerLogContext)",
+                "去重主请求已取消：\(entry.ownerLogContext)；影响=其他等待者不受影响。",
                 category: .deduplication
             )
         } else if let waiterTask = entry.followerTasks.removeValue(forKey: instanceIdentifier) {
@@ -403,7 +403,7 @@ extension NtkTaskManager {
             let logContext = entry.followerLogContexts.removeValue(forKey: instanceIdentifier)
                 ?? "requestID=\(instanceIdentifier.uuidString)"
             logger.debug(
-                "[Deduplication] follower-cancelled \(logContext)",
+                "去重等待请求已取消：\(logContext)；影响=仅取消当前等待，不取消共享网络任务。",
                 category: .deduplication
             )
         } else {
@@ -418,7 +418,7 @@ extension NtkTaskManager {
             removeAllIndexes(for: entry, runtimeKey: runtimeKey)
             ongoingRequests.removeValue(forKey: runtimeKey)
             logger.debug(
-                "[Deduplication] entry-removed \(entry.ownerLogContext) reason=no-waiters",
+                "去重任务已清理：\(entry.ownerLogContext)，原因=没有等待者；影响=底层任务已取消或已完成。",
                 category: .deduplication
             )
         }

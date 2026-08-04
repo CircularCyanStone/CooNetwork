@@ -284,17 +284,17 @@ struct NtkTaskManagerTests {
         #expect(records.contains(.init(
             level: .debug,
             category: .deduplication,
-            message: "[Deduplication] owner-created \(ownerContext) timeout=30.0"
+            message: "去重新任务已创建：\(ownerContext)，原因=没有可复用的进行中任务，超时=30.0s；影响=后续相同请求将等待此任务。"
         )))
         #expect(records.contains(.init(
             level: .debug,
             category: .deduplication,
-            message: "[Deduplication] follower-joined \(followerContext)"
+            message: "去重命中进行中任务：\(followerContext)；影响=当前请求复用已有网络任务，不再发起新的请求。"
         )))
         #expect(records.contains(.init(
             level: .debug,
             category: .deduplication,
-            message: "[Deduplication] entry-removed \(ownerContext) reason=no-waiters"
+            message: "去重任务已清理：\(ownerContext)，原因=没有等待者；影响=底层任务已取消或已完成。"
         )))
         #expect(records.allSatisfy { !$0.message.contains(sensitiveHeader) })
         #expect(records.allSatisfy { !$0.message.contains(sensitiveParameter) })
@@ -368,7 +368,7 @@ struct NtkTaskManagerTests {
         #expect(capture.records.contains(.init(
             level: .debug,
             category: .deduplication,
-            message: "[Deduplication] follower-cancelled requestID=\(followerIdentifier.uuidString) identity=\(opaqueIdentity)"
+            message: "去重等待请求已取消：requestID=\(followerIdentifier.uuidString) identity=\(opaqueIdentity)；影响=仅取消当前等待，不取消共享网络任务。"
         )))
     }
 
@@ -416,10 +416,10 @@ struct NtkTaskManagerTests {
         #expect(capture.records.contains(.init(
             level: .error,
             category: .deduplication,
-            message: "[Deduplication] execution-timeout requestID=\(request.instanceIdentifier.uuidString) identity=\(opaqueIdentity) timeout=\(effectiveTimeout)"
+            message: "去重任务执行超时：requestID=\(request.instanceIdentifier.uuidString) identity=\(opaqueIdentity)，原因=超过 \(effectiveTimeout)s 未完成；影响=本次及等待该任务的请求失败。"
         )))
         #expect(!capture.records.contains {
-            $0.message.hasPrefix("[Deduplication] execution-failed")
+            $0.message.hasPrefix("去重任务执行失败：")
         })
     }
 
@@ -457,7 +457,7 @@ struct NtkTaskManagerTests {
             Issue.record("期望执行失败")
         }
         guard let failure = capture.records.first(where: {
-            $0.message.hasPrefix("[Deduplication] execution-failed")
+            $0.message.hasPrefix("去重任务执行失败：")
         }) else {
             Issue.record("期望执行失败日志")
             return
@@ -465,7 +465,8 @@ struct NtkTaskManagerTests {
         #expect(failure.level == .error)
         #expect(failure.category == .deduplication)
         #expect(failure.message.contains("requestID=\(request.instanceIdentifier.uuidString)"))
-        #expect(failure.message.contains("errorType=TaskManagerSensitiveExecutionError"))
+        #expect(failure.message.contains("原因="))
+        #expect(failure.message.contains("影响=本次及等待该任务的请求收到失败结果。"))
         #expect(!failure.message.contains("identity="))
         #expect(!failure.message.contains(errorDescription))
     }
@@ -514,7 +515,7 @@ struct NtkTaskManagerTests {
             return isCancellationError(error)
         }())
         #expect(!capture.records.contains {
-            $0.message.hasPrefix("[Deduplication] execution-failed")
+            $0.message.hasPrefix("去重任务执行失败：")
         })
         #expect(capture.records.allSatisfy { !$0.message.contains(errorDescription) })
     }
