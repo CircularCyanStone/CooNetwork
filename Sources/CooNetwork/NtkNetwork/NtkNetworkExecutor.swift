@@ -81,7 +81,15 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
             $0 as? any iNtkRequestModifyingInterceptor
         }
         for interceptor in requestModifiers {
-            request = try await interceptor.modifyRequest(request)
+            do {
+                request = try await interceptor.modifyRequest(request)
+            } catch {
+                logger.error(
+                    "请求修改失败：requestID=\(request.instanceIdentifier.uuidString)，修改器=\(String(reflecting: type(of: interceptor)))，原因=\(String(reflecting: type(of: error)))；影响=请求未发送，调用方将收到失败结果。",
+                    category: .interceptor
+                )
+                throw error
+            }
         }
         return request
     }

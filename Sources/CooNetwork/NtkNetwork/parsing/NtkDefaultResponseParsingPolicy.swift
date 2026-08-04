@@ -70,6 +70,7 @@ struct NtkDefaultResponseParsingPolicy<ResponseData: Sendable & Decodable> {
                     isCache: failure.isCache
                 )
                 try await validateServiceSuccess(recoveredResponse, request: failure.request, context: context)
+                logDecodingFailure(request: failure.request, error: failure.decodeError)
                 throw NtkError.Serialization.dataDecodingFailed(
                     context: .init(
                         clientResponse: failure.clientResponse,
@@ -79,6 +80,7 @@ struct NtkDefaultResponseParsingPolicy<ResponseData: Sendable & Decodable> {
                     )
                 )
             }
+            logDecodingFailure(request: failure.request, error: failure.decodeError)
             throw NtkError.Serialization.dataDecodingFailed(
                 context: .init(
                     clientResponse: failure.clientResponse,
@@ -99,7 +101,18 @@ struct NtkDefaultResponseParsingPolicy<ResponseData: Sendable & Decodable> {
 
         guard validation.isServiceSuccess(response) else {
             await dispatcher.didValidateFail(response, context: context)
+            logger.error(
+                "响应业务校验失败：requestID=\(context.request.instanceIdentifier.uuidString) code=\(response.code)；影响=响应不会返回给调用方。",
+                category: .network
+            )
             throw NtkError.Validation.serviceRejected(response: response)
         }
+    }
+
+    private func logDecodingFailure(request: iNtkRequest, error: DecodingError) {
+        logger.error(
+            "响应数据解码失败：method=\(request.method.rawValue)，原因=\(String(reflecting: type(of: error)))；影响=无法生成业务响应，调用方将收到失败结果。",
+            category: .network
+        )
     }
 }

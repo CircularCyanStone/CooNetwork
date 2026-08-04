@@ -39,8 +39,12 @@ public struct NtkRetryInterceptor: iNtkInterceptor {
             return try await next.handle(context: context)
         } catch {
             // 首次失败，检查是否需要重试
-            guard retryPolicy.maxRetryCount > 0,
-                  retryPolicy.shouldRetry(attemptCount: 1, error: error) else {
+            guard retryPolicy.maxRetryCount > 0 else {
+                recordRetrySkipped(reason: "重试次数为 0", error: error)
+                throw error
+            }
+            guard retryPolicy.shouldRetry(attemptCount: 1, error: error) else {
+                recordRetrySkipped(reason: "重试策略拒绝", error: error)
                 throw error
             }
 
@@ -96,6 +100,13 @@ public struct NtkRetryInterceptor: iNtkInterceptor {
 
 // MARK: - 重试统计和日志
 private extension NtkRetryInterceptor {
+    func recordRetrySkipped(reason: String, error: Error) {
+        logger.debug(
+            "请求未重试：原因=\(reason)，错误类型=\(String(reflecting: type(of: error)))；影响=直接向调用方返回失败。",
+            category: .retry
+        )
+    }
+
     /// 记录重试尝试
     func recordRetryAttempt(
         retryCount: Int,

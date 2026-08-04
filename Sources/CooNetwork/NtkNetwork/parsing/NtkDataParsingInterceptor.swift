@@ -125,8 +125,26 @@ public struct NtkDataParsingInterceptor<
     /// 与 policy 无需继续持有网络 client 或修改共享请求状态。这也是后续阶段不需要依赖
     /// 全局隔离与解析扩展点之间的关键边界。
     private func process(_ acquired: AcquiredResponse) async throws -> any iNtkResponse {
-        let prepared = try await prepare(acquired)
-        let interpreted = try await interpret(prepared, context: acquired.parsingContext)
+        let prepared: PreparedPayload
+        do {
+            prepared = try await prepare(acquired)
+        } catch {
+            logger.error(
+                "响应载荷准备失败：requestID=\(acquired.parsingContext.request.instanceIdentifier.uuidString)，原因=\(String(reflecting: type(of: error)))；影响=无法进入响应解析，调用方将收到失败结果。",
+                category: .network
+            )
+            throw error
+        }
+        let interpreted: NtkInterpretation<ResponseData>
+        do {
+            interpreted = try await interpret(prepared, context: acquired.parsingContext)
+        } catch {
+            logger.error(
+                "响应解析器执行失败：requestID=\(acquired.parsingContext.request.instanceIdentifier.uuidString)，原因=\(String(reflecting: type(of: error)))；影响=无法生成业务响应，调用方将收到失败结果。",
+                category: .network
+            )
+            throw error
+        }
         return try await policy.decide(from: interpreted, context: acquired.parsingContext)
     }
 

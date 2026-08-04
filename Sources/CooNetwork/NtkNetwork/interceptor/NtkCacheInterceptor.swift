@@ -58,17 +58,33 @@ public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
     /// 缺失都直接返回网络响应，保证 key 构建失败不会转换成 NtkError 或阻塞网络。
     public func intercept(context: NtkInterceptorContext, next: iNtkRequestHandler) async throws -> any iNtkResponse {
         let response = try await next.handle(context: context)
-        if context.request.cacheConfiguration?.isEnabled == true, context.requestIdentity == nil {
+        guard let cacheConfiguration = context.request.cacheConfiguration,
+              cacheConfiguration.isEnabled else {
+            logger.debug(
+                "缓存写入已跳过：requestID=\(context.request.instanceIdentifier.uuidString)，原因=请求未启用缓存；影响=本次网络响应不会写入缓存。",
+                category: .cache
+            )
+            return response
+        }
+        guard let requestIdentity = context.requestIdentity else {
             logger.debug(
                 "缓存写入已跳过：requestID=\(context.request.instanceIdentifier.uuidString)，原因=请求身份不可用；影响=本次网络响应不会写入缓存。",
                 category: .cache
             )
+            return response
         }
-        guard let cacheConfiguration = context.request.cacheConfiguration,
-              cacheConfiguration.isEnabled,
-              let requestIdentity = context.requestIdentity,
-              cacheConfiguration.shouldCache(response),
-              let extractedResponse = responseExtractor(response) else {
+        guard cacheConfiguration.shouldCache(response) else {
+            logger.debug(
+                "缓存写入已跳过：requestID=\(context.request.instanceIdentifier.uuidString) identity=\(requestIdentity.value)，原因=缓存策略拒绝当前响应；影响=后续相同请求仍会走网络。",
+                category: .cache
+            )
+            return response
+        }
+        guard let extractedResponse = responseExtractor(response) else {
+            logger.debug(
+                "缓存写入已跳过：requestID=\(context.request.instanceIdentifier.uuidString) identity=\(requestIdentity.value)，原因=响应中没有可缓存的数据；影响=后续相同请求仍会走网络。",
+                category: .cache
+            )
             return response
         }
         let cache = NtkNetworkCache(storage: storage)
