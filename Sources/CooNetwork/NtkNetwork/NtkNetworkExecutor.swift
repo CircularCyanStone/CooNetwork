@@ -169,7 +169,7 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
 
         if let deduplicationKey {
             logger.debug(
-                "[Deduplication] key-ready requestID=\(request.instanceIdentifier.uuidString) identity=\(deduplicationKey.requestIdentity.value) timeout=\(deduplicationKey.effectiveTimeout) namespace=\(deduplicationKey.namespace)",
+                "[Deduplication] key-ready requestID=\(request.instanceIdentifier.uuidString) identity=\(deduplicationKey.requestIdentity.value) timeout=\(deduplicationKey.effectiveTimeout)",
                 category: .deduplication
             )
         } else {

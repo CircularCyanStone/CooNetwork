@@ -722,13 +722,15 @@ struct NtkNetworkExecutorTests {
         var builder = NtkConfiguration.Builder()
         builder.isLoggingEnabled = true
         let loggingConfiguration = NtkConfiguration(builder: builder)
+        let sensitiveNamespace = "tenant-secret-namespace"
         let request = NtkMutableRequest(ExecDummyRequest(path: "/executor/logging/identity-built"))
         let expectedIdentity = try NtkRequestIdentityBuilder.build(request: request, policy: .strict)
         let executor = NtkNetworkExecutor<Bool>(config: .init(
             client: ExecMockClient(result: .success(())),
             request: request,
             interceptors: [NtkResponseParserBox(ExecMockParsingInterceptor())],
-            globalConfiguration: loggingConfiguration
+            globalConfiguration: loggingConfiguration,
+            deduplicationNamespace: sensitiveNamespace
         ))
 
         try await NtkLogger.withTestSink({ record in
@@ -754,9 +756,10 @@ struct NtkNetworkExecutorTests {
             .init(
                 level: .debug,
                 category: .deduplication,
-                message: "[Deduplication] key-ready requestID=\(requestID) identity=\(expectedIdentity.value) timeout=20.0 namespace=default"
+                message: "[Deduplication] key-ready requestID=\(requestID) identity=\(expectedIdentity.value) timeout=20.0"
             )
         ])
+        #expect(capture.records.allSatisfy { !$0.message.contains(sensitiveNamespace) })
     }
 
     @Test
