@@ -120,8 +120,9 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
         }
         let deduplicationEnabled = includeDeduplication && requestDeduplicationEnabled
         let cacheEnabled = includeCache && request.cacheConfiguration?.isEnabled == true
+        let logPath = URLComponents(string: request.path)?.path ?? "<redacted>"
         logger.debug(
-            "[RequestExecution] prepared requestID=\(request.instanceIdentifier.uuidString) method=\(request.method.rawValue) path=\(request.path) timeout=\(effectiveTimeout) cache=\(cacheEnabled) deduplication=\(deduplicationEnabled)",
+            "[RequestExecution] prepared requestID=\(request.instanceIdentifier.uuidString) method=\(request.method.rawValue) path=\(logPath) timeout=\(effectiveTimeout) cache=\(cacheEnabled) deduplication=\(deduplicationEnabled)",
             category: .network
         )
 

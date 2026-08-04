@@ -749,7 +749,11 @@ struct NtkNetworkExecutorTests {
         builder.isLoggingEnabled = true
         let loggingConfiguration = NtkConfiguration(builder: builder)
         let sensitiveNamespace = "tenant-secret-namespace"
-        let request = NtkMutableRequest(ExecDummyRequest(path: "/executor/logging/identity-built"))
+        let sensitiveQuery = "path-secret"
+        let sensitiveFragment = "fragment-secret"
+        let request = NtkMutableRequest(ExecDummyRequest(
+            path: "/oauth/callback?code=\(sensitiveQuery)#\(sensitiveFragment)"
+        ))
         let expectedIdentity = try NtkRequestIdentityBuilder.build(request: request, policy: .strict)
         let executor = NtkNetworkExecutor<Bool>(config: .init(
             client: ExecMockClient(result: .success(())),
@@ -772,7 +776,7 @@ struct NtkNetworkExecutorTests {
             .init(
                 level: .debug,
                 category: .network,
-                message: "[RequestExecution] prepared requestID=\(requestID) method=POST path=/executor/logging/identity-built timeout=20.0 cache=false deduplication=true"
+                message: "[RequestExecution] prepared requestID=\(requestID) method=POST path=/oauth/callback timeout=20.0 cache=false deduplication=true"
             ),
             .init(
                 level: .debug,
@@ -786,6 +790,8 @@ struct NtkNetworkExecutorTests {
             )
         ])
         #expect(capture.records.allSatisfy { !$0.message.contains(sensitiveNamespace) })
+        #expect(capture.records.allSatisfy { !$0.message.contains(sensitiveQuery) })
+        #expect(capture.records.allSatisfy { !$0.message.contains(sensitiveFragment) })
     }
 
     @Test
