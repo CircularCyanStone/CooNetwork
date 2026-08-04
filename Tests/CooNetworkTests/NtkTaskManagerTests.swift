@@ -219,6 +219,254 @@ struct NtkTaskManagerTests {
         #expect(await counter.value() == 1)
     }
 
+    // MARK: - 去重生命周期日志
+
+    @Test
+    func sharedDeduplicationLogsOwnerFollowerAndFinalEntryRemovalWithoutRequestSecrets() async throws {
+        let capture = DeduplicationLogCapture()
+        let gate = TaskExecutionGate()
+        let opaqueIdentity = "opaque-deduplication-identity"
+        let sensitiveHeader = "Bearer deduplication-header-secret"
+        let sensitiveParameter = "deduplication-parameter-secret"
+        let deduplicationKey = makeDeduplicationKey(
+            String.self,
+            requestIdentityValue: opaqueIdentity
+        )
+        var owner = NtkMutableRequest(
+            TaskManagerDummyRequest(path: "/task-manager/logging/shared")
+        )
+        owner.setHeader(sensitiveHeader, forField: "Authorization")
+        owner.setParameter(sensitiveParameter, forKey: "token")
+        let ownerSnapshot = owner
+        let follower = NtkMutableRequest(
+            TaskManagerDummyRequest(path: "/task-manager/logging/shared")
+        )
+
+        try await NtkLogger.withTestSink({ record in
+            capture.append(record)
+        }) {
+            try await NtkConfiguration.withTestConfiguration(deduplicationLoggingConfiguration) {
+                let ownerTask = Task {
+                    try await NtkTaskManager.shared.executeWithDeduplication(
+                        request: ownerSnapshot,
+                        deduplicationKey: deduplicationKey,
+                        effectiveTimeout: 30
+                    ) {
+                        await gate.signalFirstStarted()
+                        await gate.waitForFirstRelease()
+                        return "shared"
+                    } as String
+                }
+                #expect(await waitUntil("日志 owner 开始") { await gate.firstStarted() })
+
+                let followerTask = Task {
+                    try await NtkTaskManager.shared.executeWithDeduplication(
+                        request: follower,
+                        deduplicationKey: deduplicationKey,
+                        effectiveTimeout: 30
+                    ) {
+                        "should-not-run"
+                    } as String
+                }
+                #expect(await waitUntilActive(follower, description: "日志 follower 已登记"))
+
+                await gate.releaseFirst()
+                let ownerValue = try await ownerTask.value
+                let followerValue = try await followerTask.value
+                #expect(ownerValue == "shared")
+                #expect(followerValue == "shared")
+            }
+        }
+
+        let records = capture.records
+        let ownerContext = "requestID=\(owner.instanceIdentifier.uuidString) identity=\(opaqueIdentity)"
+        let followerContext = "requestID=\(follower.instanceIdentifier.uuidString) identity=\(opaqueIdentity)"
+        #expect(records.contains(.init(
+            level: .debug,
+            category: .deduplication,
+            message: "[Deduplication] owner-created \(ownerContext)"
+        )))
+        #expect(records.contains(.init(
+            level: .debug,
+            category: .deduplication,
+            message: "[Deduplication] follower-joined \(followerContext)"
+        )))
+        #expect(records.contains(.init(
+            level: .debug,
+            category: .deduplication,
+            message: "[Deduplication] entry-removed \(ownerContext) reason=no-waiters"
+        )))
+        #expect(records.allSatisfy { !$0.message.contains(sensitiveHeader) })
+        #expect(records.allSatisfy { !$0.message.contains(sensitiveParameter) })
+    }
+
+    @Test
+    func sharedDeduplicationLogsFollowerCancellation() async throws {
+        let capture = DeduplicationLogCapture()
+        let gate = TaskExecutionGate()
+        let opaqueIdentity = "opaque-follower-cancellation-identity"
+        let deduplicationKey = makeDeduplicationKey(
+            String.self,
+            requestIdentityValue: opaqueIdentity
+        )
+        let owner = NtkMutableRequest(
+            TaskManagerDummyRequest(path: "/task-manager/logging/follower-cancel")
+        )
+        var follower = NtkMutableRequest(
+            TaskManagerDummyRequest(path: "/task-manager/logging/follower-cancel")
+        )
+        let cancellationState = NtkCancellableState()
+        follower.isCancelledRef = cancellationState
+        let followerSnapshot = follower
+        let followerIdentifier = follower.instanceIdentifier
+
+        try await NtkLogger.withTestSink({ record in
+            capture.append(record)
+        }) {
+            try await NtkConfiguration.withTestConfiguration(deduplicationLoggingConfiguration) {
+                let ownerTask = Task {
+                    try await NtkTaskManager.shared.executeWithDeduplication(
+                        request: owner,
+                        deduplicationKey: deduplicationKey,
+                        effectiveTimeout: 30
+                    ) {
+                        await gate.signalFirstStarted()
+                        await gate.waitForFirstRelease()
+                        return "shared"
+                    } as String
+                }
+                #expect(await waitUntil("follower 日志 owner 开始") { await gate.firstStarted() })
+
+                let followerTask = Task { () -> Result<String, Error> in
+                    do {
+                        let value: String = try await NtkTaskManager.shared.executeWithDeduplication(
+                            request: followerSnapshot,
+                            deduplicationKey: deduplicationKey,
+                            effectiveTimeout: 30
+                        ) {
+                            "should-not-run"
+                        }
+                        return .success(value)
+                    } catch {
+                        return .failure(error)
+                    }
+                }
+                #expect(await waitUntilActive(followerSnapshot, description: "follower 日志已登记"))
+
+                cancellationState.cancel()
+                await NtkTaskManager.shared.cancelRequest(instanceIdentifier: followerIdentifier)
+                await gate.releaseFirst()
+                _ = try await ownerTask.value
+                if case .failure(let error) = await followerTask.value {
+                    #expect(isCancellationError(error))
+                } else {
+                    Issue.record("follower 应收到取消错误")
+                }
+            }
+        }
+
+        #expect(capture.records.contains(.init(
+            level: .debug,
+            category: .deduplication,
+            message: "[Deduplication] follower-cancelled requestID=\(followerIdentifier.uuidString) identity=\(opaqueIdentity)"
+        )))
+    }
+
+    @Test
+    func deduplicationLogsFrameworkTimeoutWithEffectiveTimeout() async {
+        let capture = DeduplicationLogCapture()
+        let effectiveTimeout: TimeInterval = 0.03
+        let opaqueIdentity = "opaque-timeout-identity"
+        let request = NtkMutableRequest(
+            TaskManagerDummyRequest(path: "/task-manager/logging/timeout")
+        )
+        let deduplicationKey = makeDeduplicationKey(
+            String.self,
+            requestIdentityValue: opaqueIdentity,
+            timeout: effectiveTimeout
+        )
+
+        let result: Result<String, Error> = await NtkLogger.withTestSink({ record in
+            capture.append(record)
+        }) {
+            await NtkConfiguration.withTestConfiguration(deduplicationLoggingConfiguration) {
+                await Task { () -> Result<String, Error> in
+                    do {
+                        let value: String = try await NtkTaskManager.shared.executeWithDeduplication(
+                            request: request,
+                            deduplicationKey: deduplicationKey,
+                            effectiveTimeout: 1
+                        ) {
+                            try await Task.sleep(nanoseconds: 60_000_000_000)
+                            return "unexpected"
+                        }
+                        return .success(value)
+                    } catch {
+                        return .failure(error)
+                    }
+                }.value
+            }
+        }
+
+        if case .failure(let error) = result {
+            #expect(isFrameworkTimeout(error, expected: effectiveTimeout))
+        } else {
+            Issue.record("期望 framework timeout")
+        }
+        #expect(capture.records.contains(.init(
+            level: .error,
+            category: .deduplication,
+            message: "[Deduplication] execution-timeout requestID=\(request.instanceIdentifier.uuidString) identity=\(opaqueIdentity) timeout=\(effectiveTimeout)"
+        )))
+    }
+
+    @Test
+    func deduplicationFailureLogsOnlyErrorTypeWithoutErrorDescription() async {
+        let capture = DeduplicationLogCapture()
+        let errorDescription = "deduplication-execution-secret"
+        let request = NtkMutableRequest(
+            TaskManagerDummyRequest(path: "/task-manager/logging/failure")
+        )
+
+        let result: Result<String, Error> = await NtkLogger.withTestSink({ record in
+            capture.append(record)
+        }) {
+            await NtkConfiguration.withTestConfiguration(deduplicationLoggingConfiguration) {
+                await Task { () -> Result<String, Error> in
+                    do {
+                        let value: String = try await NtkTaskManager.shared.executeWithDeduplication(
+                            request: request,
+                            deduplicationKey: nil,
+                            effectiveTimeout: 30
+                        ) {
+                            throw TaskManagerSensitiveExecutionError(secret: errorDescription)
+                        }
+                        return .success(value)
+                    } catch {
+                        return .failure(error)
+                    }
+                }.value
+            }
+        }
+
+        if case .failure = result {
+        } else {
+            Issue.record("期望执行失败")
+        }
+        guard let failure = capture.records.first(where: {
+            $0.message.hasPrefix("[Deduplication] execution-failed")
+        }) else {
+            Issue.record("期望执行失败日志")
+            return
+        }
+        #expect(failure.level == .error)
+        #expect(failure.category == .deduplication)
+        #expect(failure.message.contains("requestID=\(request.instanceIdentifier.uuidString)"))
+        #expect(failure.message.contains("errorType=TaskManagerSensitiveExecutionError"))
+        #expect(!failure.message.contains("identity="))
+        #expect(!failure.message.contains(errorDescription))
+    }
+
     @Test
     func testCancelAndReenterDedupRequestKeepsNewTaskMapped() async throws {
         let gate = TaskExecutionGate()
@@ -956,6 +1204,37 @@ private func isFrameworkTimeout(_ error: Error, expected: TimeInterval) -> Bool 
         return reason.source == "Framework" && reason.detail == "\(expected)s"
     }
     return false
+}
+
+private let deduplicationLoggingConfiguration: NtkConfiguration = {
+    var builder = NtkConfiguration.Builder()
+    builder.isLoggingEnabled = true
+    return NtkConfiguration(builder: builder)
+}()
+
+private final class DeduplicationLogCapture: @unchecked Sendable {
+    private let lock = NtkUnfairLock()
+    private var storage: [NtkLogger.LogRecord] = []
+
+    var records: [NtkLogger.LogRecord] {
+        lock.lock()
+        defer { lock.unlock() }
+        return storage
+    }
+
+    func append(_ record: NtkLogger.LogRecord) {
+        lock.lock()
+        defer { lock.unlock() }
+        storage.append(record)
+    }
+}
+
+private struct TaskManagerSensitiveExecutionError: Error, Sendable, CustomStringConvertible {
+    let secret: String
+
+    var description: String {
+        "execution failed: \(secret)"
+    }
 }
 
 private struct TaskManagerDummyRequest: iNtkRequest {

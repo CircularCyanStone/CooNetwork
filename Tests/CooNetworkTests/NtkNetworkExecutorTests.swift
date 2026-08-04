@@ -787,6 +787,16 @@ struct NtkNetworkExecutorTests {
                 level: .debug,
                 category: .deduplication,
                 message: "[Deduplication] key-ready requestID=\(requestID) identity=\(expectedIdentity.value) timeout=20.0"
+            ),
+            .init(
+                level: .debug,
+                category: .deduplication,
+                message: "[Deduplication] owner-created requestID=\(requestID) identity=\(expectedIdentity.value)"
+            ),
+            .init(
+                level: .debug,
+                category: .deduplication,
+                message: "[Deduplication] entry-removed requestID=\(requestID) identity=\(expectedIdentity.value) reason=no-waiters"
             )
         ])
         #expect(capture.records.allSatisfy { !$0.message.contains(sensitiveNamespace) })
@@ -833,6 +843,16 @@ struct NtkNetworkExecutorTests {
                 level: .debug,
                 category: .deduplication,
                 message: "[Deduplication] disabled requestID=\(requestID)"
+            ),
+            .init(
+                level: .debug,
+                category: .deduplication,
+                message: "[Deduplication] owner-created requestID=\(requestID)"
+            ),
+            .init(
+                level: .debug,
+                category: .deduplication,
+                message: "[Deduplication] entry-removed requestID=\(requestID) reason=no-waiters"
             )
         ])
     }
