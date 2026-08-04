@@ -237,28 +237,23 @@ extension NtkTaskManager {
     /// `waiter.cancel()` 就能当场 `resume(.failure(requestCancelled))`。而 `await
     /// sharedTask.value` 的挂起点在任务内部，谁也无法主动唤醒它。因此：
     /// - 调用方 `await waiter.value()` 等待结果，manager 调 `waiter.cancel()` 立即取消；
-    /// - `startResultForwarder` 专职等接口、把结果写进 waiter——它无人持有引用、永不
+    /// - 内层转发器专职等接口、把结果写进 waiter——它无人持有引用、永不
     ///   被取消，网络结果不会因任何等待者被取消而丢失。
+    ///
+    /// ## 为什么不再有外层 Task 和 onCancel
+    /// 早期版本把"等待"实现为外层 Task，取消靠 `task.cancel()` 触发
+    /// `withTaskCancellationHandler` 的 onCancel 再转发给 waiter。去掉外层 Task 后，
+    /// manager 直接持有 `TaskWaiter` 并调 `waiter.cancel()`——取消信号直达等待器，
+    /// 不再需要"任务"这个中转站，onCancel 也随之消失；取消的立即性不变（两条路径
+    /// 最终都是经 actor 调度后 resume 等待者）。
     ///
     /// ## 效果
     /// 取消某个等待者 → 该调用方立即收到 `NtkError.requestCancelled` 退出；
     /// 共享网络任务与其他等待者完全不受影响。
     private static func makeWaiter(for underlyingTask: Task<Sendable, Error>) -> TaskWaiter {
         let waiter = TaskWaiter()
-        startResultForwarder(from: underlyingTask, into: waiter)
-        return waiter
-    }
-
-    /// "结果转发器"：专职等待接口返回，把结果写进 waiter 的结果槽。
-    ///
-    /// 为什么它必须是独立任务：`await 任务.value` 不响应等待者的取消，谁挂在这上面，谁就
-    /// 无法立即响应取消。所以这个 await 只能由"永远不会被取消"的任务承担——本转发器无人
-    /// 持有引用、不属于任何结构化并发，永远不会收到取消信号；网络结果也就永远不会因任何
-    /// 等待者被取消而丢失。
-    private static func startResultForwarder(
-        from underlyingTask: Task<Sendable, Error>,
-        into waiter: TaskWaiter
-    ) {
+        // 内层转发器：专职等接口、把结果写进 waiter。它无人持有引用、永不响应取消，
+        // 所以 `await underlyingTask.value` 的结果不会因任何等待者被取消而丢失。
         Task {
             do {
                 await waiter.complete(.success(try await underlyingTask.value))
@@ -266,8 +261,8 @@ extension NtkTaskManager {
                 await waiter.complete(.failure(error))
             }
         }
+        return waiter
     }
-
 
     /// 作为 primary 创建并等待一次新的共享执行。
     ///
@@ -311,7 +306,7 @@ extension NtkTaskManager {
         }
 
         do {
-            let result = try await entry.primaryWaiter.value
+            let result = try await entry.primaryWaiter.value()
             if request.isCancelledRef?.isCancelled == true {
                 throw NtkError.requestCancelled
             }
@@ -364,7 +359,7 @@ extension NtkTaskManager {
         }
 
         do {
-            let result = try await waiterTask.value
+            let result = try await waiterTask.value()
             if request.isCancelledRef?.isCancelled == true {
                 throw NtkError.requestCancelled
             }
