@@ -17,16 +17,24 @@ struct NtkLoggerTests {
 
         NtkConfiguration.configure { $0.isLoggingEnabled = false }
 
-        logger.debug("debug", category: .network)
-        logger.info("info", category: .network)
-        logger.warning("warning", category: .network)
-        logger.error("error", category: .network)
-        logger.fault("fault", category: .network)
+        logger.error("unrelated-concurrent-log", category: .retry)
+        let messages = [
+            "logger-test-debug",
+            "logger-test-info",
+            "logger-test-warning",
+            "logger-test-error",
+            "logger-test-fault"
+        ]
+        logger.debug(messages[0], category: .network)
+        logger.info(messages[1], category: .network)
+        logger.warning(messages[2], category: .network)
+        logger.error(messages[3], category: .network)
+        logger.fault(messages[4], category: .network)
 
-        #expect(capture.records == [
-            .init(level: .warning, category: .network, message: "warning"),
-            .init(level: .error, category: .network, message: "error"),
-            .init(level: .fault, category: .network, message: "fault")
+        #expect(capture.records(matchingMessages: messages) == [
+            .init(level: .warning, category: .network, message: messages[2]),
+            .init(level: .error, category: .network, message: messages[3]),
+            .init(level: .fault, category: .network, message: messages[4])
         ])
     }
 
@@ -43,13 +51,14 @@ struct NtkLoggerTests {
         }
 
         NtkConfiguration.configure { $0.isLoggingEnabled = false }
-        logger.debug("before-enable", category: .network)
+        let messages = ["logger-test-before-enable", "logger-test-after-enable"]
+        logger.debug(messages[0], category: .network)
 
         NtkConfiguration.configure { $0.isLoggingEnabled = true }
-        logger.debug("after-enable", category: .network)
+        logger.debug(messages[1], category: .network)
 
-        #expect(capture.records == [
-            .init(level: .debug, category: .network, message: "after-enable")
+        #expect(capture.records(matchingMessages: messages) == [
+            .init(level: .debug, category: .network, message: messages[1])
         ])
     }
 }
@@ -62,6 +71,10 @@ private final class LogCapture: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return storage
+    }
+
+    func records(matchingMessages messages: [String]) -> [NtkLogger.LogRecord] {
+        records.filter { messages.contains($0.message) }
     }
 
     func append(_ record: NtkLogger.LogRecord) {
