@@ -791,7 +791,7 @@ struct NtkNetworkExecutorTests {
             .init(
                 level: .debug,
                 category: .deduplication,
-                message: "[Deduplication] owner-created requestID=\(requestID) identity=\(expectedIdentity.value)"
+                message: "[Deduplication] owner-created requestID=\(requestID) identity=\(expectedIdentity.value) timeout=20.0"
             ),
             .init(
                 level: .debug,
@@ -847,7 +847,7 @@ struct NtkNetworkExecutorTests {
             .init(
                 level: .debug,
                 category: .deduplication,
-                message: "[Deduplication] owner-created requestID=\(requestID)"
+                message: "[Deduplication] owner-created requestID=\(requestID) timeout=20.0"
             ),
             .init(
                 level: .debug,

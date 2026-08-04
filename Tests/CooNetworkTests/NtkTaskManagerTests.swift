@@ -284,7 +284,7 @@ struct NtkTaskManagerTests {
         #expect(records.contains(.init(
             level: .debug,
             category: .deduplication,
-            message: "[Deduplication] owner-created \(ownerContext)"
+            message: "[Deduplication] owner-created \(ownerContext) timeout=30.0"
         )))
         #expect(records.contains(.init(
             level: .debug,
@@ -418,6 +418,9 @@ struct NtkTaskManagerTests {
             category: .deduplication,
             message: "[Deduplication] execution-timeout requestID=\(request.instanceIdentifier.uuidString) identity=\(opaqueIdentity) timeout=\(effectiveTimeout)"
         )))
+        #expect(!capture.records.contains {
+            $0.message.hasPrefix("[Deduplication] execution-failed")
+        })
     }
 
     @Test
@@ -465,6 +468,55 @@ struct NtkTaskManagerTests {
         #expect(failure.message.contains("errorType=TaskManagerSensitiveExecutionError"))
         #expect(!failure.message.contains("identity="))
         #expect(!failure.message.contains(errorDescription))
+    }
+
+    @Test
+    func cancellationNormalizationDoesNotLogUnderlyingFailure() async {
+        let capture = DeduplicationLogCapture()
+        let gate = TaskExecutionGate()
+        let cancellationState = NtkCancellableState()
+        var request = NtkMutableRequest(
+            TaskManagerDummyRequest(path: "/task-manager/logging/cancelled-failure")
+        )
+        request.isCancelledRef = cancellationState
+        let requestSnapshot = request
+        let errorDescription = "cancelled-underlying-secret"
+
+        let result: Result<String, Error> = await NtkLogger.withTestSink({ record in
+            capture.append(record)
+        }) {
+            await NtkConfiguration.withTestConfiguration(deduplicationLoggingConfiguration) {
+                let task = Task { () -> Result<String, Error> in
+                    do {
+                        let value: String = try await NtkTaskManager.shared.executeWithDeduplication(
+                            request: requestSnapshot,
+                            deduplicationKey: nil,
+                            effectiveTimeout: 30
+                        ) {
+                            await gate.signalFirstStarted()
+                            await gate.waitForFirstRelease()
+                            throw TaskManagerSensitiveExecutionError(secret: errorDescription)
+                        }
+                        return .success(value)
+                    } catch {
+                        return .failure(error)
+                    }
+                }
+                #expect(await waitUntil("取消归一化 owner 开始") { await gate.firstStarted() })
+                cancellationState.cancel()
+                await gate.releaseFirst()
+                return await task.value
+            }
+        }
+
+        #expect({
+            guard case .failure(let error) = result else { return false }
+            return isCancellationError(error)
+        }())
+        #expect(!capture.records.contains {
+            $0.message.hasPrefix("[Deduplication] execution-failed")
+        })
+        #expect(capture.records.allSatisfy { !$0.message.contains(errorDescription) })
     }
 
     @Test

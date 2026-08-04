@@ -140,39 +140,29 @@ extension NtkTaskManager {
             }
             group.addTask {
                 try await Task.sleep(nanoseconds: UInt64(effectiveTimeout * 1_000_000_000))
+                logger.error(
+                    "[Deduplication] execution-timeout \(logContext) timeout=\(effectiveTimeout)",
+                    category: .deduplication
+                )
                 throw NtkError.requestTimeout(.framework(timeout: effectiveTimeout))
             }
 
-            do {
-                guard let result = try await group.next() else {
-                    throw NtkError.requestCancelled
-                }
-                return result
-            } catch {
-                logExecutionFailure(error, effectiveTimeout: effectiveTimeout, logContext: logContext)
-                throw error
+            guard let result = try await group.next() else {
+                throw NtkError.requestCancelled
             }
+            return result
         }
     }
 
-    private static func logExecutionFailure(
+    private static func logFinalExecutionFailure(
         _ error: Error,
-        effectiveTimeout: TimeInterval,
         logContext: String
     ) {
-        if let ntkError = error as? NtkError,
-           case let .requestTimeout(reason) = ntkError,
-           reason.source == "Framework" {
-            logger.error(
-                "[Deduplication] execution-timeout \(logContext) timeout=\(effectiveTimeout)",
-                category: .deduplication
-            )
-        } else if !isCancellation(error) {
-            logger.error(
-                "[Deduplication] execution-failed \(logContext) errorType=\(String(describing: type(of: error)))",
-                category: .deduplication
-            )
-        }
+        guard !isCancellation(error), !isFrameworkTimeout(error) else { return }
+        logger.error(
+            "[Deduplication] execution-failed \(logContext) errorType=\(String(reflecting: type(of: error)))",
+            category: .deduplication
+        )
     }
 
     private static func isCancellation(_ error: Error) -> Bool {
@@ -180,6 +170,14 @@ extension NtkTaskManager {
         guard let ntkError = error as? NtkError else { return false }
         if case .requestCancelled = ntkError { return true }
         return false
+    }
+
+    private static func isFrameworkTimeout(_ error: Error) -> Bool {
+        guard let ntkError = error as? NtkError,
+              case let .requestTimeout(reason) = ntkError else {
+            return false
+        }
+        return reason.source == "Framework"
     }
 
     private static func makeCancellableWaiterTask(
@@ -230,7 +228,7 @@ extension NtkTaskManager {
         ongoingRequests[runtimeKey] = entry
         register(request.instanceIdentifier, for: runtimeKey)
         logger.debug(
-            "[Deduplication] owner-created \(logContext)",
+            "[Deduplication] owner-created \(logContext) timeout=\(effectiveTimeout)",
             category: .deduplication
         )
 
@@ -251,6 +249,7 @@ extension NtkTaskManager {
             if request.isCancelledRef?.isCancelled == true {
                 throw NtkError.requestCancelled
             }
+            Self.logFinalExecutionFailure(error, logContext: logContext)
             throw error
         }
     }
