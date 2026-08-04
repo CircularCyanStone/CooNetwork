@@ -17,7 +17,7 @@ public struct NtkConfiguration: Sendable {
 
     /// 配置构建器
     public struct Builder : Sendable{
-        /// 日志开关（默认关闭）
+        /// 日志开关：启用时输出 debug 及以上；关闭时仍输出 warning、error 和 fault（默认关闭）
         public var isLoggingEnabled: Bool = false
 
         /// 是否全局启用去重功能（默认启用）
