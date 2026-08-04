@@ -120,26 +120,40 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
         }
         let deduplicationEnabled = includeDeduplication && requestDeduplicationEnabled
         let cacheEnabled = includeCache && request.cacheConfiguration?.isEnabled == true
+        logger.debug(
+            "[RequestExecution] prepared requestID=\(request.instanceIdentifier.uuidString) method=\(request.method.rawValue) path=\(request.path) timeout=\(effectiveTimeout) cache=\(cacheEnabled) deduplication=\(deduplicationEnabled)",
+            category: .network
+        )
+
         let requestIdentity: NtkRequestIdentity?
         if deduplicationEnabled || cacheEnabled {
             do {
                 // 单条网络执行路径只构建这一份 request identity。下面生成的 deduplication key 和响应阶段的
                 // NtkCacheInterceptor 都引用它，禁止各自根据 request 重算 key。
-                requestIdentity = try NtkRequestIdentityBuilder.build(
+                let builtRequestIdentity = try NtkRequestIdentityBuilder.build(
                     request: request,
                     policy: config.requestIdentityPolicy
+                )
+                requestIdentity = builtRequestIdentity
+                logger.debug(
+                    "[RequestIdentity] built requestID=\(request.instanceIdentifier.uuidString) identity=\(builtRequestIdentity.value)",
+                    category: .requestIdentity
                 )
             } catch let error as NtkRequestIdentityBuilder.BuildError {
                 // 失败内容已经由 BuildError 脱敏。这里不抛 NtkError，因为缓存和去重是可选优化，
                 // 参数仍可能完全能够被具体 HTTP client 正常序列化和发送。
                 logger.warning(
-                    "Request key unavailable: \(error.logMessage)",
+                    "[RequestIdentity] unavailable requestID=\(request.instanceIdentifier.uuidString) error=\(error.logMessage) cache=false deduplication=false",
                     category: .requestIdentity
                 )
                 requestIdentity = nil
             }
         } else {
             requestIdentity = nil
+            logger.debug(
+                "[RequestIdentity] skipped requestID=\(request.instanceIdentifier.uuidString) reason=no-consumer",
+                category: .requestIdentity
+            )
         }
 
         // 缓存只关心资源 key；去重共享的是完整执行结果，所以还必须隔离响应泛型、实际
@@ -152,6 +166,18 @@ final class NtkNetworkExecutor<ResponseData: Sendable>: Sendable {
                 namespace: config.deduplicationNamespace
             )
         } : nil
+
+        if let deduplicationKey {
+            logger.debug(
+                "[Deduplication] key-ready requestID=\(request.instanceIdentifier.uuidString) identity=\(deduplicationKey.requestIdentity.value) timeout=\(deduplicationKey.effectiveTimeout) namespace=\(deduplicationKey.namespace)",
+                category: .deduplication
+            )
+        } else {
+            logger.debug(
+                "[Deduplication] disabled requestID=\(request.instanceIdentifier.uuidString)",
+                category: .deduplication
+            )
+        }
 
         return NtkInterceptorContext(
             request: request,

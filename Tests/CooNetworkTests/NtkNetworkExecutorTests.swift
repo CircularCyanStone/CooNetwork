@@ -713,6 +713,140 @@ struct NtkNetworkExecutorTests {
 
         #expect(await capture.requestIdentity() == expected)
     }
+
+    // MARK: - request identity preparation logging
+
+    @Test
+    func executeLogsPreparedIdentityAndDeduplicationKeyWhenIdentityBuilds() async throws {
+        let capture = ExecLogCapture()
+        var builder = NtkConfiguration.Builder()
+        builder.isLoggingEnabled = true
+        let loggingConfiguration = NtkConfiguration(builder: builder)
+        let request = NtkMutableRequest(ExecDummyRequest(path: "/executor/logging/identity-built"))
+        let expectedIdentity = try NtkRequestIdentityBuilder.build(request: request, policy: .strict)
+        let executor = NtkNetworkExecutor<Bool>(config: .init(
+            client: ExecMockClient(result: .success(())),
+            request: request,
+            interceptors: [NtkResponseParserBox(ExecMockParsingInterceptor())],
+            globalConfiguration: loggingConfiguration
+        ))
+
+        try await NtkLogger.withTestSink({ record in
+            capture.append(record)
+        }) {
+            try await NtkConfiguration.withTestConfiguration(loggingConfiguration) {
+                _ = try await executor.execute()
+            }
+        }
+
+        let requestID = request.instanceIdentifier.uuidString
+        #expect(capture.records == [
+            .init(
+                level: .debug,
+                category: .network,
+                message: "[RequestExecution] prepared requestID=\(requestID) method=POST path=/executor/logging/identity-built timeout=20.0 cache=false deduplication=true"
+            ),
+            .init(
+                level: .debug,
+                category: .requestIdentity,
+                message: "[RequestIdentity] built requestID=\(requestID) identity=\(expectedIdentity.value)"
+            ),
+            .init(
+                level: .debug,
+                category: .deduplication,
+                message: "[Deduplication] key-ready requestID=\(requestID) identity=\(expectedIdentity.value) timeout=20.0 namespace=default"
+            )
+        ])
+    }
+
+    @Test
+    func executeLogsSkippedIdentityAndDisabledDeduplicationWithoutConsumers() async throws {
+        let capture = ExecLogCapture()
+        var builder = NtkConfiguration.Builder()
+        builder.isLoggingEnabled = true
+        builder.isDeduplicationEnabled = false
+        let loggingConfiguration = NtkConfiguration(builder: builder)
+        let request = NtkMutableRequest(ExecDummyRequest(path: "/executor/logging/no-consumer"))
+        let executor = NtkNetworkExecutor<Bool>(config: .init(
+            client: ExecMockClient(result: .success(())),
+            request: request,
+            interceptors: [NtkResponseParserBox(ExecMockParsingInterceptor())],
+            globalConfiguration: loggingConfiguration
+        ))
+
+        try await NtkLogger.withTestSink({ record in
+            capture.append(record)
+        }) {
+            try await NtkConfiguration.withTestConfiguration(loggingConfiguration) {
+                _ = try await executor.execute()
+            }
+        }
+
+        let requestID = request.instanceIdentifier.uuidString
+        #expect(capture.records == [
+            .init(
+                level: .debug,
+                category: .network,
+                message: "[RequestExecution] prepared requestID=\(requestID) method=POST path=/executor/logging/no-consumer timeout=20.0 cache=false deduplication=false"
+            ),
+            .init(
+                level: .debug,
+                category: .requestIdentity,
+                message: "[RequestIdentity] skipped requestID=\(requestID) reason=no-consumer"
+            ),
+            .init(
+                level: .debug,
+                category: .deduplication,
+                message: "[Deduplication] disabled requestID=\(requestID)"
+            )
+        ])
+    }
+
+    @Test
+    func executeLogsSanitizedIdentityBuildFailureAndDisablesDeduplication() async throws {
+        let capture = ExecLogCapture()
+        var builder = NtkConfiguration.Builder()
+        builder.isLoggingEnabled = true
+        let loggingConfiguration = NtkConfiguration(builder: builder)
+        let sensitiveHeader = "Bearer header-secret-value"
+        let sensitiveParameter = "parameter-secret-value"
+        var request = NtkMutableRequest(ExecDummyRequest(path: "/executor/logging/identity-unavailable"))
+        request.setHeader(sensitiveHeader, forField: "Authorization")
+        request.setParameter(
+            ExecSensitiveUnsupportedIdentityValue(secret: sensitiveParameter),
+            forKey: "unsupported"
+        )
+        let executor = NtkNetworkExecutor<Bool>(config: .init(
+            client: ExecMockClient(result: .success(())),
+            request: request,
+            interceptors: [NtkResponseParserBox(ExecMockParsingInterceptor())],
+            globalConfiguration: loggingConfiguration
+        ))
+
+        try await NtkLogger.withTestSink({ record in
+            capture.append(record)
+        }) {
+            try await NtkConfiguration.withTestConfiguration(loggingConfiguration) {
+                _ = try await executor.execute()
+            }
+        }
+
+        let requestID = request.instanceIdentifier.uuidString
+        let unavailable = try #require(capture.records.first {
+            $0.message.hasPrefix("[RequestIdentity] unavailable")
+        })
+        #expect(unavailable.level == .warning)
+        #expect(unavailable.category == .requestIdentity)
+        #expect(unavailable.message.contains("requestID=\(requestID)"))
+        #expect(unavailable.message.contains("cache=false deduplication=false"))
+        #expect(!unavailable.message.contains(sensitiveHeader))
+        #expect(!unavailable.message.contains(sensitiveParameter))
+        #expect(capture.records.contains(.init(
+            level: .debug,
+            category: .deduplication,
+            message: "[Deduplication] disabled requestID=\(requestID)"
+        )))
+    }
 }
 
 // MARK: - Factory Helpers
@@ -826,6 +960,27 @@ private struct ExecSnapshotRequest: iNtkRequest {
 }
 
 private struct UnsupportedExecRequestIdentityValue: Sendable {}
+
+private struct ExecSensitiveUnsupportedIdentityValue: Sendable {
+    let secret: String
+}
+
+private final class ExecLogCapture: @unchecked Sendable {
+    private let lock = NtkUnfairLock()
+    private var storage: [NtkLogger.LogRecord] = []
+
+    var records: [NtkLogger.LogRecord] {
+        lock.lock()
+        defer { lock.unlock() }
+        return storage
+    }
+
+    func append(_ record: NtkLogger.LogRecord) {
+        lock.lock()
+        defer { lock.unlock() }
+        storage.append(record)
+    }
+}
 
 private actor ExecPreparedContextCapture {
     private var context: NtkInterceptorContext?
