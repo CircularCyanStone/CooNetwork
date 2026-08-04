@@ -215,8 +215,10 @@ extension NtkNetwork {
                             do {
                                 return .cache(try await self.loadCache())
                             } catch {
-                                logger.debug(
-                                    "startWithCache 缓存加载失败，但不影响网络请求: \(error)", category: .cache)
+                                logger.warning(
+                                    "[Cache] concurrent-load-failed errorType=\(String(reflecting: type(of: error)))",
+                                    category: .cache
+                                )
                                 return .cache(nil)
                             }
                         }

@@ -58,6 +58,12 @@ public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
     /// 缺失都直接返回网络响应，保证 key 构建失败不会转换成 NtkError 或阻塞网络。
     public func intercept(context: NtkInterceptorContext, next: iNtkRequestHandler) async throws -> any iNtkResponse {
         let response = try await next.handle(context: context)
+        if context.request.cacheConfiguration?.isEnabled == true, context.requestIdentity == nil {
+            logger.debug(
+                "[Cache] write-skipped requestID=\(context.request.instanceIdentifier.uuidString) reason=identity-unavailable",
+                category: .cache
+            )
+        }
         guard let cacheConfiguration = context.request.cacheConfiguration,
               cacheConfiguration.isEnabled,
               let requestIdentity = context.requestIdentity,
@@ -71,7 +77,10 @@ public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
             for: context.request,
             requestIdentity: requestIdentity
         )
-        logger.debug("NTK请求缓存\(result ? "成功" : "失败")")
+        logger.debug(
+            "[Cache] write-\(result ? "succeeded" : "failed") requestID=\(context.request.instanceIdentifier.uuidString) identity=\(requestIdentity.value)",
+            category: .cache
+        )
         return response
     }
 
@@ -82,7 +91,20 @@ public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
         requestIdentity: NtkRequestIdentity
     ) async throws -> (any Sendable)? {
         let cache = NtkNetworkCache(storage: storage)
-        return try await cache.loadData(for: request, requestIdentity: requestIdentity)
+        do {
+            let data = try await cache.loadData(for: request, requestIdentity: requestIdentity)
+            logger.debug(
+                "[Cache] load-\(data == nil ? "miss" : "hit") requestID=\(request.instanceIdentifier.uuidString) identity=\(requestIdentity.value)",
+                category: .cache
+            )
+            return data
+        } catch {
+            logger.warning(
+                "[Cache] load-failed requestID=\(request.instanceIdentifier.uuidString) identity=\(requestIdentity.value) errorType=\(String(reflecting: type(of: error)))",
+                category: .cache
+            )
+            throw error
+        }
     }
 
     public func hasCacheData(
@@ -90,6 +112,11 @@ public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
         requestIdentity: NtkRequestIdentity
     ) async -> Bool {
         let cache = NtkNetworkCache(storage: storage)
-        return await cache.hasData(for: request, requestIdentity: requestIdentity)
+        let hasData = await cache.hasData(for: request, requestIdentity: requestIdentity)
+        logger.debug(
+            "[Cache] availability=\(hasData ? "hit" : "miss") requestID=\(request.instanceIdentifier.uuidString) identity=\(requestIdentity.value)",
+            category: .cache
+        )
+        return hasData
     }
 }

@@ -236,7 +236,7 @@ public struct NtkDataParsingInterceptor<
         request: iNtkRequest
     ) {
         logger.debug(
-            "[Response] \(request) params=\(request.parameters as [String: any Sendable]? ?? [:]) code=\(decoderResponse.code) msg=\(decoderResponse.msg ?? "")",
+            "[Response] decoded method=\(request.method.rawValue) code=\(decoderResponse.code) isCache=\(request.cacheConfiguration?.isEnabled == true)",
             category: .network
         )
     }

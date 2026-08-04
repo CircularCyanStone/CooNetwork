@@ -102,17 +102,23 @@ private extension NtkRetryInterceptor {
         delay: TimeInterval,
         error: Error
     ) {
-        logger.debug("[NtkRetry] Retry #\(retryCount) in \(delay)s. Error: \(error)", category: .retry)
+        logger.debug(
+            "[Retry] scheduled count=\(retryCount) delay=\(delay) errorType=\(String(reflecting: type(of: error)))",
+            category: .retry
+        )
     }
 
     /// 记录重试成功
     func recordRetrySuccess(retryCount: Int) {
-        logger.debug("[NtkRetry] Request succeeded after \(retryCount) retries", category: .retry)
+        logger.debug("[Retry] succeeded count=\(retryCount)", category: .retry)
     }
 
     /// 记录重试失败
     func recordRetryFailure(retryCount: Int, finalError: Error) {
-        logger.error("[NtkRetry] Request failed after \(retryCount) retries. Final error: \(finalError)", category: .retry)
+        logger.error(
+            "[Retry] exhausted count=\(retryCount) errorType=\(String(reflecting: type(of: finalError)))",
+            category: .retry
+        )
     }
 }
 
