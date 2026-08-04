@@ -36,22 +36,13 @@ public struct NtkLogger: Sendable {
         isLoggingEnabled ? .debug : .warning
     }
 
-    private static let testSinkLock = NtkUnfairLock()
-    nonisolated(unsafe) private static var testSink: (@Sendable (LogRecord) -> Void)?
+    @TaskLocal private static var testSink: (@Sendable (LogRecord) -> Void)?
 
-    @discardableResult
-    internal static func installTestSink(
-        _ sink: (@Sendable (LogRecord) -> Void)?
-    ) -> (@Sendable (LogRecord) -> Void)? {
-        testSinkLock.withLock {
-            let previousSink = testSink
-            testSink = sink
-            return previousSink
-        }
-    }
-
-    private static func currentTestSink() -> (@Sendable (LogRecord) -> Void)? {
-        testSinkLock.withLock { testSink }
+    internal static func withTestSink<Result: Sendable>(
+        _ sink: @escaping @Sendable (LogRecord) -> Void,
+        operation: @Sendable () async throws -> Result
+    ) async rethrows -> Result {
+        try await $testSink.withValue(sink, operation: operation)
     }
     
     /// 日志类别
@@ -113,7 +104,7 @@ public struct NtkLogger: Sendable {
     ) {
         guard level >= minimumLevel else { return }
 
-        NtkLogger.currentTestSink()?(LogRecord(level: level, category: category, message: message))
+        NtkLogger.testSink?(LogRecord(level: level, category: category, message: message))
         
         // 提取文件名
         let fileName = (file as NSString).lastPathComponent
