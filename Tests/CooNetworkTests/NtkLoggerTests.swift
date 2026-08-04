@@ -46,6 +46,45 @@ struct NtkLoggerTests {
             .init(level: .debug, category: .network, message: "after-enable")
         ])
     }
+
+    @Test
+    func globalConfigurationImmediatelyChangesEveryObservableLogLevel() async {
+        let originalConfiguration = NtkConfiguration.current
+        defer {
+            NtkConfiguration.configure { $0 = originalConfiguration.builder }
+        }
+
+        let prefix = "ntk-logger-global-config-"
+        let capture = LogCapture()
+        await NtkLogger.withTestSink({ record in
+            capture.append(record)
+        }) {
+            NtkConfiguration.configure { $0.isLoggingEnabled = false }
+            logger.debug("\(prefix)disabled-debug", category: .network)
+            logger.info("\(prefix)disabled-info", category: .network)
+            logger.warning("\(prefix)disabled-warning", category: .network)
+            logger.error("\(prefix)disabled-error", category: .network)
+            logger.fault("\(prefix)disabled-fault", category: .network)
+
+            NtkConfiguration.configure { $0.isLoggingEnabled = true }
+            logger.debug("\(prefix)enabled-debug", category: .network)
+            logger.info("\(prefix)enabled-info", category: .network)
+            logger.warning("\(prefix)enabled-warning", category: .network)
+            logger.error("\(prefix)enabled-error", category: .network)
+            logger.fault("\(prefix)enabled-fault", category: .network)
+        }
+
+        #expect(capture.records(withMessagePrefix: prefix) == [
+            .init(level: .warning, category: .network, message: "\(prefix)disabled-warning"),
+            .init(level: .error, category: .network, message: "\(prefix)disabled-error"),
+            .init(level: .fault, category: .network, message: "\(prefix)disabled-fault"),
+            .init(level: .debug, category: .network, message: "\(prefix)enabled-debug"),
+            .init(level: .info, category: .network, message: "\(prefix)enabled-info"),
+            .init(level: .warning, category: .network, message: "\(prefix)enabled-warning"),
+            .init(level: .error, category: .network, message: "\(prefix)enabled-error"),
+            .init(level: .fault, category: .network, message: "\(prefix)enabled-fault")
+        ])
+    }
 }
 
 private func loggingConfiguration(enabled: Bool) -> NtkConfiguration {
@@ -62,6 +101,10 @@ private final class LogCapture: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return storage
+    }
+
+    func records(withMessagePrefix prefix: String) -> [NtkLogger.LogRecord] {
+        records.filter { $0.message.hasPrefix(prefix) }
     }
 
     func append(_ record: NtkLogger.LogRecord) {
