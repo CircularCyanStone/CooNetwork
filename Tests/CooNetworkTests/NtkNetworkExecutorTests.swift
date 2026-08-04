@@ -457,28 +457,54 @@ struct NtkNetworkExecutorTests {
     @Test
     func requestIdentityBuildFailureSkipsCacheButStillExecutesNetwork() async throws {
         let capture = ExecCacheRequestCapture()
+        let logCapture = ExecLogCapture()
         let storage = ExecCapturingCacheStorage(capture: capture)
+        let sensitiveParameter = "cache-enabled-parameter-secret"
+        var builder = NtkConfiguration.Builder()
+        builder.isLoggingEnabled = true
+        let loggingConfiguration = NtkConfiguration(builder: builder)
         var request = NtkMutableRequest(
             ExecDummyRequest(cacheConfiguration: .default())
         )
-        request.setParameter(UnsupportedExecRequestIdentityValue(), forKey: "unsupported")
+        request.setParameter(
+            ExecSensitiveUnsupportedIdentityValue(secret: sensitiveParameter),
+            forKey: "unsupported"
+        )
         let executor = NtkNetworkExecutor<Bool>(config: .init(
             client: ExecMockClient(result: .success(())),
             request: request,
             interceptors: [
                 NtkResponseParserBox(ExecMockParsingInterceptor()),
                 NtkCacheInterceptor(storage: storage)
-            ]
+            ],
+            globalConfiguration: loggingConfiguration
         ))
 
-        let cachedResponse = try await executor.loadCache()
-        let hasCacheData = await executor.hasCacheData()
-        let response = try await executor.execute()
+        let (cachedResponse, hasCacheData, response) = try await NtkLogger.withTestSink({ record in
+            logCapture.append(record)
+        }) {
+            try await NtkConfiguration.withTestConfiguration(loggingConfiguration) {
+                let cachedResponse = try await executor.loadCache()
+                let hasCacheData = await executor.hasCacheData()
+                let response = try await executor.execute()
+                return (cachedResponse, hasCacheData, response)
+            }
+        }
 
         #expect(cachedResponse == nil)
         #expect(hasCacheData == false)
         #expect(response.data == true)
         #expect(await capture.storageCalls() == 0)
+        let unavailableRecords = logCapture.records.filter {
+            $0.message.hasPrefix("[RequestIdentity] unavailable")
+        }
+        #expect(unavailableRecords.count == 3)
+        #expect(unavailableRecords.allSatisfy {
+            $0.level == .warning && $0.category == .requestIdentity
+        })
+        #expect(unavailableRecords.allSatisfy {
+            !$0.message.contains(sensitiveParameter)
+        })
     }
 
     @Test
