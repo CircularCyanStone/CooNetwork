@@ -3,7 +3,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Swift-6.0-orange.svg" />
   <img src="https://img.shields.io/badge/platform-iOS%2013%2B%20%7C%20macOS%2010.15%2B-lightgrey.svg" />
-  <img src="https://img.shields.io/badge/version-0.3.0-blue.svg" />
+  <img src="https://img.shields.io/badge/version-0.4.0-blue.svg" />
   <img src="https://img.shields.io/badge/license-MIT-green.svg" />
 </p>
 
@@ -43,7 +43,7 @@ import AlamofireClient
 
 extension Ntk {
     static func api<T: Decodable>(_ request: iAFRequest) -> NtkNetwork<T> {
-        let network = NtkAF<T>.withAF(request)
+        let network = NtkAF<T>.alamofire(request)
         // 统一添加日志拦截器
         network.addInterceptor(LoggingInterceptor())
         // 稳定公共参数通过 interceptor 同时参与网络请求和缓存 key
@@ -109,7 +109,7 @@ let response: LoginResponse = try await Ntk.api(request).request()
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/CircularCyanStone/CooNetwork.git", from: "0.0.18")
+    .package(url: "https://github.com/CircularCyanStone/CooNetwork.git", from: "0.4.0")
 ]
 ```
 
@@ -130,7 +130,7 @@ dependencies: [
 在 `Podfile` 中添加：
 
 ```ruby
-pod 'CooNetwork/Alamofire', '~> 0.0.18'
+pod 'CooNetwork/Alamofire', '~> 0.4.0'
 ```
 
 执行安装：
@@ -174,7 +174,7 @@ struct LoginResponse: Codable {
 
 // 发起请求
 let request = LoginRequest(username: "user@example.com", password: "password")
-let network = NtkAF<LoginResponse>.withAF(request)
+let network = NtkAF<LoginResponse>.alamofire(request)
 
 do {
     let response = try await network.request()
@@ -216,13 +216,38 @@ struct CustomValidation: iNtkResponseValidation {
     }
 }
 
-let network = NtkAF<User>.withAF(request, validation: CustomValidation())
+let network = NtkAF<User>.alamofire(
+    request,
+    configuration: NtkAFConfiguration(
+        parsing: .standard(validation: CustomValidation())
+    )
+)
 ```
 
-### 5. 取消请求
+### 5. 自定义 Alamofire Session
 
 ```swift
-let network = NtkAF<User>.withAF(request)
+import Alamofire
+
+let urlSessionConfiguration = URLSessionConfiguration.ephemeral
+urlSessionConfiguration.waitsForConnectivity = true
+
+let configuration = NtkAFConfiguration<User>(
+    client: AFClient(
+        session: Session(configuration: urlSessionConfiguration)
+    )
+)
+
+let network = NtkAF<User>.alamofire(
+    request,
+    configuration: configuration
+)
+```
+
+### 6. 取消请求
+
+```swift
+let network = NtkAF<User>.alamofire(request)
 let task = Task {
     try await network.request()
 }
@@ -253,7 +278,7 @@ struct SearchRequest: iAFRequest {
 }
 
 let request = SearchRequest(keyword: "Swift", page: 1)
-let network = NtkAF<SearchResult>.withAF(request)
+let network = NtkAF<SearchResult>.alamofire(request)
 let result = try await network.request()
 ```
 
@@ -309,7 +334,10 @@ struct ProfileRequest: iAFRequest {
 }
 
 let storage = NtkMemoryCacheStorage()
-for try await response in NtkAF<User>.withAF(ProfileRequest(), storage: storage)
+for try await response in NtkAF<User>.alamofire(
+    ProfileRequest(),
+    configuration: NtkAFConfiguration(cacheStorage: storage)
+)
     .requestWithCache() {
     print(response.data)
 }
@@ -362,14 +390,14 @@ struct UploadRequest: iAFUploadRequest {
 }
 
 let request = UploadRequest(fileData: imageData)
-let network = NtkAF<UploadResponse>.withAF(request)
+let network = NtkAF<UploadResponse>.alamofire(request)
 let response = try await network.request()
 ```
 
 ### 进度监听
 
 ```swift
-let network = NtkAF<Data>.withAF(downloadRequest)
+let network = NtkAF<Data>.alamofire(downloadRequest)
 
 // 监听下载进度
 network.downloadProgress { progress in
@@ -421,7 +449,7 @@ struct CommonParameterInterceptor: iNtkRequestModifyingInterceptor {
     }
 }
 
-let network = NtkAF<User>.withAF(request)
+let network = NtkAF<User>.alamofire(request)
 network.addInterceptor(LoggingInterceptor())
 network.addInterceptor(CommonParameterInterceptor())
 let user = try await network.request()
@@ -438,16 +466,35 @@ let user = try await network.request()
 实现 `iNtkResponseParser` 协议来自定义解析逻辑：
 
 ```swift
-struct CustomParser: iNtkResponseParser {
-    var priority: NtkInterceptorPriority { .innerHigh }
-    
-    func parse(response: any iNtkResponse) async throws -> any iNtkResponse {
-        // 自定义解析逻辑
-        return response
+struct DirectUserParser: iNtkResponseParser {
+    func intercept(
+        context: NtkInterceptorContext,
+        next: any iNtkRequestHandler
+    ) async throws -> any iNtkResponse {
+        let response = try await next.handle(context: context)
+        guard let clientResponse = response as? NtkClientResponse,
+              let data = clientResponse.data as? Data else {
+            throw NtkError.invalidResponseType(response: response)
+        }
+
+        let user = try JSONDecoder().decode(User.self, from: data)
+        return NtkResponse(
+            code: NtkReturnCode(0),
+            data: user,
+            msg: nil,
+            response: clientResponse,
+            request: context.request.originalRequest,
+            isCache: clientResponse.isCache
+        )
     }
 }
 
-let network = NtkAF<User>.withAF(request, responseParser: CustomParser())
+let network = NtkAF<User>.alamofire(
+    request,
+    configuration: NtkAFConfiguration(
+        parsing: .custom(DirectUserParser())
+    )
+)
 ```
 
 ### 配置重试策略
@@ -460,7 +507,7 @@ let retryPolicy = NtkExponentialBackoffRetryPolicy(
     multiplier: 2.0
 )
 
-let network = NtkAF<User>.withAF(request)
+let network = NtkAF<User>.alamofire(request)
 network.setRetryPolicy(retryPolicy)
 let user = try await network.request()
 ```
@@ -470,7 +517,7 @@ let user = try await network.request()
 某些场景（如文件上传）需要禁用请求去重：
 
 ```swift
-let network = NtkAF<UploadResponse>.withAF(uploadRequest)
+let network = NtkAF<UploadResponse>.alamofire(uploadRequest)
 network.disableDeduplication()  // 禁用去重
 let response = try await network.request()
 ```
