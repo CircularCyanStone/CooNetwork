@@ -46,6 +46,6 @@ struct MyRequest: iAFRequest {
     var method: NtkHTTPMethod { .get }
 }
 
-let network = NtkAF<MyModel>.withAF(request)
+let network = NtkAF<MyModel>.alamofire(request)
 let response = try await network.request()
 ```

@@ -25,10 +25,11 @@ func testT1_BasicRequest() -> TestSuite {
         )
 
         do {
-            let result = try await NtkAF<Post>.withAF(
+            let result = try await NtkAF<Post>.alamofire(
                 request,
-                validation: StandardValidation(),
-                responseParser: DirectDataParsingInterceptor<Post>()
+                configuration: NtkAFConfiguration(
+                    parsing: .custom(DirectDataParsingInterceptor<Post>())
+                )
             ).request()
 
             let duration = Date().timeIntervalSince(startTime)
@@ -86,9 +87,11 @@ func testT2_NewAPITest() -> TestSuite {
         )
 
         do {
-            let response = try await NtkAF<Post>.withAF(
+            let response = try await NtkAF<Post>.alamofire(
                 request,
-                responseParser: DirectDataParsingInterceptor<Post>()
+                configuration: NtkAFConfiguration(
+                    parsing: .custom(DirectDataParsingInterceptor<Post>())
+                )
             ).request()
 
             let duration = Date().timeIntervalSince(startTime)
@@ -142,10 +145,11 @@ func testT3_LoggingTest() -> TestSuite {
                 parameters: nil
             )
 
-            let _ = try await NtkAF<HttpBinResponse>.withAF(
+            let _ = try await NtkAF<HttpBinResponse>.alamofire(
                 request,
-                validation: StandardValidation(),
-                responseParser: DirectDataParsingInterceptor<HttpBinResponse>()
+                configuration: NtkAFConfiguration(
+                    parsing: .custom(DirectDataParsingInterceptor<HttpBinResponse>())
+                )
             ).request()
 
             let duration = Date().timeIntervalSince(startTime)
@@ -201,10 +205,11 @@ func testT4_DeduplicationTest() -> TestSuite {
                 for _ in 1...5 {
                     group.addTask {
                         do {
-                            let result = try await NtkAF<[Post]>.withAF(
+                            let result = try await NtkAF<[Post]>.alamofire(
                                 request,
-                                validation: StandardValidation(),
-                                responseParser: DirectDataParsingInterceptor<[Post]>()
+                                configuration: NtkAFConfiguration(
+                                    parsing: .custom(DirectDataParsingInterceptor<[Post]>())
+                                )
                             ).request()
                             return .success(result.data)
                         } catch {
@@ -304,19 +309,21 @@ func testT5_CacheTest() -> TestSuite {
             var cacheMisses = 0
 
             // 第一次请求（缓存未命中）
-            let result1 = try await NtkAF<Post>.withAF(
+            let result1 = try await NtkAF<Post>.alamofire(
                 request,
-                validation: StandardValidation(),
-                responseParser: DirectDataParsingInterceptor<Post>()
+                configuration: NtkAFConfiguration(
+                    parsing: .custom(DirectDataParsingInterceptor<Post>())
+                )
             ).request()
 
             if result1.isCache { cacheHits += 1 } else { cacheMisses += 1 }
 
             // 第二次请求（缓存命中）
-            let result2 = try await NtkAF<Post>.withAF(
+            let result2 = try await NtkAF<Post>.alamofire(
                 request,
-                validation: StandardValidation(),
-                responseParser: DirectDataParsingInterceptor<Post>()
+                configuration: NtkAFConfiguration(
+                    parsing: .custom(DirectDataParsingInterceptor<Post>())
+                )
             ).request()
 
             if result2.isCache { cacheHits += 1 } else { cacheMisses += 1 }
@@ -373,10 +380,11 @@ func testT6_RetryTest() -> TestSuite {
                 parameters: nil
             )
 
-            let _ = try await NtkAF<HttpBinResponse>.withAF(
+            let _ = try await NtkAF<HttpBinResponse>.alamofire(
                 request,
-                validation: StandardValidation(),
-                responseParser: DirectDataParsingInterceptor<HttpBinResponse>()
+                configuration: NtkAFConfiguration(
+                    parsing: .custom(DirectDataParsingInterceptor<HttpBinResponse>())
+                )
             ).request()
 
             let duration = Date().timeIntervalSince(startTime)
@@ -427,10 +435,11 @@ func testT7_ConcurrencyTest() -> TestSuite {
                                 method: .get,
                                 parameters: nil
                             )
-                            let result = try await NtkAF<Post>.withAF(
+                            let result = try await NtkAF<Post>.alamofire(
                                 request,
-                                validation: StandardValidation(),
-                                responseParser: DirectDataParsingInterceptor<Post>()
+                                configuration: NtkAFConfiguration(
+                                    parsing: .custom(DirectDataParsingInterceptor<Post>())
+                                )
                             ).request()
                             return .success(result.data)
                         } catch {
@@ -510,10 +519,11 @@ func testT8_MemoryLeakTest() -> TestSuite {
                 )
 
                 let task = Task {
-                    _ = try? await NtkAF<HttpBinResponse>.withAF(
+                    _ = try? await NtkAF<HttpBinResponse>.alamofire(
                         request,
-                        validation: StandardValidation(),
-                        responseParser: DirectDataParsingInterceptor<HttpBinResponse>()
+                        configuration: NtkAFConfiguration(
+                            parsing: .custom(DirectDataParsingInterceptor<HttpBinResponse>())
+                        )
                     ).request()
                 }
 

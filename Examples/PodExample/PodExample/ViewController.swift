@@ -402,10 +402,11 @@ func testIPv6() {
         let req1 = IPv6Request(urlStr: url1)
 
         do {
-            let result1 = try await NtkAF<IPv6Response>.withAF(
+            let result1 = try await NtkAF<IPv6Response>.alamofire(
                 req1,
-                validation: IPv6Validation(),
-                responseParser: IPv6ParsingInterceptor()
+                configuration: NtkAFConfiguration(
+                    parsing: .custom(IPv6ParsingInterceptor())
+                )
             ).request()
             print("✅ IPv4 Result: IP=\(result1.data.ip), Type=\(result1.data.type)")
         } catch {
@@ -417,10 +418,11 @@ func testIPv6() {
         let req2 = IPv6Request(urlStr: url2)
 
         do {
-            let result2 = try await NtkAF<IPv6Response>.withAF(
+            let result2 = try await NtkAF<IPv6Response>.alamofire(
                 req2,
-                validation: IPv6Validation(),
-                responseParser: IPv6ParsingInterceptor()
+                configuration: NtkAFConfiguration(
+                    parsing: .custom(IPv6ParsingInterceptor())
+                )
             ).request()
             print("✅ IPv6 Result: IP=\(result2.data.ip), Type=\(result2.data.type)")
         } catch {

@@ -16,10 +16,11 @@ final class EWPublicIPFetchAPI: Sendable {
     static func execute(_ ipType: IPType, _ completion: @escaping ((_ ip: String?, _ error: Error?) -> Void)) {
         Task {
             do {
-                let result = try await NtkAF<ResponseModel>.withAF(
+                let result = try await NtkAF<ResponseModel>.alamofire(
                     Request(ipType: ipType),
-                    responseParser: NetworkInterceptor(),
-                    validation: ResponseValidation()
+                    configuration: NtkAFConfiguration(
+                        parsing: .custom(NetworkInterceptor())
+                    )
                 ).request()
                 completion(result.data.ip, nil)
             } catch {

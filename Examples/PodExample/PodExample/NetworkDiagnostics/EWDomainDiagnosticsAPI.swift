@@ -16,10 +16,11 @@ final class EWDomainDiagnosticsAPI: Sendable {
     static func execute(_ domain: String, _ completion: @escaping ((_ code: String, _ msg: String) -> Void)) {
         Task {
             do {
-                let result = try await NtkAF<NtkNever>.withAF(
+                let result = try await NtkAF<NtkNever>.alamofire(
                     Request(domain: domain),
-                    responseParser: NetworkInterceptor(),
-                    validation: ResponseValidation()
+                    configuration: NtkAFConfiguration(
+                        parsing: .custom(NetworkInterceptor())
+                    )
                 ).request()
                 completion(result.code.stringValue, result.code.intValue == 200 ? "连接正常" : "连接异常")
             } catch let error as NtkError.Client {

@@ -58,7 +58,7 @@ struct AFClientUploadTests {
     /// 验证 data upload 请求能正确构建并发送（预期因示例域名失败）
     @Test func testDataUploadRequest() async {
         let req = DataUploadRequest()
-        let network = NtkAF<NtkNever>.withAF(req)
+        let network = NtkAF<NtkNever>.alamofire(req)
         await expectUploadRequestCompletes {
             _ = try await network.request()
         }
@@ -67,7 +67,7 @@ struct AFClientUploadTests {
     /// 验证 multipart upload 请求能正确构建
     @Test func testMultipartUploadRequest() async {
         let req = MultipartUploadRequest(imageData: Data("fake-image".utf8))
-        let network = NtkAF<NtkNever>.withAF(req)
+        let network = NtkAF<NtkNever>.alamofire(req)
         await expectUploadRequestCompletes {
             _ = try await network.request()
         }
@@ -76,7 +76,7 @@ struct AFClientUploadTests {
     /// 验证链式 API onTransferProgress 能正确挂载
     @Test func testChainAPIProgressHandler() async {
         let req = DataUploadRequest()
-        let network = NtkAF<NtkNever>.withAF(req)
+        let network = NtkAF<NtkNever>.alamofire(req)
             .onTransferProgress { _ in
                 // 进度回调挂载验证（不需要实际触发）
             }
@@ -89,7 +89,7 @@ struct AFClientUploadTests {
     @Test func testProtocolProgressHandler() async {
         var req = UploadWithProgressRequest()
         req.onTransferProgress = { _ in }
-        let network = NtkAF<NtkNever>.withAF(req)
+        let network = NtkAF<NtkNever>.alamofire(req)
         await expectUploadRequestCompletes {
             _ = try await network.request()
         }
@@ -98,7 +98,7 @@ struct AFClientUploadTests {
     /// 验证 requestWithProgress 返回 AsyncThrowingStream
     @Test func testRequestWithProgress() async {
         let req = DataUploadRequest()
-        let stream = NtkAF<NtkNever>.withAF(req).requestWithProgress()
+        let stream = NtkAF<NtkNever>.alamofire(req).requestWithProgress()
         do {
             for try await event in stream {
                 switch event {

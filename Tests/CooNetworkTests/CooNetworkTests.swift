@@ -62,7 +62,7 @@ struct CooNetworkTests {
 
     @Test func testGetUserInfo() async throws {
         let request = GetUserInfoRequest(userId: 1001)
-        let network = NtkAF<UserInfo>.withAF(request)
+        let network = NtkAF<UserInfo>.alamofire(request)
         await expectExampleRequestFailure {
             _ = try await network.request()
         }
@@ -70,7 +70,7 @@ struct CooNetworkTests {
 
     @Test func testUpdateProfile() async throws {
         let request = UpdateProfileRequest(newName: "CooNetwork User")
-        let network = NtkAFBool.withAF(request)
+        let network = NtkAFBool.alamofire(request)
         await expectExampleRequestFailure {
             _ = try await network.request()
         }
@@ -78,7 +78,7 @@ struct CooNetworkTests {
 
     @Test func testReportWithNoData() async throws {
         let request = ReportRequest()
-        let network = NtkAF<NtkNever>.withAF(request)
+        let network = NtkAF<NtkNever>.alamofire(request)
         await expectExampleRequestFailure {
             _ = try await network.request()
         }
@@ -101,9 +101,11 @@ struct CooNetworkTests {
             func hasData(key: String, for request: NtkMutableRequest) async -> Bool { return false }
         }
 
-        let network = NtkAF<UserInfo>.withAF(
+        let network = NtkAF<UserInfo>.alamofire(
             request,
-            storage: MemoryCache()
+            configuration: NtkAFConfiguration(
+                cacheStorage: MemoryCache()
+            )
         )
 
         await expectExampleRequestFailure {

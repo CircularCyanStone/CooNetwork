@@ -8,10 +8,11 @@ func testT9_RequestModification() -> TestSuite {
     ) {
         let startTime = Date()
         let request = HttpBinRequest(path: "/anything", method: .get, parameters: nil)
-        let network = NtkAF<HttpBinResponse>.withAF(
+        let network = NtkAF<HttpBinResponse>.alamofire(
             request,
-            validation: StandardValidation(),
-            responseParser: DirectDataParsingInterceptor<HttpBinResponse>()
+            configuration: NtkAFConfiguration(
+                parsing: .custom(DirectDataParsingInterceptor<HttpBinResponse>())
+            )
         )
         network.addInterceptor(EchoRequestModifier())
 
@@ -58,10 +59,11 @@ func testT10_RequestModifierOrdering() -> TestSuite {
     ) {
         let startTime = Date()
         let request = HttpBinRequest(path: "/anything", method: .get, parameters: nil)
-        let network = NtkAF<HttpBinResponse>.withAF(
+        let network = NtkAF<HttpBinResponse>.alamofire(
             request,
-            validation: StandardValidation(),
-            responseParser: DirectDataParsingInterceptor<HttpBinResponse>()
+            configuration: NtkAFConfiguration(
+                parsing: .custom(DirectDataParsingInterceptor<HttpBinResponse>())
+            )
         )
         network.addInterceptor(TraceRequestModifier(value: "first"))
         network.addInterceptor(TraceRequestModifier(value: "second"))
@@ -103,10 +105,11 @@ func testT11_ContextValueFlow() -> TestSuite {
         let startTime = Date()
         let probe = ContextFlowProbe()
         let request = HttpBinRequest(path: "/get", method: .get, parameters: nil)
-        let network = NtkAF<HttpBinResponse>.withAF(
+        let network = NtkAF<HttpBinResponse>.alamofire(
             request,
-            validation: StandardValidation(),
-            responseParser: DirectDataParsingInterceptor<HttpBinResponse>()
+            configuration: NtkAFConfiguration(
+                parsing: .custom(DirectDataParsingInterceptor<HttpBinResponse>())
+            )
         )
         network.addInterceptor(ContextWritingInterceptor(probe: probe))
         network.addInterceptor(ContextReadingInterceptor(probe: probe))
