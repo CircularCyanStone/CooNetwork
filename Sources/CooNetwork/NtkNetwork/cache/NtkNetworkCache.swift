@@ -69,11 +69,16 @@ public final class NtkNetworkCache: Sendable {
     /// 只有有限正数的 cacheConfiguration 才允许写入；无效配置返回 false，且该降级绝不影响已获得的
     /// 网络响应。requestIdentity.value 原样交给 storage，不存在第二套 key 算法；调用方必须用稳定字段或
     /// request identity value 维持 user、tenant 隔离，避免排除凭证后跨主体共享。
+    ///
+    /// 写入前会用 `NtkCacheMeta.canEncode(_:)` 检查数据类型，与解档白名单同源：不属于白名单的响应
+    /// （如含 `URL`、`Date`、自定义 Sendable 结构体）直接返回 false 而不落到 storage。这类数据能编码
+    /// 却无法完整解回，若放任写入会留下「写成功、读不出」的脏缓存，甚至在 `.raiseException` 策略的
+    /// 存储实现里触发 OC 异常。
     /// - Parameters:
     ///   - data: 要保存的响应数据。
     ///   - request: 已完成修改的请求快照，提供缓存配置。
     ///   - requestIdentity: 与本次去重共享的稳定、不透明请求 key。
-    /// - Returns: 配置无效时为 false，否则为 storage 的写入结果。
+    /// - Returns: 配置无效或数据类型不可往返时为 false，否则为 storage 的写入结果。
     public func save(
         data: Sendable,
         for request: NtkMutableRequest,
@@ -81,6 +86,9 @@ public final class NtkNetworkCache: Sendable {
     ) async -> Bool {
         guard let cacheConfiguration = request.cacheConfiguration,
               cacheConfiguration.isEnabled else {
+            return false
+        }
+        guard NtkCacheMeta.canEncode(data) else {
             return false
         }
         let versionName = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"

@@ -30,6 +30,82 @@ struct NtkNetworkCacheTests {
         #expect(await capture.key() == requestIdentity.value)
         requireSendable(cache)
     }
+
+    @Test
+    func saveWritesRoundTrippableDataToStorage() async {
+        let storage = NetworkCacheSaveSpyStorage()
+        let cache = NtkNetworkCache(storage: storage)
+        let request = NtkMutableRequest(NetworkCacheSavableRequest())
+        let requestIdentity = NtkRequestIdentity(value: "opaque-request-identity-savable")
+
+        let saved = await cache.save(
+            data: ["code": 0, "module": NSNull()] as [String: Sendable],
+            for: request,
+            requestIdentity: requestIdentity
+        )
+
+        #expect(saved)
+        #expect(await storage.saveCount() == 1)
+    }
+
+    @Test
+    func saveSkipsStorageWhenDataCannotBeDecodedBack() async {
+        let storage = NetworkCacheSaveSpyStorage()
+        let cache = NtkNetworkCache(storage: storage)
+        let request = NtkMutableRequest(NetworkCacheSavableRequest())
+        let requestIdentity = NtkRequestIdentity(value: "opaque-request-identity-unsavable")
+
+        // URL 能被归档编码，但不在解档白名单内；放行会留下「写成功、读不出」的脏缓存。
+        let saved = await cache.save(
+            data: ["u": URL(string: "https://example.com")!] as [String: Sendable],
+            for: request,
+            requestIdentity: requestIdentity
+        )
+
+        #expect(!saved)
+        #expect(await storage.saveCount() == 0)
+    }
+}
+
+private actor NetworkCacheSaveSpy {
+    private var count = 0
+
+    func record() {
+        count += 1
+    }
+
+    func total() -> Int {
+        count
+    }
+}
+
+private struct NetworkCacheSaveSpyStorage: iNtkCacheStorage {
+    private let spy = NetworkCacheSaveSpy()
+
+    func setData(metaData: NtkCacheMeta, key: String, for request: NtkMutableRequest) async -> Bool {
+        await spy.record()
+        return true
+    }
+
+    func getData(key: String, for request: NtkMutableRequest) async -> NtkCacheMeta? {
+        nil
+    }
+
+    func hasData(key: String, for request: NtkMutableRequest) async -> Bool {
+        false
+    }
+
+    func saveCount() async -> Int {
+        await spy.total()
+    }
+}
+
+private struct NetworkCacheSavableRequest: iNtkRequest {
+    var baseURL: URL? { URL(string: "https://example.com") }
+    var path: String { "/cache/savable" }
+    var method: NtkHTTPMethod { .get }
+    var timeout: TimeInterval { 30 }
+    var cacheConfiguration: NtkCacheConfiguration? { .default() }
 }
 
 private struct NetworkCacheTestStorage: iNtkCacheStorage {

@@ -87,6 +87,13 @@ public struct NtkCacheInterceptor: iNtkInterceptor, iNtkCacheProvider {
             )
             return response
         }
+        guard NtkCacheMeta.canEncode(extractedResponse) else {
+            logger.warning(
+                "缓存写入已跳过：requestID=\(context.request.instanceIdentifier.uuidString) identity=\(requestIdentity.value)，原因=响应数据类型不在可归档白名单内；影响=后续相同请求仍会走网络。仅支持 String、Bool、Int、Double、Float、Data、NSNull 及其嵌套的字典/数组，含 URL、Date、自定义 Sendable 类型的响应会被拒绝。",
+                category: .cache
+            )
+            return response
+        }
         let cache = NtkNetworkCache(storage: storage)
         let result = await cache.save(
             data: extractedResponse,

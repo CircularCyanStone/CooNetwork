@@ -57,6 +57,10 @@
 - **缓存过期用时间戳比较** — `timeIntervalSince1970` 是 UTC 秒数，与时区无关，性能优于创建 Date 对象
 - **NtkLogger 日志级别** — `log()` 方法已实现级别检查，所有便捷方法均经过检查，无绕过调用
 - **NtkCacheMeta 用 NSSecureCoding 不用 Codable** — 设计定位为接口缓存，NSSecureCoding 满足 OC 组件存储需求，Codable 非核心需求
+- **缓存数据白名单必须包含 `NSNull`，且写入侧与解档侧共用同一份定义** — 后端 JSON 的 `null` 会以 `NSNull` 进入响应字典。白名单缺席 `NSNull` 时，写入侧完全正常，读取侧却会被 `NSKeyedUnarchiver` 判为非法类：默认策略（`.setErrorAndReturn`）下整个 `data` 静默变 `nil`，`.raiseException` 策略下抛 `NSInvalidUnarchiveOperationException`（OC 异常，Swift 的 `try?`/`do-catch` 捕获不到，直接终止进程）。因此白名单收敛为 `NtkCacheMeta.allowedDataClasses` 单一常量，`canEncode(_:)` 与 `init?(coder:)` 共用。
+- **缓存写入前用 `canEncode(_:)` 递归校验，而非依赖归档成功** — 归档成功不等于能解回：`URL`、`Date`、自定义 Sendable 结构体都能编码，但不在解档白名单内，放任写入会留下「写成功、读不出」的脏缓存。校验必须递归，因为 `[String: Sendable]` 的元素可以是这类值。`save` 与 `NtkCacheInterceptor` 都会在调用 storage 前拦截，前者保证不落盘，后者用 warning 日志说明原因。
+- **`data` 解不出来时整个 `NtkCacheMeta` 返回 `nil`，不构造 `data` 为 `nil` 的伪命中** — 用 `coder.containsValue(forKey: "data")` 区分「键不存在」（合法：写入侧只在 `data` 非 nil 时编码）与「键存在但解不出白名单类型」（脏缓存或损坏）。后者若退化成 `data=nil`，缓存会永久失效且没有任何错误信号，比解档失败更难排查。
+- **容器内的 `Bool` 与 `Float` 往返后可能退化为 `NSNumber` 桥接形态** — 顶层 `Bool`/`Float` 能保持原类型，但字典或数组里的 `NSNumber` 无法区分 `Bool`、`Int`、`Double` 的原始 Swift 类型：实测数组 `[true, 1]` 读出为 `[Double(1.0), Double(1.0)]`，容器内 `Float` 读出为 `Double`（数值精度不变）。这是 `NSSecureCoding` 的固有行为，不视为缺陷；需要精确类型契约时应直接使用顶层标量或 `Data`。
 - **`Error?` / `any Error` 持有非 Sendable 是可接受的 `@unchecked Sendable` 用法** — `Error` 协议不要求 `Sendable` 是 Swift 类型系统的已知限制；实际传入的 `URLError`/`AFError` 都是 Sendable 的，`@unchecked Sendable` 是标准做法，不应作为 review 问题提出（如 `NtkError.Client.ExternalContext`）
 - **协议方法数量不作为 review 问题** — 适配层协议（如 `iAFRequest`）的方法数量由后端能力决定，不是代码质量问题
 - **`NtkReturnCode` 两个 init 是刻意设计** — `init(_ value: Any?)` failable 用于 `JSONSerialization` 解析入口，`init(_ value: Sendable?)` non-failable 用于通用构造，语义不同不应合并
