@@ -209,6 +209,14 @@ struct NtkPayloadNormalizationTests {
     }
 
     @Test
+    func dynamicDataFromJSONNullAndWrappedValuePreserveSemantics() {
+        let wrapped = NtkDynamicData(string: "value")
+
+        #expect(NtkDynamicData.from(NSNull()).isNull())
+        #expect(NtkDynamicData.from(wrapped) === wrapped)
+    }
+
+    @Test
     func dynamicDataScalarAccessorsReturnNilWhenConversionFails() {
         #expect(NtkDynamicData(dictionary: ["value": 1]).getString() == nil)
         #expect(NtkDynamicData(array: [1]).getString() == nil)

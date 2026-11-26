@@ -94,6 +94,8 @@ public final class NtkDynamicData: NSObject, Sendable, Codable {
     /// 从任意Sendable值创建NtkDynamicData
     public static func from(_ value: any Sendable) -> NtkDynamicData {
         switch value {
+        case let dynamic as NtkDynamicData:
+            return dynamic
         case let dict as [String: any Sendable]:
             return NtkDynamicData(dictionary: dict)
         case let array as [any Sendable]:
@@ -108,6 +110,8 @@ public final class NtkDynamicData: NSObject, Sendable, Codable {
                 return NtkDynamicData(array: bridged)
             }
             return NtkDynamicData(string: String(describing: array))
+        case is NSNull:
+            return NtkDynamicData()
         case let string as NSString:
             return NtkDynamicData(string: String(string))
         case let number as NSNumber:
